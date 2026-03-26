@@ -170,7 +170,7 @@ function ParentHome({ profile, players, onNav }) {
   return (
     <div>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800 }}>Hey, {profile.full_name.split(' ')[0]}! 👋</h1>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800 }}>Hey, {profile?.full_name.split(' ')[0]}! 👋</h1>
         <p style={{ color: 'var(--text2)', marginTop: 4 }}>Manage training for your {players.length > 1 ? 'players' : 'player'}.</p>
       </div>
 
@@ -219,4 +219,4 @@ function ParentSessions({ players }) { return <div style={{color:'white'}}>Sessi
 function ParentSchedule({ players }) { return <div style={{color:'white'}}>Booking system coming soon...</div> }
 function ParentBilling({ players }) { return <div style={{color:'white'}}>Billing details coming soon...</div> }
 function ParentEvents() { return <div style={{color:'white'}}>Events coming soon...</div> }
-function ParentProfile({ profile, players }) { return <div style={{color:'white'}}>Profile settings for {profile.full_name}</div> }
+function ParentProfile({ profile, players }) { return <div style={{color:'white'}}>Profile settings for {profile?.full_name}</div> }
