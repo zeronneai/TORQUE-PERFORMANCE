@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react'
 import { Calendar, RotateCcw, X, ChevronRight, Home, BookOpen, CreditCard, Megaphone, User, Plus } from 'lucide-react'
 import { Card, Badge, Avatar, Btn, Modal, SessionBubble, ProgressBar, Label } from '../../components/UI'
 import { useUser } from "@clerk/clerk-react"
-import { supabase } from "../../supabaseClient" 
+import { supabase } from "../../supabaseClient" // Asegúrate de que la ruta sea correcta
 import { PACKAGES, SLOTS, SESSION_TYPES, EVENTS } from '../../data/mockData'
 
+// ── PARENT PORTAL SHELL ──────────────────────────────────────────────────────
 export default function ParentPortal({ onBack }) {
-  const { user, isLoaded } = useUser(); // isLoaded es vital
+  const { user } = useUser();
   const [page, setPage] = useState('home');
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [players, setPlayers] = useState([]);
 
+  // Estado para el formulario de Onboarding
   const [onboardingData, setOnboardingData] = useState({
     phone: '',
     kidName: '',
@@ -20,42 +22,40 @@ export default function ParentPortal({ onBack }) {
   });
 
   useEffect(() => {
-    if (isLoaded && user) fetchTorqueData();
-    else if (isLoaded && !user) setLoading(false);
-  }, [isLoaded, user]);
+    if (user) fetchTorqueData();
+  }, [user]);
 
   async function fetchTorqueData() {
-    try {
-      setLoading(true);
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+    setLoading(true);
+    // 1. Buscar Perfil en Supabase
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
 
-      if (prof) {
-        setProfile(prof);
-        const { data: kids } = await supabase
-          .from('players')
-          .select('*')
-          .eq('parent_id', user.id);
-        setPlayers(kids || []);
-      }
-    } catch (err) {
-      console.error("Error:", err);
-    } finally {
-      setLoading(false);
+    if (prof) {
+      setProfile(prof);
+      // 2. Buscar Jugadores (hijos)
+      const { data: kids } = await supabase
+        .from('players')
+        .select('*')
+        .eq('parent_id', user.id);
+      setPlayers(kids || []);
     }
+    setLoading(false);
   }
 
   async function handleInitialRegister(e) {
     e.preventDefault();
     setLoading(true);
     
+    // Crear Perfil
     const { error: pError } = await supabase.from('profiles').insert([
       { id: user.id, full_name: user.fullName, email: user.primaryEmailAddress.emailAddress, phone: onboardingData.phone, role: 'parent' }
     ]);
 
+    // Crear Primer Hijo
     const { error: kError } = await supabase.from('players').insert([
       { 
         parent_id: user.id, 
@@ -68,48 +68,42 @@ export default function ParentPortal({ onBack }) {
     if (!pError && !kError) {
       fetchTorqueData();
     } else {
-      alert("Error al registrar. Revisa las políticas de Supabase.");
+      alert("Error al registrar. Revisa los permisos en Supabase.");
       setLoading(false);
     }
   }
 
-  // PANTALLA DE CARGA
-  if (!isLoaded || loading) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#080f18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: '#ce9f42', fontFamily: 'var(--font-display)', textAlign: 'center' }}>
-            <div className="pulse">ESTABLISHING CONNECTION...</div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div style={{ padding: 40, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>LOADING TORQUE SYSTEM...</div>;
 
-  // ONBOARDING
+  // BLOQUE DE ONBOARDING (Si no tiene perfil en la DB)
   if (!profile) {
     return (
-      <div style={{ minHeight: '100vh', background: '#080f18', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ maxWidth: 500, width: '100%', padding: 30, background: 'var(--navy2)', borderRadius: 16, border: '1px solid var(--border)' }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--gold)', marginBottom: 10 }}>WELCOME TO TORQUE</h2>
-            <p style={{ color: 'var(--text2)', marginBottom: 20, fontSize: 14 }}>Complete your member profile to access the portal.</p>
-            <form onSubmit={handleInitialRegister} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Label>Parent Phone</Label>
-            <input required style={inputStyle} placeholder="(555) 000-0000" onChange={e => setOnboardingData({...onboardingData, phone: e.target.value})} />
-            <h4 style={{ fontSize: 12, color: 'var(--text3)', textTransform: 'uppercase', marginTop: 10 }}>First Player Details</h4>
-            <Label>Player Name</Label>
-            <input required style={inputStyle} placeholder="Son/Daughter name" onChange={e => setOnboardingData({...onboardingData, kidName: e.target.value})} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                <Label>Age</Label>
-                <input required type="number" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidAge: e.target.value})} />
-                </div>
-                <div>
-                <Label>Birthdate</Label>
-                <input required type="date" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidBirthdate: e.target.value})} />
-                </div>
+      <div style={{ maxWidth: 500, margin: '60px auto', padding: 30, background: 'var(--navy2)', borderRadius: 16, border: '1px solid var(--border)' }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--gold)', marginBottom: 10 }}>WELCOME TO TORQUE</h2>
+        <p style={{ color: 'var(--text2)', marginBottom: 20, fontSize: 14 }}>Complete your member profile to access the portal.</p>
+        <form onSubmit={handleInitialRegister} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Label>Parent Phone</Label>
+          <input required style={inputStyle} placeholder="(555) 000-0000" onChange={e => setOnboardingData({...onboardingData, phone: e.target.value})} />
+          
+          <div style={{ height: 1, background: 'var(--border)', margin: '10px 0' }} />
+          <h4 style={{ fontSize: 12, color: 'var(--text3)', textTransform: 'uppercase' }}>First Player Details</h4>
+          
+          <Label>Player Name</Label>
+          <input required style={inputStyle} placeholder="Son/Daughter name" onChange={e => setOnboardingData({...onboardingData, kidName: e.target.value})} />
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <Label>Age</Label>
+              <input required type="number" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidAge: e.target.value})} />
             </div>
-            <Btn type="submit" style={{ marginTop: 20, justifyContent: 'center' }}>Create Account</Btn>
-            </form>
-        </div>
+            <div>
+              <Label>Birthdate</Label>
+              <input required type="date" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidBirthdate: e.target.value})} />
+            </div>
+          </div>
+          
+          <Btn type="submit" style={{ marginTop: 10, justifyContent: 'center' }}>Create Account</Btn>
+        </form>
       </div>
     );
   }
@@ -119,19 +113,21 @@ export default function ParentPortal({ onBack }) {
     { id: 'sessions', label: 'Sessions', icon: BookOpen },
     { id: 'schedule', label: 'Book', icon: Calendar },
     { id: 'billing', label: 'Billing', icon: CreditCard },
+    { id: 'events', label: 'Events', icon: Megaphone },
     { id: 'profile', label: 'Profile', icon: User },
   ]
 
   const PAGE_MAP = {
     home: <ParentHome profile={profile} players={players} onNav={setPage} />,
-    sessions: <ParentSessions players={players} />,
-    schedule: <ParentSchedule players={players} />,
-    billing: <ParentBilling players={players} />,
+    sessions: <ParentSessions profile={profile} players={players} />,
+    schedule: <ParentSchedule profile={profile} players={players} />,
+    billing: <ParentBilling profile={profile} players={players} />,
+    events: <ParentEvents />,
     profile: <ParentProfile profile={profile} players={players} />,
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#080f18' }}>
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
       <aside style={sidebarStyle}>
         <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontSize: 28, marginBottom: 6 }}>⚾</div>
@@ -140,7 +136,7 @@ export default function ParentPortal({ onBack }) {
         </div>
         <div style={{ padding: '10px 14px', background: 'rgba(212,160,23,0.08)', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Member</div>
-          <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>{profile?.full_name}</div>
+          <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>{profile.full_name}</div>
         </div>
         <nav style={{ flex: 1, padding: '12px 10px' }}>
           {NAV.map(({ id, label, icon: Icon }) => {
@@ -169,39 +165,58 @@ export default function ParentPortal({ onBack }) {
   )
 }
 
-// ── COMPONENTES INTERNOS ───────────────────────────────────────────────────
-
-function ParentHome({ profile, players }) {
+// ── HOME (Dinámico) ──────────────────────────────────────────────────────────
+function ParentHome({ profile, players, onNav }) {
   return (
     <div>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, color: 'white' }}>
-            Hey, {profile?.full_name?.split(' ')[0]}! 👋
-        </h1>
-        <p style={{ color: 'var(--text2)', marginTop: 4 }}>Manage training for your {players.length} players.</p>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800 }}>Hey, {profile.full_name.split(' ')[0]}! 👋</h1>
+        <p style={{ color: 'var(--text2)', marginTop: 4 }}>Manage training for your {players.length > 1 ? 'players' : 'player'}.</p>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-        {players.map((player, index) => (
-          <Card key={player.id}>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-              <Avatar initials={player.kid_name[0]} size={44} color={index > 0 ? 'var(--gold)' : 'var(--red)'} />
-              <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'white' }}>{player.kid_name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text3)' }}>Age {player.age} · Active Member</div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 24 }}>
+        {players.map((player, index) => {
+          const isSibling = index > 0; // Lógica de Sibling Package automática
+          return (
+            <Card key={player.id}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+                <Avatar initials={player.kid_name[0]} size={44} color={isSibling ? 'var(--gold)' : 'var(--red)'} />
+                <div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800 }}>{player.kid_name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text3)' }}>Age {player.age} · Active Member</div>
+                  {isSibling && <Badge color="gold">Sibling Discount Active</Badge>}
+                </div>
               </div>
-            </div>
-            <ProgressBar value={0} max={12} />
-          </Card>
-        ))}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+                  <span style={{ color: 'var(--text2)' }}>Sessions remaining</span>
+                  <span style={{ fontWeight: 700, color: 'var(--green)' }}>- / -</span>
+                </div>
+                <ProgressBar value={0} max={12} />
+              </div>
+            </Card>
+          )
+        })}
+        {/* Botón para añadir más hijos */}
+        <Card style={{ borderStyle: 'dashed', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
+           <div style={{ textAlign: 'center', color: 'var(--text3)' }}>
+              <Plus size={24} style={{ marginBottom: 8 }}/>
+              <div style={{ fontSize: 12, fontWeight: 700 }}>Add Player</div>
+           </div>
+        </Card>
       </div>
     </div>
   )
 }
 
-function ParentSessions({ players }) { return <div style={{color:'white'}}>Sessions...</div> }
-function ParentSchedule({ players }) { return <div style={{color:'white'}}>Booking...</div> }
-function ParentBilling({ players }) { return <div style={{color:'white'}}>Billing...</div> }
-function ParentProfile({ profile }) { return <div style={{color:'white'}}>Profile settings for {profile?.full_name}</div> }
-
+// Estilos rápidos y Sub-componentes (Billing, Sessions, etc. deben actualizarse similar a Home)
 const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, left: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
 const inputStyle = { width: '100%', padding: '10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white', marginTop: 4 };
+
+// Nota: Para las otras páginas (Sessions, Billing, Schedule) se debe seguir el mismo patrón:
+// Usar la prop "players" que viene de la base de datos en lugar del objeto "family" falso.
+function ParentSessions({ players }) { return <div style={{color:'white'}}>Session tracking for {players.length} players coming soon...</div> }
+function ParentSchedule({ players }) { return <div style={{color:'white'}}>Booking system coming soon...</div> }
+function ParentBilling({ players }) { return <div style={{color:'white'}}>Billing details coming soon...</div> }
+function ParentEvents() { return <div style={{color:'white'}}>Events coming soon...</div> }
+function ParentProfile({ profile, players }) { return <div style={{color:'white'}}>Profile settings for {profile.full_name}</div>
