@@ -13,6 +13,61 @@ export default function ParentPortal({ onBack }) {
   const [profile, setProfile] = useState(null);
   const [players, setPlayers] = useState([]);
 
+  useEffect(() => {
+    if (user) fetchTorqueData();
+  }, [user]);
+
+  async function fetchTorqueData() {
+    try {
+      setLoading(true);
+      // Intentamos traer el perfil
+      const { data: prof, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (prof) {
+        setProfile(prof);
+        const { data: kids } = await supabase
+          .from('players')
+          .select('*')
+          .eq('parent_id', user.id);
+        setPlayers(kids || []);
+      }
+    } catch (err) {
+      console.error("Error crítico:", err);
+    } finally {
+      setLoading(false); // ESTO asegura que el fondo azul se quite
+    }
+  }
+
+  // --- RENDERIZADO DE SEGURIDAD ---
+  if (loading) {
+    return (
+      <div style={{ background: '#080f18', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>
+        <div className="pulse">ESTABLISHING CONNECTION...</div>
+      </div>
+    );
+  }
+
+  // Si terminó de cargar y NO hay perfil, forzamos el Onboarding
+  if (!profile) {
+    return <OnboardingScreen user={user} onComplete={fetchTorqueData} />;
+  }
+
+  // Si llegamos aquí, es porque SI hay perfil.
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#080f18' }}>
+       {/* Aquí va todo tu sidebar y el PAGE_MAP que ya tenías */}
+       <aside style={sidebarStyle}> ... </aside>
+       <main style={{ flex: 1, marginLeft: 220, padding: '36px 40px' }}>
+          {PAGE_MAP[page]}
+       </main>
+    </div>
+  );
+};
+
   // Estado para el formulario de Onboarding
   const [onboardingData, setOnboardingData] = useState({
     phone: '',
@@ -189,7 +244,30 @@ function ParentHome({ profile, players, onNav }) {
     </div>
   )
 }
+function OnboardingScreen({ user, onComplete }) {
+  const [phone, setPhone] = useState('');
+  const [kidName, setKidName] = useState('');
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // Aquí pegas la lógica de insert que te pasé antes
+    // Al finalizar llamas a onComplete();
+    alert("Intentando registrar a: " + kidName);
+  };
 
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#080f18' }}>
+      <Card style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
+        <h2 style={{ color: 'var(--gold)', marginBottom: 20 }}>WELCOME TO TORQUE</h2>
+        <form onSubmit={handleSubmit}>
+          <input placeholder="Your Phone" onChange={e => setPhone(e.target.value)} style={inputStyle} />
+          <input placeholder="Player Name" onChange={e => setKidName(e.target.value)} style={inputStyle} />
+          <Btn type="submit" style={{ marginTop: 20, width: '100%' }}>Create Member Profile</Btn>
+        </form>
+      </Card>
+    </div>
+  );
+}
 // Estilos rápidos y Sub-componentes (Billing, Sessions, etc. deben actualizarse similar a Home)
 const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, left: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
 const inputStyle = { width: '100%', padding: '10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white', marginTop: 4 };
