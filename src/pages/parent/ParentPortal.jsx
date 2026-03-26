@@ -46,68 +46,49 @@ export default function ParentPortal({ onBack }) {
     setLoading(false);
   }
 
-  async function handleInitialRegister(e) {
-    e.preventDefault();
-    setLoading(true);
-    
-    // Crear Perfil
-    const { error: pError } = await supabase.from('profiles').insert([
-      { id: user.id, full_name: user.fullName, email: user.primaryEmailAddress.emailAddress, phone: onboardingData.phone, role: 'parent' }
-    ]);
+ async function handleInitialRegister(e) {
+  e.preventDefault();
+  setLoading(true);
+  console.log("Iniciando registro para:", user.id); // Rastro 1
 
-    // Crear Primer Hijo
-    const { error: kError } = await supabase.from('players').insert([
-      { 
-        parent_id: user.id, 
-        kid_name: onboardingData.kidName, 
-        age: parseInt(onboardingData.kidAge), 
-        birthdate: onboardingData.kidBirthdate 
-      }
-    ]);
-
-    if (!pError && !kError) {
-      fetchTorqueData();
-    } else {
-      alert("Error al registrar. Revisa los permisos en Supabase.");
-      setLoading(false);
+  // 1. Insertar Perfil
+  const { data: pData, error: pError } = await supabase.from('profiles').insert([
+    { 
+      id: user.id, 
+      full_name: user.fullName, 
+      email: user.primaryEmailAddress.emailAddress, 
+      phone: onboardingData.phone, 
+      role: 'parent' 
     }
+  ]).select();
+
+  if (pError) {
+    console.error("Error en Perfil:", pError.message, pError.details); // Rastro 2
+    alert(`Error Perfil: ${pError.message}`);
+    setLoading(false);
+    return;
   }
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>LOADING TORQUE SYSTEM...</div>;
+  // 2. Insertar Hijo
+  const { data: kData, error: kError } = await supabase.from('players').insert([
+    { 
+      parent_id: user.id, 
+      kid_name: onboardingData.kidName, 
+      age: parseInt(onboardingData.kidAge), 
+      birthdate: onboardingData.kidBirthdate 
+    }
+  ]).select();
 
-  // BLOQUE DE ONBOARDING (Si no tiene perfil en la DB)
-  if (!profile) {
-    return (
-      <div style={{ maxWidth: 500, margin: '60px auto', padding: 30, background: 'var(--navy2)', borderRadius: 16, border: '1px solid var(--border)' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--gold)', marginBottom: 10 }}>WELCOME TO TORQUE</h2>
-        <p style={{ color: 'var(--text2)', marginBottom: 20, fontSize: 14 }}>Complete your member profile to access the portal.</p>
-        <form onSubmit={handleInitialRegister} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Label>Parent Phone</Label>
-          <input required style={inputStyle} placeholder="(555) 000-0000" onChange={e => setOnboardingData({...onboardingData, phone: e.target.value})} />
-          
-          <div style={{ height: 1, background: 'var(--border)', margin: '10px 0' }} />
-          <h4 style={{ fontSize: 12, color: 'var(--text3)', textTransform: 'uppercase' }}>First Player Details</h4>
-          
-          <Label>Player Name</Label>
-          <input required style={inputStyle} placeholder="Son/Daughter name" onChange={e => setOnboardingData({...onboardingData, kidName: e.target.value})} />
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <Label>Age</Label>
-              <input required type="number" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidAge: e.target.value})} />
-            </div>
-            <div>
-              <Label>Birthdate</Label>
-              <input required type="date" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidBirthdate: e.target.value})} />
-            </div>
-          </div>
-          
-          <Btn type="submit" style={{ marginTop: 10, justifyContent: 'center' }}>Create Account</Btn>
-        </form>
-      </div>
-    );
+  if (kError) {
+    console.error("Error en Jugador:", kError.message, kError.details); // Rastro 3
+    alert(`Error Jugador: ${kError.message}`);
+    setLoading(false);
+    return;
   }
 
+  console.log("Registro exitoso:", { pData, kData }); // Rastro 4
+  fetchTorqueData();
+}
   const NAV = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'sessions', label: 'Sessions', icon: BookOpen },
