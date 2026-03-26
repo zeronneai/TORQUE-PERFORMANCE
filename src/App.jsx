@@ -63,6 +63,7 @@ function MainContent() {
 // ── APP ROOT (PROTEGIDO) ─────────────────────────────────────────────────────
 export default function App() {
   const logoTorque = "https://res.cloudinary.com/dsprn0ew4/image/upload/v1774490841/TORQUE_hauofb.png";
+  const fondoTorque = https://res.cloudinary.com/dsprn0ew4/image/upload/v1774491833/Captura_de_pantalla_2026-03-25_202312_roa8ei.png
   return (
     <AppProvider>
       {/* SI NO ESTÁ LOGUEADO: Pantalla de Acceso */}
@@ -76,6 +77,22 @@ export default function App() {
           background: 'var(--navy)',
           textAlign: 'center' 
         }}>
+          {/* CAPA AZUL DE SUPERPOSICIÓN (OVERLAY) */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            // Color azul oscuro con 85% de opacidad (rgba: Red, Green, Blue, Alpha)
+            // Ajusta el último número (0.85) para más o menos transparencia
+            backgroundColor: 'rgba(0, 10, 40, 0.85)', 
+            zIndex: 1 // Capa base
+          }} />
+
+          {/* CONTENIDO DEL LOGIN (LOGO, TÍTULO, FORMULARIO) */}
+          {/* Usamos zIndex: 2 para que esté POR ENCIMA del filtro azul */}
+          <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           {/* LOGO DE TORQUE (REEMPLAZANDO LA PELOTA DE BÉISBOL) */}
           <img 
             src={logoTorque} 
