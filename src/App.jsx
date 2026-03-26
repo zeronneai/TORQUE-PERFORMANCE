@@ -35,7 +35,8 @@ function AdminShell() {
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--navy)' }}>
       <AdminSidebar active={page} onNav={setPage} />
       <main style={{ flex: 1, marginLeft: 230, padding: '36px 40px', minHeight: '100vh' }}>
-        <div style={{ position: 'absolute', top: 20, right: 20 }}>
+        {/* BOTÓN DE PERFIL EN LA ESQUINA */}
+        <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}>
           <UserButton afterSignOutUrl="/" />
         </div>
         <div className="fade-in"><Page /></div>
@@ -44,29 +45,32 @@ function AdminShell() {
   )
 }
 
-// ── LÓGICA DE CONTROL DE ACCESO ─────────────────────────────────────────────
+// ── LÓGICA DE CONTROL DE ACCESO (ADMIN VS PARENT) ──────────────────────────
 function MainContent() {
   const { user } = useUser();
   
   // Leemos el "role" desde los metadatos de Clerk
-  // Tú configurarás esto en el Dashboard de Clerk > Users > (Usuario) > Metadata
   const role = user?.publicMetadata?.role; 
 
   if (role === 'admin') {
     return <AdminShell />;
   }
 
-  // Si no es admin, asumimos que es Parent (o puedes ser más específico)
+  // Si no es admin, asumimos que es Parent y usamos el UserID de Clerk como FamilyID
   return <ParentPortal familyId={user?.id} />;
 }
 
-// ── APP ROOT (PROTEGIDO) ─────────────────────────────────────────────────────
+// ── APP ROOT (PROTEGIDO GLOBALMENTE) ──────────────────────────────────────────
 export default function App() {
+  // 1. Links de tus imágenes
   const logoTorque = "https://res.cloudinary.com/dsprn0ew4/image/upload/v1774490841/TORQUE_hauofb.png";
-  const fondoTorque = https://res.cloudinary.com/dsprn0ew4/image/upload/v1774491833/Captura_de_pantalla_2026-03-25_202312_roa8ei.png
+  
+  // REEMPLAZA ESTO CON TU ENLACE DE CLOUDINARY PARA EL FONDO:
+  const fondoTorque = "https://res.cloudinary.com/dsprn0ew4/image/upload/v1774491833/Captura_de_pantalla_2026-03-25_202312_roa8ei.png"; 
+
   return (
     <AppProvider>
-      {/* SI NO ESTÁ LOGUEADO: Pantalla de Acceso */}
+      {/* 1. SI NO ESTÁ LOGUEADO: Pantalla de Acceso con Fondo y Filtro Azul */}
       <SignedOut>
         <div style={{ 
           minHeight: '100vh', 
@@ -74,9 +78,16 @@ export default function App() {
           flexDirection: 'column',
           alignItems: 'center', 
           justifyContent: 'center', 
-          background: 'var(--navy)',
+          
+          // ESTILOS DEL FONDO:
+          backgroundImage: `url(${fondoTorque})`, // Ponemos la imagen
+          backgroundSize: 'cover', // Que cubra toda la pantalla
+          backgroundPosition: 'center', // Centrada
+          backgroundRepeat: 'no-repeat',
+          position: 'relative', // Necesario para la capa azul
           textAlign: 'center' 
         }}>
+          
           {/* CAPA AZUL DE SUPERPOSICIÓN (OVERLAY) */}
           <div style={{
             position: 'absolute',
@@ -93,19 +104,32 @@ export default function App() {
           {/* CONTENIDO DEL LOGIN (LOGO, TÍTULO, FORMULARIO) */}
           {/* Usamos zIndex: 2 para que esté POR ENCIMA del filtro azul */}
           <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {/* LOGO DE TORQUE (REEMPLAZANDO LA PELOTA DE BÉISBOL) */}
-          <img 
-            src={logoTorque} 
-            alt="Torque Performance Logo" 
-            style={{ width: '180px', marginBottom: '24px', auto: 'height' }} 
-          />
-          <h1 style={{ fontFamily: 'var(--font-display)', color: 'white', marginBottom: 24 }}>TORQUE PERFORMANCE</h1>
-          
-          <SignIn appearance={{ baseTheme: dark }} />
+            
+            {/* LOGO DE TORQUE */}
+            <img 
+              src={logoTorque} 
+              alt="Torque Performance Logo" 
+              style={{ width: '180px', marginBottom: '24px', auto: 'height' }} 
+            />
+            
+            <h1 style={{ 
+              fontFamily: 'var(--font-display)', 
+              color: 'white', 
+              marginBottom: '40px',
+              fontSize: '2rem',
+              letterSpacing: '2px',
+              fontWeight: 800,
+              textTransform: 'uppercase'
+            }}>
+              TORQUE PERFORMANCE
+            </h1>
+            
+            <SignIn appearance={{ baseTheme: dark }} />
+          </div>
         </div>
       </SignedOut>
 
-      {/* SI ESTÁ LOGUEADO: Decide qué panel mostrar */}
+      {/* 2. SI ESTÁ LOGUEADO: Decide qué panel mostrar */}
       <SignedIn>
         <MainContent />
       </SignedIn>
