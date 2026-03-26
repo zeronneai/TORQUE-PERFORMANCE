@@ -52,7 +52,7 @@ export default function ParentPortal({ onBack }) {
     setLoading(false);
   }
 
-  // Función para el registro por primera vez
+  // Registro inicial
   async function handleInitialRegister(e) {
     e.preventDefault();
     setLoading(true);
@@ -95,7 +95,7 @@ export default function ParentPortal({ onBack }) {
     if (!error) {
       setShowAddPlayer(false);
       setNewPlayerData({ name: '', age: '', birthdate: '' });
-      await fetchTorqueData(); // Recarga la lista de hijos
+      await fetchTorqueData(); 
     } else {
       alert("Error al añadir jugador: " + error.message);
     }
@@ -212,8 +212,8 @@ export default function ParentPortal({ onBack }) {
         <div className="fade-in">{PAGE_MAP[page] || PAGE_MAP.home}</div>
       </main>
 
-      {/* MODAL PARA AÑADIR JUGADOR */}
-      <Modal isOpen={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Add New Player">
+      {/* MODAL PARA AÑADIR JUGADOR - PROPIEDAD 'open' CORREGIDA */}
+      <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Add New Player">
         <form onSubmit={handleAddPlayer} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Label>Player Name</Label>
           <input 
