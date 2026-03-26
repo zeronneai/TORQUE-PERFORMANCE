@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react'
+// Al principio del archivo ParentPortal.jsx
+import { useUser, UserButton, useClerk } from "@clerk/clerk-react" // Agregamos useClerk
+import { Calendar, RotateCcw, X, ChevronRight, Home, BookOpen, CreditCard, Megaphone, User, Plus, LogOut } from 'lucide-react' // Agregamos LogOut
 import { Calendar, RotateCcw, X, ChevronRight, Home, BookOpen, CreditCard, Megaphone, User, Plus } from 'lucide-react'
 import { Card, Badge, Avatar, Btn, Modal, SessionBubble, ProgressBar, Label } from '../../components/UI'
 import { useUser } from "@clerk/clerk-react"
@@ -7,6 +10,11 @@ import { PACKAGES, SLOTS, SESSION_TYPES, EVENTS } from '../../data/mockData'
 
 // ── PARENT PORTAL SHELL ──────────────────────────────────────────────────────
 export default function ParentPortal({ onBack }) {
+  export default function ParentPortal({ onBack }) {
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk(); // <-- PONLO AQUÍ
+  const [page, setPage] = useState('home');
+  // ... el resto de tus estados
   const { user } = useUser();
   const [page, setPage] = useState('home');
   const [loading, setLoading] = useState(true);
@@ -140,6 +148,24 @@ export default function ParentPortal({ onBack }) {
         </div>
         <nav style={{ flex: 1, padding: '12px 10px' }}>
           {NAV.map(({ id, label, icon: Icon }) => {
+      <div style={{ marginTop: 'auto', paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+    <button 
+      onClick={() => signOut({ redirectUrl: '/' })} 
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 12px', borderRadius: 8, background: 'transparent',
+        color: '#ff4d4d', // Un rojo sutil para que se note que es salir
+        fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
+        border: 'none', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left'
+      }}
+      onMouseOver={(e) => e.target.style.background = 'rgba(255,77,77,0.1)'}
+      onMouseOut={(e) => e.target.style.background = 'transparent'}
+    >
+      <LogOut size={14} />
+      Sign Out
+    </button>
+  </div>
+</nav>
             const isActive = page === id
             return (
               <button key={id} onClick={() => setPage(id)} style={{
