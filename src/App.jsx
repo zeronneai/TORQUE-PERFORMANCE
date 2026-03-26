@@ -62,6 +62,7 @@ function MainContent() {
 
 // ── APP ROOT (PROTEGIDO) ─────────────────────────────────────────────────────
 export default function App() {
+  const logoTorque = "https://res.cloudinary.com/dsprn0ew4/image/upload/v1774490841/TORQUE_hauofb.png";
   return (
     <AppProvider>
       {/* SI NO ESTÁ LOGUEADO: Pantalla de Acceso */}
@@ -75,7 +76,12 @@ export default function App() {
           background: 'var(--navy)',
           textAlign: 'center' 
         }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>⚾</div>
+          {/* LOGO DE TORQUE (REEMPLAZANDO LA PELOTA DE BÉISBOL) */}
+          <img 
+            src={logoTorque} 
+            alt="Torque Performance Logo" 
+            style={{ width: '180px', marginBottom: '24px', auto: 'height' }} 
+          />
           <h1 style={{ fontFamily: 'var(--font-display)', color: 'white', marginBottom: 24 }}>TORQUE PERFORMANCE</h1>
           
           <SignIn appearance={{ baseTheme: dark }} />
