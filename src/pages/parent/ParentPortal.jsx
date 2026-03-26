@@ -11,13 +11,17 @@ import { PACKAGES, SLOTS, SESSION_TYPES, EVENTS } from '../../data/mockData'
 // ── PARENT PORTAL SHELL ──────────────────────────────────────────────────────
 export default function ParentPortal({ onBack }) {
   const { user } = useUser();
-  const { signOut } = useClerk(); // Hook para cerrar sesión
+  const { signOut } = useClerk();
   const [page, setPage] = useState('home');
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [players, setPlayers] = useState([]);
 
-  // Estado para el formulario de Onboarding
+  // Estados para añadir nuevo jugador (Modal)
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [newPlayerData, setNewPlayerData] = useState({ name: '', age: '', birthdate: '' });
+
+  // Estado para el formulario de Onboarding inicial
   const [onboardingData, setOnboardingData] = useState({
     phone: '',
     kidName: '',
@@ -48,6 +52,7 @@ export default function ParentPortal({ onBack }) {
     setLoading(false);
   }
 
+  // Función para el registro por primera vez
   async function handleInitialRegister(e) {
     e.preventDefault();
     setLoading(true);
@@ -71,6 +76,30 @@ export default function ParentPortal({ onBack }) {
       alert("Error al registrar. Revisa los permisos en Supabase.");
       setLoading(false);
     }
+  }
+
+  // FUNCIÓN PARA AÑADIR JUGADORES ADICIONALES
+  async function handleAddPlayer(e) {
+    e.preventDefault();
+    setLoading(true);
+
+    const { error } = await supabase.from('players').insert([
+      { 
+        parent_id: user.id, 
+        kid_name: newPlayerData.name, 
+        age: parseInt(newPlayerData.age), 
+        birthdate: newPlayerData.birthdate 
+      }
+    ]);
+
+    if (!error) {
+      setShowAddPlayer(false);
+      setNewPlayerData({ name: '', age: '', birthdate: '' });
+      await fetchTorqueData(); // Recarga la lista de hijos
+    } else {
+      alert("Error al añadir jugador: " + error.message);
+    }
+    setLoading(false);
   }
 
   if (loading) return <div style={{ padding: 40, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>LOADING TORQUE SYSTEM...</div>;
@@ -113,7 +142,7 @@ export default function ParentPortal({ onBack }) {
   ]
 
   const PAGE_MAP = {
-    home: <ParentHome profile={profile} players={players} onNav={setPage} />,
+    home: <ParentHome profile={profile} players={players} onNav={setPage} onAdd={() => setShowAddPlayer(true)} />,
     sessions: <ParentSessions profile={profile} players={players} />,
     schedule: <ParentSchedule profile={profile} players={players} />,
     billing: <ParentBilling profile={profile} players={players} />,
@@ -134,9 +163,7 @@ export default function ParentPortal({ onBack }) {
           padding: '12px 14px', 
           background: 'rgba(212,160,23,0.08)', 
           borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div>
             <div style={{ fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Member</div>
@@ -164,7 +191,6 @@ export default function ParentPortal({ onBack }) {
             )
           })}
 
-          {/* BOTÓN DE CERRAR SESIÓN AL FINAL */}
           <div style={{ marginTop: 'auto', paddingTop: 20, borderTop: '1px solid var(--border)' }}>
             <button 
               onClick={() => signOut()} 
@@ -185,12 +211,43 @@ export default function ParentPortal({ onBack }) {
       <main style={{ flex: 1, marginLeft: 220, padding: '36px 40px', minHeight: '100vh' }}>
         <div className="fade-in">{PAGE_MAP[page] || PAGE_MAP.home}</div>
       </main>
+
+      {/* MODAL PARA AÑADIR JUGADOR */}
+      <Modal isOpen={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Add New Player">
+        <form onSubmit={handleAddPlayer} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Label>Player Name</Label>
+          <input 
+            required style={inputStyle} placeholder="Name" 
+            value={newPlayerData.name}
+            onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} 
+          />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <Label>Age</Label>
+              <input 
+                required type="number" style={inputStyle} 
+                value={newPlayerData.age}
+                onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} 
+              />
+            </div>
+            <div>
+              <Label>Birthdate</Label>
+              <input 
+                required type="date" style={inputStyle} 
+                value={newPlayerData.birthdate}
+                onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} 
+              />
+            </div>
+          </div>
+          <Btn type="submit" style={{ marginTop: 15, justifyContent: 'center' }}>Register Player</Btn>
+        </form>
+      </Modal>
     </div>
   )
 }
 
 // ── HOME ──────────────────────────────────────────────────────────
-function ParentHome({ profile, players, onNav }) {
+function ParentHome({ profile, players, onNav, onAdd }) {
   const firstName = profile?.full_name?.split(' ')[0] || 'Member';
   return (
     <div>
@@ -222,7 +279,10 @@ function ParentHome({ profile, players, onNav }) {
             </Card>
           )
         })}
-        <Card style={{ borderStyle: 'dashed', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
+        <Card 
+          onClick={onAdd}
+          style={{ borderStyle: 'dashed', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}
+        >
             <div style={{ textAlign: 'center', color: 'var(--text3)' }}>
                <Plus size={24} style={{ marginBottom: 8 }}/>
                <div style={{ fontSize: 12, fontWeight: 700 }}>Add Player</div>
