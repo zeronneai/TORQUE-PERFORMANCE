@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { 
-  Calendar, RotateCcw, X, ChevronRight, Home, BookOpen, 
-  CreditCard, Megaphone, User, Plus, LogOut, Check, Percent 
+  Home, BookOpen, Calendar, CreditCard, Megaphone, 
+  User, Plus, LogOut, Percent, ChevronRight 
 } from 'lucide-react'
 import { Card, Badge, Avatar, Btn, Modal, ProgressBar, Label } from '../../components/UI'
 import { useUser, useClerk, UserButton } from "@clerk/clerk-react"
@@ -39,13 +39,10 @@ export default function ParentPortal() {
   async function fetchTorqueData() {
     try {
       setLoading(true);
-      // 1. Traer Perfil
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
 
       if (prof) {
         setProfile(prof);
-        
-        // 2. Traer Jugadores (Consulta simple para que no falle)
         const { data: kids, error: kError } = await supabase
           .from('players')
           .select('*')
@@ -53,7 +50,6 @@ export default function ParentPortal() {
         
         if (kError) throw kError;
 
-        // 3. Buscar membresías de forma independiente para cada hijo
         const kidsWithMemberships = await Promise.all((kids || []).map(async (kid) => {
           const { data: m } = await supabase
             .from('memberships')
@@ -76,11 +72,10 @@ export default function ParentPortal() {
     }
   }
 
-  // ── AÑADIR JUGADOR ───────────────────────────────────────────────────────
+  // ── ACCIONES ─────────────────────────────────────────────────────────────
   async function handleAddPlayer(e) {
     e.preventDefault();
     if (!newPlayerData.name) return;
-    
     setLoading(true);
     try {
       const { error } = await supabase.from('players').insert([
@@ -91,32 +86,14 @@ export default function ParentPortal() {
           birthdate: newPlayerData.birthdate || null 
         }
       ]);
-
-      if (error) {
-        alert("Error de Supabase: " + error.message);
-      } else {
+      if (!error) {
         setShowAddPlayer(false);
         setNewPlayerData({ name: '', age: '', birthdate: '' });
         await fetchTorqueData(); 
       }
-    } catch (err) {
-      console.error(err);
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleInitialRegister(e) {
-    e.preventDefault();
-    setLoading(true);
-    const { error: pError } = await supabase.from('profiles').insert([
-      { id: user.id, full_name: user.fullName, email: user.primaryEmailAddress.emailAddress, phone: onboardingData.phone, role: 'parent' }
-    ]);
-    const { error: kError } = await supabase.from('players').insert([
-      { parent_id: user.id, kid_name: onboardingData.kidName, age: parseInt(onboardingData.kidAge), birthdate: onboardingData.kidBirthdate }
-    ]);
-    if (!pError && !kError) fetchTorqueData();
-    else setLoading(false);
   }
 
   const handleOpenBuyPack = (player) => {
@@ -126,21 +103,27 @@ export default function ParentPortal() {
 
   if (loading) return <div style={{ padding: 40, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>LOADING TORQUE...</div>;
 
+  // Pantalla de registro inicial si no tiene perfil
   if (!profile) {
     return (
       <div style={{ maxWidth: 500, margin: '60px auto', padding: 30, background: 'var(--navy2)', borderRadius: 16, border: '1px solid var(--border)' }}>
         <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--gold)', marginBottom: 10 }}>WELCOME TO TORQUE</h2>
-        <form onSubmit={handleInitialRegister} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          setLoading(true);
+          await supabase.from('profiles').insert([{ id: user.id, full_name: user.fullName, email: user.primaryEmailAddress.emailAddress, phone: onboardingData.phone, role: 'parent' }]);
+          await supabase.from('players').insert([{ parent_id: user.id, kid_name: onboardingData.kidName, age: parseInt(onboardingData.kidAge), birthdate: onboardingData.kidBirthdate }]);
+          fetchTorqueData();
+        }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Label>Parent Phone</Label>
           <input required style={inputStyle} placeholder="(555) 000-0000" onChange={e => setOnboardingData({...onboardingData, phone: e.target.value})} />
-          <h4 style={{ fontSize: 12, color: 'var(--text3)', marginTop: 10 }}>First Player Details</h4>
-          <Label>Player Name</Label>
-          <input required style={inputStyle} placeholder="Son/Daughter name" onChange={e => setOnboardingData({...onboardingData, kidName: e.target.value})} />
+          <Label>First Player Name</Label>
+          <input required style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidName: e.target.value})} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div><Label>Age</Label><input required type="number" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidAge: e.target.value})} /></div>
             <div><Label>Birthdate</Label><input required type="date" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidBirthdate: e.target.value})} /></div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10 }}>Create Account</Btn>
+          <Btn type="submit" style={{ marginTop: 10 }}>Complete Registration</Btn>
         </form>
       </div>
     );
@@ -151,15 +134,13 @@ export default function ParentPortal() {
     { id: 'sessions', label: 'Sessions', icon: BookOpen },
     { id: 'schedule', label: 'Book', icon: Calendar },
     { id: 'billing', label: 'Billing', icon: CreditCard },
-    { id: 'events', label: 'Events', icon: Megaphone },
   ]
 
   const PAGE_MAP = {
-    home: <ParentHome players={players} profile={profile} onAdd={() => setShowAddPlayer(true)} onBuy={handleOpenBuyPack} />,
-    sessions: <div style={{color:'white'}}>Sessions content...</div>,
-    schedule: <div style={{color:'white'}}>Booking content...</div>,
-    billing: <div style={{color:'white'}}>Billing history...</div>,
-    events: <div style={{color:'white'}}>Events...</div>,
+    home: <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={handleOpenBuyPack} />,
+    sessions: <div style={{color:'white'}}>Session History...</div>,
+    schedule: <div style={{color:'white'}}>Booking Calendar...</div>,
+    billing: <div style={{color:'white'}}>Billing & Invoices...</div>,
   }
 
   return (
@@ -169,14 +150,13 @@ export default function ParentPortal() {
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 16, color: 'var(--text)' }}>TORQUE</div>
           <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 800 }}>PERFORMANCE</div>
         </div>
-        
         <nav style={{ flex: 1, padding: '12px 10px' }}>
           {NAV.map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setPage(id)} style={navBtnStyle(page === id)}>
               <Icon size={14} /> {label}
             </button>
           ))}
-          <button onClick={() => signOut()} style={{ color: '#ff4d4d', background: 'none', border: 'none', padding: 12, cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => signOut()} style={{ color: '#ff4d4d', background: 'none', border: 'none', padding: 12, cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto' }}>
             <LogOut size={14} /> Sign Out
           </button>
         </nav>
@@ -186,11 +166,11 @@ export default function ParentPortal() {
         <div className="fade-in">{PAGE_MAP[page]}</div>
       </main>
 
-      {/* MODAL SELECCIÓN PLANES */}
+      {/* MODAL: SELECCIÓN DE PLANES CON LAS 4 OPCIONES */}
       <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Training Plans for ${selectedPlayer?.kid_name}`} width={750}>
         <div style={{ marginBottom: 25, padding: '15px', background: 'rgba(212,160,23,0.05)', borderRadius: 12, border: '1px solid rgba(212,160,23,0.2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gold)', fontWeight: 800, fontSize: 13, marginBottom: 8 }}>
-            <Percent size={14} /> MEMBERSHIP DISCOUNTS
+            <Percent size={14} /> EXCLUSIVE MEMBERSHIP BENEFITS
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, fontSize: 11, color: 'var(--text2)' }}>
             <span>6 Mo: <b>10% OFF/mo</b></span>
@@ -199,33 +179,55 @@ export default function ParentPortal() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 15 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
           {PACKS.map(pack => {
             const p6 = (pack.price * 0.9).toFixed(0);
             const p12 = (pack.price * 0.85).toFixed(0);
             const pAn = (pack.price * 12 * 0.8).toFixed(0);
+
             return (
-              <div key={pack.id} style={{ padding: '20px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--navy3)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 15 }}>
+              <div key={pack.id} style={{ padding: '24px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--navy3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                   <div>
-                    <div style={{ fontWeight: 900, fontSize: 18, fontFamily: 'var(--font-display)' }}>{pack.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text3)' }}>{pack.id === 'mlb' ? 'Unlimited*' : `${pack.sessions} Sessions/mo`}</div>
+                    <div style={{ fontWeight: 900, fontSize: 22, fontFamily: 'var(--font-display)', color: 'var(--text)' }}>{pack.name}</div>
+                    <div style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 700 }}>{pack.tag}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+                      {pack.id === 'mlb' ? 'Unlimited Training Access*' : `${pack.sessions} Sessions per month`}
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right', fontWeight: 900, fontSize: 22 }}>${pack.price}<small style={{fontSize:10, opacity:0.5}}>/mo</small></div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)' }}>${pack.price}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Base Monthly</div>
+                  </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                  <button onClick={() => alert('Stripe Link...')} style={optionBtnStyle}>
-                    <span style={{fontSize:9, color:'var(--gold)'}}>6 MO</span>
-                    <span>${p6}/mo</span>
+
+                {/* GRID DE 4 BOTONES DE COBRO */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                  
+                  <button onClick={() => alert('Stripe: Standard Monthly')} style={optionBtnStyle}>
+                    <span style={{ fontSize: 9, color: 'var(--text3)', fontWeight: 800 }}>STANDARD</span>
+                    <span style={{ fontSize: 16, fontWeight: 800 }}>${pack.price}<small>/mo</small></span>
+                    <span style={{ fontSize: 8, opacity: 0.6 }}>No Commitment</span>
                   </button>
-                  <button onClick={() => alert('Stripe Link...')} style={optionBtnStyle}>
-                    <span style={{fontSize:9, color:'var(--gold)'}}>12 MO</span>
-                    <span>${p12}/mo</span>
+
+                  <button onClick={() => alert('Stripe: 6 Months Plan')} style={optionBtnStyle}>
+                    <span style={{ fontSize: 9, color: 'var(--gold)', fontWeight: 800 }}>6 MONTHS</span>
+                    <span style={{ fontSize: 16, fontWeight: 800 }}>${p6}<small>/mo</small></span>
+                    <span style={{ fontSize: 8, color: 'var(--gold)' }}>10% Monthly Off</span>
                   </button>
-                  <button onClick={() => alert('Stripe Link...')} style={{...optionBtnStyle, borderColor:'var(--green)'}}>
-                    <span style={{fontSize:9, color:'var(--green)'}}>ANNUAL</span>
-                    <span>${pAn}</span>
+                  
+                  <button onClick={() => alert('Stripe: 12 Months Plan')} style={optionBtnStyle}>
+                    <span style={{ fontSize: 9, color: 'var(--gold)', fontWeight: 800 }}>12 MONTHS</span>
+                    <span style={{ fontSize: 16, fontWeight: 800 }}>${p12}<small>/mo</small></span>
+                    <span style={{ fontSize: 8, color: 'var(--gold)' }}>15% Monthly Off</span>
                   </button>
+
+                  <button onClick={() => alert('Stripe: Annual Pay')} style={{ ...optionBtnStyle, borderColor: 'var(--green)', background: 'rgba(46,204,113,0.05)' }}>
+                    <span style={{ fontSize: 9, color: 'var(--green)', fontWeight: 800 }}>FULL ANNUAL</span>
+                    <span style={{ fontSize: 16, fontWeight: 800 }}>${pAn}</span>
+                    <span style={{ fontSize: 8, color: 'var(--green)' }}>20% Total Off</span>
+                  </button>
+
                 </div>
               </div>
             );
@@ -234,42 +236,44 @@ export default function ParentPortal() {
       </Modal>
 
       {/* MODAL AÑADIR JUGADOR */}
-      <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Add New Player">
-        <form onSubmit={handleAddPlayer} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Label>Player Name</Label>
-          <input required style={inputStyle} value={newPlayerData.name} onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Register New Player">
+        <form onSubmit={handleAddPlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <div>
+            <Label>Player Name</Label>
+            <input required style={inputStyle} value={newPlayerData.name} onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
             <div><Label>Age</Label><input required type="number" style={inputStyle} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} /></div>
             <div><Label>Birthdate</Label><input required type="date" style={inputStyle} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} /></div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10, justifyContent: 'center' }}>Register Player</Btn>
+          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>Register Player</Btn>
         </form>
       </Modal>
     </div>
   )
 }
 
-function ParentHome({ players, profile, onAdd, onBuy }) {
+function ParentHome({ players, onAdd, onBuy }) {
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, marginBottom: 24 }}>My Players</h1>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {players.map((player, index) => {
           const m = player.active_membership;
           return (
             <Card key={player.id}>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
-                <Avatar initials={player.kid_name[0]} size={44} color={index > 0 ? 'var(--gold)' : 'var(--red)'} />
+              <div style={{ display: 'flex', gap: 15, alignItems: 'center', marginBottom: 20 }}>
+                <Avatar initials={player.kid_name[0]} size={50} color={index % 2 === 0 ? 'var(--red)' : 'var(--gold)'} />
                 <div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800 }}>{player.kid_name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{m ? `Plan ${m.package_name}` : 'No active membership'}</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>{player.kid_name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text3)' }}>{m ? `Plan ${m.package_name}` : 'Membership Inactive'}</div>
                 </div>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 800 }}>SESSIONS AVAILABLE</span>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: 20, borderRadius: 12, border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 800, letterSpacing: '0.05em' }}>AVAILABLE SESSIONS</span>
                   {m ? (
-                    <span style={{ fontWeight: 900, color: 'var(--green)', fontSize: 16 }}>{m.total_sessions - m.sessions_used} / {m.total_sessions}</span>
+                    <span style={{ fontWeight: 900, color: 'var(--green)', fontSize: 18 }}>{m.total_sessions - m.sessions_used} / {m.total_sessions}</span>
                   ) : (
                     <Btn variant="gold" size="sm" onClick={() => onBuy(player)}>+ Get Plan</Btn>
                   )}
@@ -279,16 +283,18 @@ function ParentHome({ players, profile, onAdd, onBuy }) {
             </Card>
           )
         })}
-        <Card onClick={onAdd} style={{ borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', minHeight: 150 }}>
-            <Plus size={24} color="var(--text3)" />
-            <div style={{ fontSize: 11, fontWeight: 700, marginTop: 8, color: 'var(--text3)' }}>ADD PLAYER</div>
+        <Card onClick={onAdd} style={{ borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', minHeight: 160, opacity: 0.7 }}>
+            <Plus size={28} color="var(--text3)" />
+            <div style={{ fontSize: 12, fontWeight: 800, marginTop: 10, color: 'var(--text3)' }}>ADD PLAYER</div>
         </Card>
       </div>
     </div>
   )
 }
 
+// ── ESTILOS ────────────────────────────────────────────────────────
+
 const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, left: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
-const inputStyle = { width: '100%', padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white', marginTop: 4, fontSize: 14 };
-const navBtnStyle = (active) => ({ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent', cursor: 'pointer', fontWeight: 700, fontSize: 14, marginBottom: 4 });
-const optionBtnStyle = { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 5px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', transition: '0.2s', gap: 3 };
+const inputStyle = { width: '100%', padding: '14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white', marginTop: 6, fontSize: 14 };
+const navBtnStyle = (active) => ({ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent', cursor: 'pointer', fontWeight: 700, fontSize: 14, marginBottom: 4, transition: '0.2s' });
+const optionBtnStyle = { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '15px 10px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', transition: '0.2s', gap: 4 };
