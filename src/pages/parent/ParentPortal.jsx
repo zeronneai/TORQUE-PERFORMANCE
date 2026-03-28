@@ -56,17 +56,14 @@ export default function ParentPortal() {
   const [players, setPlayers] = useState([]);
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Modals Toggle
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [showEditPlayer, setShowEditPlayer] = useState(false);
   const [showBuyPack, setShowBuyPack] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   
-  // Data States
   const [newPlayerData, setNewPlayerData] = useState({ name: '', age: '', birthdate: '' });
   const [editPlayerData, setEditPlayerData] = useState({ id: '', name: '', age: '', birthdate: '' });
-  const [onboardingData, setOnboardingData] = useState({ phone: '', kidName: '', kidAge: '', kidBirthdate: '' });
 
   useEffect(() => { if (user) fetchTorqueData(); }, [user]);
 
@@ -83,13 +80,15 @@ export default function ParentPortal() {
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
       if (prof) {
         setProfile(prof);
-        const { data: kids } = await supabase.from('players').select('*').eq('parent_id', user.id);
+        // FETCH CORREGIDO: Pedimos el id explícitamente
+        const { data: kids } = await supabase.from('players').select('id, kid_name, age, birthdate, parent_id').eq('parent_id', user.id);
+        
         const kidsWithMemberships = await Promise.all((kids || []).map(async (kid) => {
           const { data: m } = await supabase.from('memberships').select('*').eq('player_id', kid.id).eq('status', 'active').maybeSingle();
           return { ...kid, active_membership: m || null };
         }));
         setPlayers(kidsWithMemberships);
-      } else { setProfile(null); }
+      }
     } finally { setLoading(false); }
   }
 
@@ -99,28 +98,10 @@ export default function ParentPortal() {
     window.open(finalUrl, '_blank');
   };
 
-  async function handleAddPlayer(e) {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.from('players').insert([{ 
-      parent_id: user.id, kid_name: newPlayerData.name, 
-      age: parseInt(newPlayerData.age), birthdate: newPlayerData.birthdate 
-    }]);
-    if (!error) { 
-      setShowAddPlayer(false); 
-      setNewPlayerData({ name: '', age: '', birthdate: '' }); 
-      setSuccessMsg('Player registered successfully!');
-      await fetchTorqueData(); 
-    }
-    setLoading(false);
-  }
-
   async function handleUpdatePlayer(e) {
     e.preventDefault();
-    
-    // VALIDACIÓN DE ID (LA ARMADURA)
-    if (!editPlayerData.id || editPlayerData.id === 'undefined') {
-      alert("System Error: Could not identify the player. Please refresh the page.");
+    if (!editPlayerData.id) {
+      alert("Error: Missing Player ID. Please refresh the page.");
       return;
     }
 
@@ -136,15 +117,12 @@ export default function ParentPortal() {
     if (!error) { 
       setShowEditPlayer(false); 
       setSuccessMsg('Changes saved successfully!');
-      await fetchTorqueData(); 
+      fetchTorqueData(); 
     } else {
-      console.error("Supabase Error:", error);
-      alert("Update failed: " + error.message);
+      alert("Error: " + error.message);
     }
     setLoading(false);
   }
-
-  if (loading && !profile) return <div style={{ padding: 40, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>LOADING TORQUE...</div>;
 
   const PAGE_MAP = {
     home: <ParentHome 
@@ -152,63 +130,58 @@ export default function ParentPortal() {
             onAdd={() => setShowAddPlayer(true)} 
             onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true); }} 
             onEdit={(p) => { 
-              // EL CAZA-ID: Detecta el ID sin importar cómo venga de Supabase
-              const playerID = p.id || p.ID || p.id_player || p.uuid;
-              console.log("Player Data Received:", p);
-              
-              setEditPlayerData({ 
-                id: playerID, 
-                name: p.kid_name || '', 
-                age: p.age || '', 
-                birthdate: p.birthdate || '' 
-              });
+              // CAZA-ID INTEGRADO
+              const pId = p.id || p.ID || p.id_player;
+              setEditPlayerData({ id: pId, name: p.kid_name, age: p.age, birthdate: p.birthdate });
               setShowEditPlayer(true); 
             }}
           />,
     sessions: <div style={{color:'white', padding: 20}}>Session History Coming Soon...</div>,
-    schedule: <div style={{color:'white', padding: 20}}>Booking Calendar Coming Soon...</div>,
-    billing: <div style={{color:'white', padding: 20}}>Billing & Invoices Coming Soon...</div>,
+    schedule: <div style={{color:'white', padding: 20}}>Calendar Booking Coming Soon...</div>,
+    billing: <div style={{color:'white', padding: 20}}>Invoices Coming Soon...</div>,
   }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* SIDEBAR */}
       <aside style={sidebarStyle}>
         <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 16, color: 'var(--text)' }}>TORQUE</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, color: 'var(--text)' }}>TORQUE</div>
           <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 800 }}>PERFORMANCE</div>
         </div>
         <nav style={{ flex: 1, padding: '12px 10px' }}>
           {['home', 'sessions', 'schedule', 'billing'].map(id => (
             <button key={id} onClick={() => setPage(id)} style={navBtnStyle(page === id)}>{id.toUpperCase()}</button>
           ))}
-          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 20 }}>
-            <button onClick={() => setShowSupport(true)} style={navBtnStyle(false)}>
-              <HelpCircle size={14} /> SUPPORT
-            </button>
-            <button onClick={() => signOut()} style={logoutBtnStyle}>
-              <LogOut size={14} /> LOGOUT
-            </button>
-          </div>
+          <button onClick={() => signOut()} style={logoutBtnStyle}><LogOut size={14} /> LOGOUT</button>
         </nav>
       </aside>
 
       <main style={{ flex: 1, marginLeft: 220, padding: '36px 40px', position: 'relative' }}>
-        {/* SUCCESS NOTIFICATION */}
-        {successMsg && (
-          <div style={successToastStyle}>
-            <CheckCircle2 size={18} /> {successMsg}
-          </div>
-        )}
-
+        {successMsg && <div style={successToastStyle}><CheckCircle2 size={18} /> {successMsg}</div>}
         {PAGE_MAP[page]}
       </main>
 
-      {/* MODALS EN INGLES */}
-      <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Support Center" width={400}>
-        <div style={{ textAlign: 'center', marginBottom: 20, color: 'var(--text2)' }}>Need help? Contact us.</div>
-        <Btn onClick={() => window.open('https://wa.me/19152343655', '_blank')} style={{ background: '#25D366', color: 'white', marginBottom: 10 }}>WhatsApp Support</Btn>
-        <Btn onClick={() => window.location.href = 'mailto:txtorq@gmail.com'} variant="outline">Email Support</Btn>
+      {/* MODAL DE COMPRA CON TODOS LOS PRECIOS RESTAURADOS */}
+      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Training Plans for ${selectedPlayer?.kid_name}`} width={750}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
+          {PACKS.map(pack => (
+            <div key={pack.id} style={packCardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>{pack.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 700 }}>{pack.tag}</div>
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>${pack.price}</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                <button onClick={() => handleCheckout(pack.links.stand)} style={optionBtnStyle}>STANDARD</button>
+                <button onClick={() => handleCheckout(pack.links.m6)} style={optionBtnStyle}>6 MONTHS (5% OFF)</button>
+                <button onClick={() => handleCheckout(pack.links.m12)} style={optionBtnStyle}>12 MONTHS (10% OFF)</button>
+                <button onClick={() => handleCheckout(pack.links.annual)} style={{ ...optionBtnStyle, borderColor: 'var(--green)', color: 'var(--green)' }}>ANNUAL (15% OFF)</button>
+              </div>
+            </div>
+          ))}
+        </div>
       </Modal>
 
       <Modal open={showEditPlayer} onClose={() => setShowEditPlayer(false)} title="Edit Player Details">
@@ -219,42 +192,35 @@ export default function ParentPortal() {
             <div><Label>Age</Label><input required type="number" style={inputStyle} value={editPlayerData.age} onChange={e => setEditPlayerData({...editPlayerData, age: e.target.value})} /></div>
             <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} /></div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10 }}>{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
+          <Btn type="submit" style={{marginTop: 10}}>{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
         </form>
       </Modal>
 
+      {/* MODAL PARA AGREGAR JUGADOR */}
       <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Register New Player">
-        <form onSubmit={handleAddPlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          setLoading(true);
+          const { error } = await supabase.from('players').insert([{ 
+            parent_id: user.id, kid_name: newPlayerData.name, 
+            age: parseInt(newPlayerData.age), birthdate: newPlayerData.birthdate 
+          }]);
+          if (!error) { 
+            setShowAddPlayer(false); 
+            setNewPlayerData({ name: '', age: '', birthdate: '' }); 
+            setSuccessMsg('Player added successfully!');
+            fetchTorqueData(); 
+          }
+          setLoading(false);
+        }} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <Label>Player Name</Label>
           <input required style={inputStyle} value={newPlayerData.name} onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
             <div><Label>Age</Label><input required type="number" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} /></div>
             <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} /></div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10 }}>REGISTER PLAYER</Btn>
+          <Btn type="submit" style={{marginTop: 10}}>REGISTER PLAYER</Btn>
         </form>
-      </Modal>
-
-      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Training Plans for ${selectedPlayer?.kid_name}`} width={750}>
-         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
-          {PACKS.map(pack => (
-              <div key={pack.id} style={{ padding: '24px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--navy3)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <div>
-                    <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--text)' }}>{pack.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--gold)' }}>{pack.tag}</div>
-                  </div>
-                  <div style={{ fontSize: 22, fontWeight: 900 }}>${pack.price}</div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-                  <button onClick={() => handleCheckout(pack.links.stand)} style={optionBtnStyle}>STANDARD</button>
-                  <button onClick={() => handleCheckout(pack.links.m6)} style={optionBtnStyle}>6 MONTHS</button>
-                  <button onClick={() => handleCheckout(pack.links.m12)} style={optionBtnStyle}>12 MONTHS</button>
-                  <button onClick={() => handleCheckout(pack.links.annual)} style={{ ...optionBtnStyle, borderColor: 'var(--green)' }}>ANNUAL</button>
-                </div>
-              </div>
-          ))}
-        </div>
       </Modal>
     </div>
   )
@@ -265,24 +231,22 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, marginBottom: 24 }}>My Players</h1>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {players.map((player) => {
-          const m = player.active_membership;
+        {players.map((p) => {
+          const m = p.active_membership;
           return (
-            <Card key={player.id || player.ID} style={{ position: 'relative' }}>
-              <button onClick={() => onEdit(player)} style={editBtnStyle}>
-                <Edit2 size={14} />
-              </button>
+            <Card key={p.id} style={{ position: 'relative' }}>
+              <button onClick={() => onEdit(p)} style={editBtnStyle}><Edit2 size={14} /></button>
               <div style={{ display: 'flex', gap: 15, alignItems: 'center', marginBottom: 20 }}>
-                <Avatar initials={player.kid_name ? player.kid_name[0] : '?'} size={50} color="var(--red)" />
+                <Avatar initials={p.kid_name ? p.kid_name[0] : '?'} size={50} color="var(--red)" />
                 <div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>{player.kid_name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text3)' }}>{m ? `Plan ${m.package_name}` : 'No active plan'}</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>{p.kid_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700 }}>{m ? `PLAN: ${m.package_name}` : 'NO ACTIVE PLAN'}</div>
                 </div>
               </div>
               <div style={progressBoxStyle}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <span style={{ fontSize: 11, fontWeight: 800 }}>SESSIONS LEFT</span>
-                  {m ? <span style={{ fontWeight: 900, color: 'var(--green)' }}>{m.total_sessions - m.sessions_used}</span> : <Btn variant="gold" size="sm" onClick={() => onBuy(player)}>+ Buy</Btn>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text2)' }}>SESSIONS REMAINING</span>
+                  {m ? <span style={{ fontWeight: 900, color: 'var(--green)' }}>{m.total_sessions - m.sessions_used}</span> : <Btn variant="gold" size="sm" onClick={() => onBuy(p)}>+ BUY PLAN</Btn>}
                 </div>
                 <ProgressBar value={m ? (m.total_sessions - m.sessions_used) : 0} max={m ? m.total_sessions : 1} color="var(--green)" />
               </div>
@@ -290,21 +254,22 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
           )
         })}
         <Card onClick={onAdd} style={addCardStyle}>
-            <Plus size={28} color="var(--text3)" />
-            <div style={{ fontSize: 12, fontWeight: 800, marginTop: 10, color: 'var(--text3)' }}>ADD PLAYER</div>
+          <Plus size={28} color="var(--text3)" />
+          <div style={{fontSize: 11, fontWeight: 800, marginTop: 10, color: 'var(--text3)' }}>ADD PLAYER</div>
         </Card>
       </div>
     </div>
   )
 }
 
-// ESTILOS
-const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, left: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
-const inputStyle = { width: '100%', padding: '14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white', marginTop: 6, fontSize: 14 };
-const navBtnStyle = (active) => ({ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent', cursor: 'pointer', fontWeight: 700, fontSize: 14, marginBottom: 4 });
-const logoutBtnStyle = { color: '#ff4d4d', background: 'none', border: 'none', padding: '14px 20px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10, width: '100%' };
-const optionBtnStyle = { padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', fontWeight: 800, fontSize: 10 };
-const successToastStyle = { position: 'fixed', top: 20, right: 40, background: 'rgba(46, 204, 113, 0.95)', color: 'white', padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, zIndex: 9999, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' };
+// ESTILOS FINALIZADOS
+const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
+const navBtnStyle = (active) => ({ width: '100%', padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent' });
+const logoutBtnStyle = { color: '#ff4d4d', background: 'none', border: 'none', padding: '20px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto' };
+const inputStyle = { width: '100%', padding: '14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white', fontSize: 14 };
+const successToastStyle = { position: 'fixed', top: 20, right: 40, background: '#2ecc71', color: 'white', padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, zIndex: 9999, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' };
 const editBtnStyle = { position: 'absolute', top: 15, right: 15, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 8, padding: 8, cursor: 'pointer', color: 'var(--text3)' };
-const progressBoxStyle = { background: 'rgba(255,255,255,0.02)', padding: 20, borderRadius: 12, border: '1px solid var(--border)' };
-const addCardStyle = { borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', minHeight: 160, opacity: 0.7 };
+const progressBoxStyle = { background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '10px', border: '1px solid var(--border)' };
+const addCardStyle = { borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', minHeight: 160, opacity: 0.6 };
+const packCardStyle = { padding: '24px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--navy3)' };
+const optionBtnStyle = { padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', fontWeight: 800, fontSize: 10, transition: 'all 0.2s' };
