@@ -55,13 +55,14 @@ export default function ParentPortal() {
   const [profile, setProfile] = useState(null);
   const [players, setPlayers] = useState([]);
 
-  // Modales
+  // Modals Toggle
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [showEditPlayer, setShowEditPlayer] = useState(false);
   const [showBuyPack, setShowBuyPack] = useState(false);
-  const [showSupport, setShowSupport] = useState(false); // NUEVO
+  const [showSupport, setShowSupport] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   
+  // Data States
   const [newPlayerData, setNewPlayerData] = useState({ name: '', age: '', birthdate: '' });
   const [editPlayerData, setEditPlayerData] = useState({ id: '', name: '', age: '', birthdate: '' });
   const [onboardingData, setOnboardingData] = useState({ phone: '', kidName: '', kidAge: '', kidBirthdate: '' });
@@ -97,7 +98,11 @@ export default function ParentPortal() {
       parent_id: user.id, kid_name: newPlayerData.name, 
       age: parseInt(newPlayerData.age), birthdate: newPlayerData.birthdate 
     }]);
-    if (!error) { setShowAddPlayer(false); setNewPlayerData({ name: '', age: '', birthdate: '' }); await fetchTorqueData(); }
+    if (!error) { 
+      setShowAddPlayer(false); 
+      setNewPlayerData({ name: '', age: '', birthdate: '' }); 
+      await fetchTorqueData(); 
+    }
     setLoading(false);
   }
 
@@ -105,9 +110,20 @@ export default function ParentPortal() {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.from('players')
-      .update({ kid_name: editPlayerData.name, age: parseInt(editPlayerData.age), birthdate: editPlayerData.birthdate })
+      .update({ 
+        kid_name: editPlayerData.name, 
+        age: parseInt(editPlayerData.age), 
+        birthdate: editPlayerData.birthdate 
+      })
       .eq('id', editPlayerData.id);
-    if (!error) { setShowEditPlayer(false); await fetchTorqueData(); }
+
+    if (!error) { 
+      setShowEditPlayer(false); 
+      await fetchTorqueData(); 
+    } else {
+      console.error("Update error:", error);
+      alert("Error updating player data.");
+    }
     setLoading(false);
   }
 
@@ -148,9 +164,9 @@ export default function ParentPortal() {
               setShowEditPlayer(true); 
             }}
           />,
-    sessions: <div style={{color:'white'}}>Session History...</div>,
-    schedule: <div style={{color:'white'}}>Booking Calendar...</div>,
-    billing: <div style={{color:'white'}}>Billing & Invoices...</div>,
+    sessions: <div style={{color:'white', padding: 20}}>Session History Coming Soon...</div>,
+    schedule: <div style={{color:'white', padding: 20}}>Booking Calendar Coming Soon...</div>,
+    billing: <div style={{color:'white', padding: 20}}>Billing & Invoices Coming Soon...</div>,
   }
 
   return (
@@ -180,10 +196,10 @@ export default function ParentPortal() {
         {PAGE_MAP[page]}
       </main>
 
-      {/* MODAL SOPORTE / AYUDA */}
+      {/* SUPPORT MODAL (ENGLISH) */}
       <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Torque Support Center" width={400}>
         <div style={{ textAlign: 'center', marginBottom: 20, color: 'var(--text2)', fontSize: 14 }}>
-          ¿Necesitas ayuda con tus pagos o la gestión de tus jugadores? Contáctanos directamente.
+          Need help with payments or player management? Contact us directly and we'll assist you immediately.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Btn onClick={() => window.open('https://wa.me/19152343655', '_blank')} style={{ background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
@@ -195,10 +211,20 @@ export default function ParentPortal() {
         </div>
       </Modal>
 
-      {/* MODALES EXISTENTES (COMPRA, EDITAR, AÑADIR) - Mantenidos igual que antes */}
+      {/* PURCHASE MODAL (ENGLISH) */}
       <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Training Plans for ${selectedPlayer?.kid_name}`} width={750}>
-         {/* ... (Contenido del modal de compra que ya teníamos) */}
-         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
+        <div style={{ marginBottom: 20, padding: '15px', background: 'rgba(212,160,23,0.05)', borderRadius: 12, border: '1px solid rgba(212,160,23,0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gold)', fontWeight: 800, fontSize: 13, marginBottom: 5 }}>
+             MEMBERSHIP DISCOUNTS
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, fontSize: 11, color: 'var(--text2)' }}>
+            <span>6 Mo: <b>10% OFF/mo</b></span>
+            <span>12 Mo: <b>15% OFF/mo</b></span>
+            <span>Annual: <b style={{ color: 'var(--green)' }}>20% OFF TOTAL</b></span>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
           {PACKS.map(pack => {
              const p6 = (pack.price * 0.9).toFixed(0);
              const p12 = (pack.price * 0.85).toFixed(0);
@@ -228,27 +254,41 @@ export default function ParentPortal() {
         </div>
       </Modal>
 
+      {/* EDIT MODAL (ENGLISH & FIXED) */}
       <Modal open={showEditPlayer} onClose={() => setShowEditPlayer(false)} title="Edit Player Details">
         <form onSubmit={handleUpdatePlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <Label>Player Name</Label>
           <input required style={inputStyle} value={editPlayerData.name} onChange={e => setEditPlayerData({...editPlayerData, name: e.target.value})} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
-            <input required type="number" placeholder="Age" style={inputStyle} value={editPlayerData.age} onChange={e => setEditPlayerData({...editPlayerData, age: e.target.value})} />
-            <input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} />
+            <div>
+              <Label>Age</Label>
+              <input required type="number" style={inputStyle} value={editPlayerData.age} onChange={e => setEditPlayerData({...editPlayerData, age: e.target.value})} />
+            </div>
+            <div>
+              <Label>Birthdate</Label>
+              <input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} />
+            </div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>Save Changes</Btn>
+          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>SAVE CHANGES</Btn>
         </form>
       </Modal>
 
+      {/* ADD MODAL (ENGLISH) */}
       <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Register New Player">
         <form onSubmit={handleAddPlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <Label>Player Name</Label>
           <input required style={inputStyle} value={newPlayerData.name} onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
-            <input required type="number" placeholder="Age" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} />
-            <input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} />
+             <div>
+              <Label>Age</Label>
+              <input required type="number" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} />
+            </div>
+            <div>
+              <Label>Birthdate</Label>
+              <input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} />
+            </div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>Register Player</Btn>
+          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>REGISTER PLAYER</Btn>
         </form>
       </Modal>
     </div>
