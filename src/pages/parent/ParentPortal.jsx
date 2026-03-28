@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { 
   Home, BookOpen, Calendar, CreditCard, 
-  Plus, LogOut, Percent, ChevronRight, Edit2, 
-  MessageCircle, Mail, HelpCircle, CheckCircle2 
+  Plus, LogOut, Edit2, MessageCircle, Mail, HelpCircle, CheckCircle2 
 } from 'lucide-react'
 import { Card, Avatar, Btn, Modal, ProgressBar, Label } from '../../components/UI'
 import { useUser, useClerk } from "@clerk/clerk-react"
@@ -37,30 +36,29 @@ export default function ParentPortal() {
   async function fetchTorqueData() {
     try {
       setLoading(true);
-      // Traemos TODO con * para asegurar que el id de Supabase se cargue en el estado
-      const { data: kids } = await supabase.from('players').select('*').eq('parent_id', user.id);
+      // Forzamos la selección del ID explícitamente para que no falte en el estado
+      const { data: kids, error } = await supabase.from('players').select('id, kid_name, age, birthdate, parent_id').eq('parent_id', user.id);
       
+      if (error) console.error("Fetch error:", error);
+
       const kidsWithMemberships = await Promise.all((kids || []).map(async (kid) => {
         const { data: m } = await supabase.from('memberships').select('*').eq('player_id', kid.id).eq('status', 'active').maybeSingle();
         return { ...kid, active_membership: m || null };
       }));
+      
       setPlayers(kidsWithMemberships);
     } finally { setLoading(false); }
   }
 
-  const handleCheckout = (stripeUrl) => {
-    if (!selectedPlayer?.id) return;
-    window.open(`${stripeUrl}?client_reference_id=${selectedPlayer.id}`, '_blank');
-  };
-
   async function handleUpdatePlayer(e) {
     e.preventDefault();
     if (!editPlayerData.id) {
-      alert("Error: Player ID not found in state.");
+      alert("System Error: Player ID is missing. Please refresh.");
       return;
     }
 
     setLoading(true);
+    // IMPORTANTE: Asegúrate de que en Supabase la columna parent_id sea TEXT o haz el cast en la RLS
     const { error } = await supabase.from('players')
       .update({ 
         kid_name: editPlayerData.name, 
@@ -74,10 +72,15 @@ export default function ParentPortal() {
       setSuccessMsg('Changes saved!');
       fetchTorqueData(); 
     } else {
-      alert("Update failed: " + error.message);
+      alert("Error updating: " + error.message);
     }
     setLoading(false);
   }
+
+  const handleCheckout = (url) => {
+    if (!selectedPlayer?.id) return;
+    window.open(`${url}?client_reference_id=${selectedPlayer.id}`, '_blank');
+  };
 
   const PAGE_MAP = {
     home: <ParentHome 
@@ -119,38 +122,37 @@ export default function ParentPortal() {
       </aside>
 
       <main style={{ flex: 1, marginLeft: 220, padding: '36px 40px' }}>
-        {successMsg && <div style={successToastStyle}>{successMsg}</div>}
+        {successMsg && <div style={successToastStyle}><CheckCircle2 size={18}/> {successMsg}</div>}
         {PAGE_MAP[page]}
       </main>
 
-      {/* MODAL SUPPORT - RESTAURADO A DISEÑO PROFESIONAL */}
+      {/* MODAL SUPPORT - DISEÑO RESTAURADO (BOTÓN SOBRE BOTÓN) */}
       <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Support Center" width={400}>
-        <div style={{ padding: '0 10px 20px 10px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ textAlign: 'center', marginBottom: 10, color: 'var(--text2)', fontSize: 14 }}>How can we help you today?</div>
-          <Btn onClick={() => window.open('https://wa.me/19152343655', '_blank')} style={{ background: '#25D366', color: 'white', height: 50 }}>
-            <MessageCircle size={18} style={{marginRight: 10}}/> WhatsApp Support
-          </Btn>
-          <Btn onClick={() => window.location.href = 'mailto:txtorq@gmail.com'} variant="outline" style={{ height: 50 }}>
-            <Mail size={18} style={{marginRight: 10}}/> Email Support
-          </Btn>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '10px 0' }}>
+            <Btn onClick={() => window.open('https://wa.me/19152343655')} style={{ background: '#25D366', color: 'white', height: 50 }}>
+                <MessageCircle size={18} style={{marginRight:10}}/> WhatsApp Support
+            </Btn>
+            <Btn onClick={() => window.location.href='mailto:txtorq@gmail.com'} variant="outline" style={{ height: 50 }}>
+                <Mail size={18} style={{marginRight:10}}/> Email Support
+            </Btn>
         </div>
       </Modal>
 
-      {/* MODAL EDIT PLAYER */}
-      <Modal open={showEditPlayer} onClose={() => setShowEditPlayer(false)} title="Edit Player Details">
+      {/* MODAL EDIT */}
+      <Modal open={showEditPlayer} onClose={() => setShowEditPlayer(false)} title="Edit Player">
         <form onSubmit={handleUpdatePlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-          <Label>Full Name</Label>
+          <Label>Name</Label>
           <input required style={inputStyle} value={editPlayerData.name} onChange={e => setEditPlayerData({...editPlayerData, name: e.target.value})} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
             <div><Label>Age</Label><input required type="number" style={inputStyle} value={editPlayerData.age} onChange={e => setEditPlayerData({...editPlayerData, age: e.target.value})} /></div>
             <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} /></div>
           </div>
-          <Btn type="submit" style={{marginTop:10}}>{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
+          <Btn type="submit">{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
         </form>
       </Modal>
 
-      {/* MODAL ADD PLAYER */}
-      <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Register New Player">
+      {/* MODAL ADD */}
+      <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="New Player">
         <form onSubmit={async (e) => {
           e.preventDefault();
           setLoading(true);
@@ -158,34 +160,30 @@ export default function ParentPortal() {
           if (!error) { setShowAddPlayer(false); fetchTorqueData(); }
           setLoading(false);
         }} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-          <Label>Player Name</Label>
+          <Label>Name</Label>
           <input required style={inputStyle} value={newPlayerData.name} onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
-            <div><Label>Age</Label><input required type="number" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} /></div>
-            <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} /></div>
+            <input required type="number" placeholder="Age" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} />
+            <input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} />
           </div>
-          <Btn type="submit" style={{marginTop:10}}>REGISTER PLAYER</Btn>
+          <Btn type="submit">REGISTER</Btn>
         </form>
       </Modal>
 
       {/* MODAL COMPRA */}
-      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Plans for ${selectedPlayer?.kid_name}`} width={750}>
-        <div style={{ display: 'grid', gap: 20 }}>
+      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title="Select Plan" width={700}>
+        <div style={{ display: 'grid', gap: 15 }}>
           {PACKS.map(pack => (
             <div key={pack.id} style={packCardStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>{pack.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 700 }}>{pack.tag}</div>
-                </div>
-                <div style={{ fontSize: 22, fontWeight: 900 }}>${pack.price}</div>
+              <div style={{display:'flex', justifyContent:'space-between', marginBottom:15}}>
+                <span style={{fontWeight:900}}>{pack.name}</span>
+                <span style={{fontWeight:900}}>${pack.price}</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-                {Object.entries(pack.links).map(([key, link]) => (
-                  <button key={key} onClick={() => handleCheckout(link)} style={optionBtnStyle}>
-                    {key === 'stand' ? 'STANDARD' : key === 'm6' ? '6 MONTHS (5% OFF)' : key === 'm12' ? '12 MONTHS (10% OFF)' : 'ANNUAL (15% OFF)'}
-                  </button>
-                ))}
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                <button onClick={() => handleCheckout(pack.links.stand)} style={optionBtnStyle}>STANDARD</button>
+                <button onClick={() => handleCheckout(pack.links.m6)} style={optionBtnStyle}>6 MONTHS</button>
+                <button onClick={() => handleCheckout(pack.links.m12)} style={optionBtnStyle}>12 MONTHS</button>
+                <button onClick={() => handleCheckout(pack.links.annual)} style={optionBtnStyle}>ANNUAL</button>
               </div>
             </div>
           ))}
@@ -207,31 +205,32 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
               <Avatar initials={p.kid_name ? p.kid_name[0] : '?'} size={50} color="var(--red)" />
               <div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>{p.kid_name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700 }}>{p.active_membership ? `PLAN: ${p.active_membership.package_name}` : 'NO ACTIVE PLAN'}</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)' }}>{p.active_membership ? 'ACTIVE' : 'NO PLAN'}</div>
               </div>
             </div>
             <div style={progressBoxStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: 11, fontWeight: 800 }}>SESSIONS REMAINING</span>
-                {p.active_membership ? <span style={{ fontWeight: 900, color: 'var(--green)' }}>{p.active_membership.total_sessions - p.active_membership.sessions_used}</span> : <Btn variant="gold" size="sm" onClick={() => onBuy(p)}>+ BUY PLAN</Btn>}
+                <span style={{ fontSize: 11, fontWeight: 800 }}>SESSIONS</span>
+                {p.active_membership ? <span style={{ fontWeight: 900 }}>{p.active_membership.total_sessions - p.active_membership.sessions_used}</span> : <Btn variant="gold" size="sm" onClick={() => onBuy(p)}>+ BUY PLAN</Btn>}
               </div>
               <ProgressBar value={p.active_membership ? (p.active_membership.total_sessions - p.active_membership.sessions_used) : 0} max={p.active_membership ? p.active_membership.total_sessions : 1} color="var(--green)" />
             </div>
           </Card>
         ))}
-        <Card onClick={onAdd} style={addCardStyle}><Plus size={28} /><div style={{fontSize: 12, fontWeight: 800, marginTop: 10}}>ADD PLAYER</div></Card>
+        <Card onClick={onAdd} style={addCardStyle}><Plus size={28} /><div style={{fontSize: 12, marginTop: 10}}>ADD PLAYER</div></Card>
       </div>
     </div>
   )
 }
 
+// ESTILOS
 const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
-const navBtnStyle = (active) => ({ width: '100%', padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, display:'flex', alignItems:'center', borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent' });
-const logoutBtnStyle = { color: '#ff4d4d', background: 'none', border: 'none', padding: '14px 20px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', fontSize: 14 };
-const inputStyle = { width: '100%', padding: '14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white' };
-const successToastStyle = { position: 'fixed', top: 20, right: 40, background: '#2ecc71', color: 'white', padding: '12px 24px', borderRadius: '12px', fontWeight: 700, zIndex: 9999 };
+const navBtnStyle = (active) => ({ width: '100%', padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', cursor: 'pointer', fontWeight: 700, display:'flex', alignItems:'center', borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent' });
+const logoutBtnStyle = { color: '#ff4d4d', background: 'none', border: 'none', padding: '14px 20px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center' };
+const inputStyle = { width: '100%', padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white' };
+const successToastStyle = { position: 'fixed', top: 20, right: 40, background: '#2ecc71', color: 'white', padding: '12px 24px', borderRadius: '12px', fontWeight: 700, zIndex: 9999, display:'flex', alignItems:'center', gap:10 };
 const editBtnStyle = { position: 'absolute', top: 15, right: 15, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 8, padding: 8, cursor: 'pointer', color: 'var(--text3)' };
-const progressBoxStyle = { background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)' };
-const addCardStyle = { borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', minHeight: 160, opacity: 0.6 };
-const packCardStyle = { padding: '24px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--navy3)' };
-const optionBtnStyle = { padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', fontWeight: 800, fontSize: 10 };
+const progressBoxStyle = { background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '12px', border: '1px solid var(--border)' };
+const addCardStyle = { borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', minHeight: 140, opacity: 0.6 };
+const packCardStyle = { padding: '20px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--navy3)' };
+const optionBtnStyle = { padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', fontWeight: 800, fontSize: 10 };
