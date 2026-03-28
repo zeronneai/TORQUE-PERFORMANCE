@@ -168,7 +168,7 @@ export default function ParentPortal() {
       </Modal>
 
       <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="New Player">
-         <div style={{color:'white', textAlign:'center'}}>Formulario de registro aquí...</div>
+         <div style={{color:'white', textAlign:'center'}}>Registration form here...</div>
       </Modal>
     </div>
   )
