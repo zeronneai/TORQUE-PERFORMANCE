@@ -36,40 +36,23 @@ export default function ParentPortal() {
   async function fetchTorqueData() {
     try {
       setLoading(true);
-      // Volvemos al select('*') pero aseguramos que el parent_id sea exacto
-      const { data: kids, error } = await supabase
-        .from('players')
-        .select('*')
-        .eq('parent_id', user.id);
-      
-      if (error) {
-        console.error("Error cargando jugadores:", error);
-        return;
-      }
+      const { data: kids, error } = await supabase.from('players').select('*').eq('parent_id', user.id);
+      if (error) throw error;
 
-      // Mapeo seguro para evitar que desaparezcan si falta un campo
       const kidsWithMemberships = await Promise.all((kids || []).map(async (kid) => {
-        const { data: m } = await supabase
-          .from('memberships')
-          .select('*')
-          .eq('player_id', kid.id)
-          .eq('status', 'active')
-          .maybeSingle();
+        const { data: m } = await supabase.from('memberships').select('*').eq('player_id', kid.id).eq('status', 'active').maybeSingle();
         return { ...kid, active_membership: m || null };
       }));
-      
       setPlayers(kidsWithMemberships);
-    } catch (err) {
-      console.error("Critical Fetch Error:", err);
-    } finally { 
-      setLoading(false); 
-    }
+    } catch (err) { console.error("Fetch error:", err); } 
+    finally { setLoading(false); }
   }
 
   async function handleUpdatePlayer(e) {
     e.preventDefault();
+    // Validación crítica del ID
     if (!editPlayerData.id) {
-      alert("Error: ID del jugador no detectado.");
+      alert("Error interno: El ID del jugador no se cargó correctamente. Por favor intenta de nuevo.");
       return;
     }
 
@@ -84,10 +67,11 @@ export default function ParentPortal() {
 
     if (!error) { 
       setShowEditPlayer(false); 
-      setSuccessMsg('¡Cambios guardados!');
+      setSuccessMsg('Changes saved!');
+      setTimeout(() => setSuccessMsg(''), 3000);
       fetchTorqueData(); 
     } else {
-      alert("Error: " + error.message);
+      alert("Update failed: " + error.message);
     }
     setLoading(false);
   }
@@ -103,18 +87,18 @@ export default function ParentPortal() {
             onAdd={() => setShowAddPlayer(true)} 
             onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true); }} 
             onEdit={(p) => { 
+              // Seteamos el ID explícitamente aquí para el formulario de edición
               setEditPlayerData({ id: p.id, name: p.kid_name, age: p.age, birthdate: p.birthdate });
               setShowEditPlayer(true); 
             }}
           />,
-    sessions: <div style={{color:'white', padding: 20}}>Próximamente...</div>,
-    schedule: <div style={{color:'white', padding: 20}}>Próximamente...</div>,
-    billing: <div style={{color:'white', padding: 20}}>Próximamente...</div>,
+    sessions: <div style={{color:'white', padding: 20}}>Coming Soon...</div>,
+    schedule: <div style={{color:'white', padding: 20}}>Coming Soon...</div>,
+    billing: <div style={{color:'white', padding: 20}}>Coming Soon...</div>,
   }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* SIDEBAR */}
       <aside style={sidebarStyle}>
         <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 16, color: 'var(--text)' }}>TORQUE</div>
@@ -163,7 +147,7 @@ export default function ParentPortal() {
             <div><Label>Age</Label><input required type="number" style={inputStyle} value={editPlayerData.age} onChange={e => setEditPlayerData({...editPlayerData, age: e.target.value})} /></div>
             <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} /></div>
           </div>
-          <Btn type="submit" style={{marginTop:10}}>{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
+          <Btn type="submit" style={{marginTop:10}} disabled={loading}>{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
         </form>
       </Modal>
 
@@ -192,7 +176,7 @@ export default function ParentPortal() {
           {PACKS.map(pack => (
             <div key={pack.id} style={packCardStyle}>
               <div style={{display:'flex', justifyContent:'space-between', marginBottom:20}}>
-                <div style={{fontWeight:900, fontSize:18}}>{pack.name}</div>
+                <div style={{fontWeight:900, fontSize:18, color:'white'}}>{pack.name}</div>
                 <div style={{fontWeight:900, color:'var(--gold)'}}>${pack.price}</div>
               </div>
               <div style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:10}}>
@@ -210,18 +194,6 @@ export default function ParentPortal() {
 }
 
 function ParentHome({ players, onAdd, onBuy, onEdit }) {
-  if (!players || players.length === 0) {
-    return (
-      <div style={{ textAlign: 'center', padding: '100px 0' }}>
-         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, marginBottom: 24 }}>My Players</h1>
-         <Card onClick={onAdd} style={{ ...addCardStyle, width: 300, margin: '0 auto' }}>
-            <Plus size={40} />
-            <div style={{marginTop: 15, fontWeight: 800}}>ADD YOUR FIRST PLAYER</div>
-         </Card>
-      </div>
-    );
-  }
-
   return (
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, marginBottom: 24 }}>My Players</h1>
