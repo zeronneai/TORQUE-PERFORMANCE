@@ -70,7 +70,6 @@ export default function ParentPortal() {
 
   useEffect(() => { if (user) fetchTorqueData(); }, [user]);
 
-  // Manejador automático para ocultar mensajes de éxito
   useEffect(() => {
     if (successMsg) {
       const timer = setTimeout(() => setSuccessMsg(''), 4000);
@@ -119,9 +118,8 @@ export default function ParentPortal() {
   async function handleUpdatePlayer(e) {
     e.preventDefault();
     
-    // --- LA ARMADURA: Validación de ID ---
+    // VALIDACIÓN DE ID (LA ARMADURA)
     if (!editPlayerData.id || editPlayerData.id === 'undefined') {
-      console.error("Critical Error: Missing Player ID in state.");
       alert("System Error: Could not identify the player. Please refresh the page.");
       return;
     }
@@ -140,38 +138,13 @@ export default function ParentPortal() {
       setSuccessMsg('Changes saved successfully!');
       await fetchTorqueData(); 
     } else {
-      console.error("Supabase Update Error:", error);
-      alert("Error: " + error.message);
+      console.error("Supabase Error:", error);
+      alert("Update failed: " + error.message);
     }
     setLoading(false);
   }
 
   if (loading && !profile) return <div style={{ padding: 40, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>LOADING TORQUE...</div>;
-
-  if (!profile) {
-    return (
-      <div style={{ maxWidth: 500, margin: '60px auto', padding: 30, background: 'var(--navy2)', borderRadius: 16, border: '1px solid var(--border)' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--gold)', marginBottom: 20 }}>WELCOME TO TORQUE</h2>
-        <form onSubmit={async (e) => {
-          e.preventDefault();
-          setLoading(true);
-          await supabase.from('profiles').insert([{ id: user.id, full_name: user.fullName, email: user.primaryEmailAddress.emailAddress, phone: onboardingData.phone, role: 'parent' }]);
-          await supabase.from('players').insert([{ parent_id: user.id, kid_name: onboardingData.kidName, age: parseInt(onboardingData.kidAge), birthdate: onboardingData.kidBirthdate }]);
-          fetchTorqueData();
-        }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Label>Parent Phone</Label>
-          <input required style={inputStyle} placeholder="(555) 000-0000" onChange={e => setOnboardingData({...onboardingData, phone: e.target.value})} />
-          <Label>First Player Name</Label>
-          <input required style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidName: e.target.value})} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <input required type="number" placeholder="Age" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidAge: e.target.value})} />
-            <input required type="date" style={inputStyle} onChange={e => setOnboardingData({...onboardingData, kidBirthdate: e.target.value})} />
-          </div>
-          <Btn type="submit">Complete Registration</Btn>
-        </form>
-      </div>
-    );
-  }
 
   const PAGE_MAP = {
     home: <ParentHome 
@@ -179,8 +152,16 @@ export default function ParentPortal() {
             onAdd={() => setShowAddPlayer(true)} 
             onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true); }} 
             onEdit={(p) => { 
-              // Aseguramos que el ID se pase correctamente al estado
-              setEditPlayerData({ id: p.id, name: p.kid_name, age: p.age, birthdate: p.birthdate });
+              // EL CAZA-ID: Detecta el ID sin importar cómo venga de Supabase
+              const playerID = p.id || p.ID || p.id_player || p.uuid;
+              console.log("Player Data Received:", p);
+              
+              setEditPlayerData({ 
+                id: playerID, 
+                name: p.kid_name || '', 
+                age: p.age || '', 
+                birthdate: p.birthdate || '' 
+              });
               setShowEditPlayer(true); 
             }}
           />,
@@ -201,12 +182,11 @@ export default function ParentPortal() {
           {['home', 'sessions', 'schedule', 'billing'].map(id => (
             <button key={id} onClick={() => setPage(id)} style={navBtnStyle(page === id)}>{id.toUpperCase()}</button>
           ))}
-          
           <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 20 }}>
             <button onClick={() => setShowSupport(true)} style={navBtnStyle(false)}>
               <HelpCircle size={14} /> SUPPORT
             </button>
-            <button onClick={() => signOut()} style={{ color: '#ff4d4d', background: 'none', border: 'none', padding: 12, cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
+            <button onClick={() => signOut()} style={logoutBtnStyle}>
               <LogOut size={14} /> LOGOUT
             </button>
           </div>
@@ -224,66 +204,25 @@ export default function ParentPortal() {
         {PAGE_MAP[page]}
       </main>
 
-      {/* SUPPORT MODAL */}
-      <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Torque Support Center" width={400}>
-        <div style={{ textAlign: 'center', marginBottom: 20, color: 'var(--text2)', fontSize: 14 }}>
-          Need help? Contact us directly.
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Btn onClick={() => window.open('https://wa.me/19152343655', '_blank')} style={{ background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <MessageCircle size={18} /> WhatsApp Support
-          </Btn>
-          <Btn onClick={() => window.location.href = 'mailto:txtorq@gmail.com'} variant="outline" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <Mail size={18} /> Email Support
-          </Btn>
-        </div>
+      {/* MODALS EN INGLES */}
+      <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Support Center" width={400}>
+        <div style={{ textAlign: 'center', marginBottom: 20, color: 'var(--text2)' }}>Need help? Contact us.</div>
+        <Btn onClick={() => window.open('https://wa.me/19152343655', '_blank')} style={{ background: '#25D366', color: 'white', marginBottom: 10 }}>WhatsApp Support</Btn>
+        <Btn onClick={() => window.location.href = 'mailto:txtorq@gmail.com'} variant="outline">Email Support</Btn>
       </Modal>
 
-      {/* PURCHASE MODAL */}
-      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Plans for ${selectedPlayer?.kid_name}`} width={750}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
-          {PACKS.map(pack => (
-              <div key={pack.id} style={{ padding: '24px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--navy3)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-                  <div>
-                    <div style={{ fontWeight: 900, fontSize: 22, fontFamily: 'var(--font-display)', color: 'var(--text)' }}>{pack.name}</div>
-                    <div style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 700 }}>{pack.tag}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)' }}>${pack.price}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                  <button onClick={() => handleCheckout(pack.links.stand)} style={optionBtnStyle}>STANDARD</button>
-                  <button onClick={() => handleCheckout(pack.links.m6)} style={optionBtnStyle}>6 MONTHS</button>
-                  <button onClick={() => handleCheckout(pack.links.m12)} style={optionBtnStyle}>12 MONTHS</button>
-                  <button onClick={() => handleCheckout(pack.links.annual)} style={{ ...optionBtnStyle, borderColor: 'var(--green)' }}>ANNUAL</button>
-                </div>
-              </div>
-          ))}
-        </div>
-      </Modal>
-
-      {/* EDIT MODAL */}
       <Modal open={showEditPlayer} onClose={() => setShowEditPlayer(false)} title="Edit Player Details">
         <form onSubmit={handleUpdatePlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <Label>Player Name</Label>
           <input required style={inputStyle} value={editPlayerData.name} onChange={e => setEditPlayerData({...editPlayerData, name: e.target.value})} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
-            <div>
-              <Label>Age</Label>
-              <input required type="number" style={inputStyle} value={editPlayerData.age} onChange={e => setEditPlayerData({...editPlayerData, age: e.target.value})} />
-            </div>
-            <div>
-              <Label>Birthdate</Label>
-              <input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} />
-            </div>
+            <div><Label>Age</Label><input required type="number" style={inputStyle} value={editPlayerData.age} onChange={e => setEditPlayerData({...editPlayerData, age: e.target.value})} /></div>
+            <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} /></div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
+          <Btn type="submit" style={{ marginTop: 10 }}>{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
         </form>
       </Modal>
 
-      {/* ADD MODAL */}
       <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Register New Player">
         <form onSubmit={handleAddPlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <Label>Player Name</Label>
@@ -292,8 +231,30 @@ export default function ParentPortal() {
             <div><Label>Age</Label><input required type="number" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} /></div>
             <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} /></div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>{loading ? 'REGISTERING...' : 'REGISTER PLAYER'}</Btn>
+          <Btn type="submit" style={{ marginTop: 10 }}>REGISTER PLAYER</Btn>
         </form>
+      </Modal>
+
+      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Training Plans for ${selectedPlayer?.kid_name}`} width={750}>
+         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
+          {PACKS.map(pack => (
+              <div key={pack.id} style={{ padding: '24px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--navy3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <div>
+                    <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--text)' }}>{pack.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--gold)' }}>{pack.tag}</div>
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 900 }}>${pack.price}</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                  <button onClick={() => handleCheckout(pack.links.stand)} style={optionBtnStyle}>STANDARD</button>
+                  <button onClick={() => handleCheckout(pack.links.m6)} style={optionBtnStyle}>6 MONTHS</button>
+                  <button onClick={() => handleCheckout(pack.links.m12)} style={optionBtnStyle}>12 MONTHS</button>
+                  <button onClick={() => handleCheckout(pack.links.annual)} style={{ ...optionBtnStyle, borderColor: 'var(--green)' }}>ANNUAL</button>
+                </div>
+              </div>
+          ))}
+        </div>
       </Modal>
     </div>
   )
@@ -307,28 +268,28 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
         {players.map((player) => {
           const m = player.active_membership;
           return (
-            <Card key={player.id} style={{ position: 'relative' }}>
-              <button onClick={() => onEdit(player)} style={{ position: 'absolute', top: 15, right: 15, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 8, padding: 8, cursor: 'pointer', color: 'var(--text3)' }}>
+            <Card key={player.id || player.ID} style={{ position: 'relative' }}>
+              <button onClick={() => onEdit(player)} style={editBtnStyle}>
                 <Edit2 size={14} />
               </button>
               <div style={{ display: 'flex', gap: 15, alignItems: 'center', marginBottom: 20 }}>
                 <Avatar initials={player.kid_name ? player.kid_name[0] : '?'} size={50} color="var(--red)" />
                 <div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>{player.kid_name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text3)' }}>{m ? `Plan ${m.package_name}` : 'Membership Inactive'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text3)' }}>{m ? `Plan ${m.package_name}` : 'No active plan'}</div>
                 </div>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: 20, borderRadius: 12, border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 800 }}>SESSIONS LEFT</span>
-                  {m ? <span style={{ fontWeight: 900, color: 'var(--green)', fontSize: 18 }}>{m.total_sessions - m.sessions_used}</span> : <Btn variant="gold" size="sm" onClick={() => onBuy(player)}>+ Get Plan</Btn>}
+              <div style={progressBoxStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800 }}>SESSIONS LEFT</span>
+                  {m ? <span style={{ fontWeight: 900, color: 'var(--green)' }}>{m.total_sessions - m.sessions_used}</span> : <Btn variant="gold" size="sm" onClick={() => onBuy(player)}>+ Buy</Btn>}
                 </div>
                 <ProgressBar value={m ? (m.total_sessions - m.sessions_used) : 0} max={m ? m.total_sessions : 1} color="var(--green)" />
               </div>
             </Card>
           )
         })}
-        <Card onClick={onAdd} style={{ borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', minHeight: 160, opacity: 0.7 }}>
+        <Card onClick={onAdd} style={addCardStyle}>
             <Plus size={28} color="var(--text3)" />
             <div style={{ fontSize: 12, fontWeight: 800, marginTop: 10, color: 'var(--text3)' }}>ADD PLAYER</div>
         </Card>
@@ -341,5 +302,9 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
 const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, left: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
 const inputStyle = { width: '100%', padding: '14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white', marginTop: 6, fontSize: 14 };
 const navBtnStyle = (active) => ({ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent', cursor: 'pointer', fontWeight: 700, fontSize: 14, marginBottom: 4 });
-const optionBtnStyle = { padding: '15px 10px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', fontWeight: 800, fontSize: 11 };
-const successToastStyle = { position: 'absolute', top: 20, right: 40, background: 'rgba(46, 204, 113, 0.15)', color: '#2ecc71', padding: '12px 20px', borderRadius: '12px', border: '1px solid rgba(46, 204, 113, 0.3)', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 13, zIndex: 1000, animation: 'fadeIn 0.3s ease' };
+const logoutBtnStyle = { color: '#ff4d4d', background: 'none', border: 'none', padding: '14px 20px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10, width: '100%' };
+const optionBtnStyle = { padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', fontWeight: 800, fontSize: 10 };
+const successToastStyle = { position: 'fixed', top: 20, right: 40, background: 'rgba(46, 204, 113, 0.95)', color: 'white', padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, zIndex: 9999, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' };
+const editBtnStyle = { position: 'absolute', top: 15, right: 15, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 8, padding: 8, cursor: 'pointer', color: 'var(--text3)' };
+const progressBoxStyle = { background: 'rgba(255,255,255,0.02)', padding: 20, borderRadius: 12, border: '1px solid var(--border)' };
+const addCardStyle = { borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', minHeight: 160, opacity: 0.7 };
