@@ -12,36 +12,36 @@ const PACKS = [
     id: 'a', name: 'PAQUETE A', sessions: 4, price: 260, 
     links: { 
       stand: { label: '$260.00 - Standard', url: 'https://buy.stripe.com/test_dRmbJ04Jtgweb8A61YfrW00' },
-      m6: { label: '$1,482.00 - 6 Months (-5%)', url: 'https://buy.stripe.com/test_4gM14mdfZ3Js4KcaiefrW01' },
-      m12: { label: '$2,808.00 - 12 Months (-10%)', url: 'https://buy.stripe.com/test_7sY00i2Bl7ZI0tW8a6frW02' },
-      annual: { label: '$2,652.00 - Annual (-15%)', url: 'https://buy.stripe.com/test_cNifZgb7Reo6ccE9eafrW04' }
+      m6: { label: '$247.00/mo - 6 Months (-5%)', url: 'https://buy.stripe.com/test_4gM14mdfZ3Js4KcaiefrW01' },
+      m12: { label: '$234.00/mo - 12 Months (-10%)', url: 'https://buy.stripe.com/test_7sY00i2Bl7ZI0tW8a6frW02' },
+      annual: { label: '$221.00/mo - Annual (-15%)', url: 'https://buy.stripe.com/test_cNifZgb7Reo6ccE9eafrW04' }
     } 
   },
   { 
     id: 'aa', name: 'PAQUETE AA', sessions: 8, price: 360,
     links: { 
       stand: { label: '$360.00 - Standard', url: 'https://buy.stripe.com/test_28EaEW4Jt7ZIa4w1LIfrW05' },
-      m6: { label: '$2,052.00 - 6 Months (-5%)', url: 'https://buy.stripe.com/test_6oUaEW2Bl5RA90scqmfrW06' },
-      m12: { label: '$3,888.00 - 12 Months (-10%)', url: 'https://buy.stripe.com/test_fZu9ASdfZ93MdgI4XUfrW07' },
-      annual: { label: '$3,672.00 - Annual (-15%)', url: 'https://buy.stripe.com/test_4gM9ASa3N93Mb8A0HEfrW08' }
+      m6: { label: '$342.00/mo - 6 Months (-5%)', url: 'https://buy.stripe.com/test_6oUaEW2Bl5RA90scqmfrW06' },
+      m12: { label: '$324.00/mo - 12 Months (-10%)', url: 'https://buy.stripe.com/test_fZu9ASdfZ93MdgI4XUfrW07' },
+      annual: { label: '$306.00/mo - Annual (-15%)', url: 'https://buy.stripe.com/test_4gM9ASa3N93Mb8A0HEfrW08' }
     }
   },
   { 
     id: 'aaa', name: 'PAQUETE AAA', sessions: 12, price: 440,
     links: { 
       stand: { label: '$440.00 - Standard', url: 'https://buy.stripe.com/test_bJeaEW2Bl5RA6SkduqfrW09' },
-      m6: { label: '$2,508.00 - 6 Months (-5%)', url: 'https://buy.stripe.com/test_aFa7sKb7Rgwe4Kc762frW0a' },
-      m12: { label: '$4,752.00 - 12 Months (-10%)', url: 'https://buy.stripe.com/test_cNi8wOa3N3JsccEeyufrW0b' },
-      annual: { label: '$4,488.00 - Annual (-15%)', url: 'https://buy.stripe.com/test_7sYfZg4JtbbUccE0HEfrW0c' }
+      m6: { label: '$418.00/mo - 6 Months (-5%)', url: 'https://buy.stripe.com/test_aFa7sKb7Rgwe4Kc762frW0a' },
+      m12: { label: '$396.00/mo - 12 Months (-10%)', url: 'https://buy.stripe.com/test_cNi8wOa3N3JsccEeyufrW0b' },
+      annual: { label: '$374.00/mo - Annual (-15%)', url: 'https://buy.stripe.com/test_7sYfZg4JtbbUccE0HEfrW0c' }
     }
   },
   { 
     id: 'mlb', name: 'PAQUETE MLB', sessions: 20, price: 600,
     links: { 
       stand: { label: '$600.00 - Standard', url: 'https://buy.stripe.com/test_4gM3cu5Nx1Bk3G8eyufrW0d' },
-      m6: { label: '$3,420.00 - 6 Months (-5%)', url: 'https://buy.stripe.com/test_14A9ASb7R4Nw0tW762frW0e' },
-      m12: { label: '$6,480.00 - 12 Months (-10%)', url: 'https://buy.stripe.com/test_dRm00i1xhcfY7Wo0HEfrW0f' },
-      annual: { label: '$6,120.00 - Annual (-15%)', url: 'https://buy.stripe.com/test_fZu8wO1xh1Bk7Wo2PMfrW0g' }
+      m6: { label: '$570.00/mo - 6 Months (-5%)', url: 'https://buy.stripe.com/test_14A9ASb7R4Nw0tW762frW0e' },
+      m12: { label: '$540.00/mo - 12 Months (-10%)', url: 'https://buy.stripe.com/test_dRm00i1xhcfY7Wo0HEfrW0f' },
+      annual: { label: '$510.00/mo - Annual (-15%)', url: 'https://buy.stripe.com/test_fZu8wO1xh1Bk7Wo2PMfrW0g' }
     }
   },
 ];
@@ -68,13 +68,11 @@ export default function ParentPortal() {
   }
 
   const handleCheckout = (url) => {
-    // Redirige a Stripe inyectando el ID del jugador para el webhook
     window.open(`${url}?client_reference_id=${selectedPlayer.id}`, '_blank');
   };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--navy1)' }}>
-      {/* SIDEBAR */}
       <aside style={sidebarStyle}>
         <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 16, color: 'white' }}>TORQUE</div>
@@ -92,7 +90,6 @@ export default function ParentPortal() {
         </nav>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main style={{ flex: 1, marginLeft: 220, padding: '36px 40px' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, marginBottom: 24, color: 'white' }}>My Players</h1>
         
@@ -130,10 +127,9 @@ export default function ParentPortal() {
         </div>
       </main>
 
-      {/* MODAL SUPPORT - CON TEXTO INTRODUCTORIO */}
       <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Support Center" width={420}>
         <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 20, textAlign: 'center', lineHeight: '1.5' }}>
-          ¿Necesitas ayuda con tus sesiones o tienes dudas sobre los pagos? Nuestro equipo está listo para apoyarte.
+          Do you need help with your sessions or have questions about payments? Our team is ready to support you.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Btn onClick={() => window.open('https://wa.me/19152343655')} style={{ background: '#25D366', color: 'white', height: 55 }}>
@@ -145,7 +141,6 @@ export default function ParentPortal() {
         </div>
       </Modal>
 
-      {/* MODAL COMPRA - COSTOS DETALLADOS */}
       <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Plans for ${selectedPlayer?.kid_name}`} width={800}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           {PACKS.map(pack => (
@@ -172,7 +167,6 @@ export default function ParentPortal() {
         </div>
       </Modal>
 
-      {/* MODAL ADD PLAYER (Simplicado) */}
       <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="New Player">
          <div style={{color:'white', textAlign:'center'}}>Formulario de registro aquí...</div>
       </Modal>
@@ -180,7 +174,6 @@ export default function ParentPortal() {
   )
 }
 
-// ESTILOS
 const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
 const navBtnStyle = (active) => ({ width: '100%', padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, display:'flex', alignItems:'center', borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent' });
 const logoutBtnStyle = { color: '#ff4d4d', background: 'none', border: 'none', padding: '14px 20px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', fontSize: 13, marginTop: 5 };
