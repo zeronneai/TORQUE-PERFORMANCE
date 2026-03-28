@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { 
   Home, BookOpen, Calendar, CreditCard, 
   Plus, LogOut, Percent, ChevronRight, Edit2, 
-  MessageCircle, Mail, HelpCircle 
+  MessageCircle, Mail, HelpCircle, CheckCircle2 
 } from 'lucide-react'
 import { Card, Avatar, Btn, Modal, ProgressBar, Label } from '../../components/UI'
 import { useUser, useClerk } from "@clerk/clerk-react"
@@ -54,6 +54,7 @@ export default function ParentPortal() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [players, setPlayers] = useState([]);
+  const [successMsg, setSuccessMsg] = useState('');
 
   // Modals Toggle
   const [showAddPlayer, setShowAddPlayer] = useState(false);
@@ -68,6 +69,14 @@ export default function ParentPortal() {
   const [onboardingData, setOnboardingData] = useState({ phone: '', kidName: '', kidAge: '', kidBirthdate: '' });
 
   useEffect(() => { if (user) fetchTorqueData(); }, [user]);
+
+  // Manejador automático para ocultar mensajes de éxito
+  useEffect(() => {
+    if (successMsg) {
+      const timer = setTimeout(() => setSuccessMsg(''), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
 
   async function fetchTorqueData() {
     try {
@@ -101,6 +110,7 @@ export default function ParentPortal() {
     if (!error) { 
       setShowAddPlayer(false); 
       setNewPlayerData({ name: '', age: '', birthdate: '' }); 
+      setSuccessMsg('Player registered successfully!');
       await fetchTorqueData(); 
     }
     setLoading(false);
@@ -108,6 +118,14 @@ export default function ParentPortal() {
 
   async function handleUpdatePlayer(e) {
     e.preventDefault();
+    
+    // --- LA ARMADURA: Validación de ID ---
+    if (!editPlayerData.id || editPlayerData.id === 'undefined') {
+      console.error("Critical Error: Missing Player ID in state.");
+      alert("System Error: Could not identify the player. Please refresh the page.");
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.from('players')
       .update({ 
@@ -119,15 +137,16 @@ export default function ParentPortal() {
 
     if (!error) { 
       setShowEditPlayer(false); 
+      setSuccessMsg('Changes saved successfully!');
       await fetchTorqueData(); 
     } else {
-      console.error("Update error:", error);
-      alert("Error updating player data.");
+      console.error("Supabase Update Error:", error);
+      alert("Error: " + error.message);
     }
     setLoading(false);
   }
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>LOADING TORQUE...</div>;
+  if (loading && !profile) return <div style={{ padding: 40, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>LOADING TORQUE...</div>;
 
   if (!profile) {
     return (
@@ -160,6 +179,7 @@ export default function ParentPortal() {
             onAdd={() => setShowAddPlayer(true)} 
             onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true); }} 
             onEdit={(p) => { 
+              // Aseguramos que el ID se pase correctamente al estado
               setEditPlayerData({ id: p.id, name: p.kid_name, age: p.age, birthdate: p.birthdate });
               setShowEditPlayer(true); 
             }}
@@ -171,6 +191,7 @@ export default function ParentPortal() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* SIDEBAR */}
       <aside style={sidebarStyle}>
         <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 16, color: 'var(--text)' }}>TORQUE</div>
@@ -181,25 +202,32 @@ export default function ParentPortal() {
             <button key={id} onClick={() => setPage(id)} style={navBtnStyle(page === id)}>{id.toUpperCase()}</button>
           ))}
           
-          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 20 }}>
             <button onClick={() => setShowSupport(true)} style={navBtnStyle(false)}>
               <HelpCircle size={14} /> SUPPORT
             </button>
-            <button onClick={() => signOut()} style={{ color: '#ff4d4d', background: 'none', border: 'none', padding: 12, cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={() => signOut()} style={{ color: '#ff4d4d', background: 'none', border: 'none', padding: 12, cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
               <LogOut size={14} /> LOGOUT
             </button>
           </div>
         </nav>
       </aside>
 
-      <main style={{ flex: 1, marginLeft: 220, padding: '36px 40px' }}>
+      <main style={{ flex: 1, marginLeft: 220, padding: '36px 40px', position: 'relative' }}>
+        {/* SUCCESS NOTIFICATION */}
+        {successMsg && (
+          <div style={successToastStyle}>
+            <CheckCircle2 size={18} /> {successMsg}
+          </div>
+        )}
+
         {PAGE_MAP[page]}
       </main>
 
-      {/* SUPPORT MODAL (ENGLISH) */}
+      {/* SUPPORT MODAL */}
       <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Torque Support Center" width={400}>
         <div style={{ textAlign: 'center', marginBottom: 20, color: 'var(--text2)', fontSize: 14 }}>
-          Need help with payments or player management? Contact us directly and we'll assist you immediately.
+          Need help? Contact us directly.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Btn onClick={() => window.open('https://wa.me/19152343655', '_blank')} style={{ background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
@@ -211,50 +239,32 @@ export default function ParentPortal() {
         </div>
       </Modal>
 
-      {/* PURCHASE MODAL (ENGLISH) */}
-      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Training Plans for ${selectedPlayer?.kid_name}`} width={750}>
-        <div style={{ marginBottom: 20, padding: '15px', background: 'rgba(212,160,23,0.05)', borderRadius: 12, border: '1px solid rgba(212,160,23,0.2)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gold)', fontWeight: 800, fontSize: 13, marginBottom: 5 }}>
-             MEMBERSHIP DISCOUNTS
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, fontSize: 11, color: 'var(--text2)' }}>
-            <span>6 Mo: <b>10% OFF/mo</b></span>
-            <span>12 Mo: <b>15% OFF/mo</b></span>
-            <span>Annual: <b style={{ color: 'var(--green)' }}>20% OFF TOTAL</b></span>
-          </div>
-        </div>
-
+      {/* PURCHASE MODAL */}
+      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Plans for ${selectedPlayer?.kid_name}`} width={750}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
-          {PACKS.map(pack => {
-             const p6 = (pack.price * 0.9).toFixed(0);
-             const p12 = (pack.price * 0.85).toFixed(0);
-             const pAn = (pack.price * 12 * 0.8).toFixed(0);
-             return (
+          {PACKS.map(pack => (
               <div key={pack.id} style={{ padding: '24px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--navy3)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                   <div>
                     <div style={{ fontWeight: 900, fontSize: 22, fontFamily: 'var(--font-display)', color: 'var(--text)' }}>{pack.name}</div>
                     <div style={{ fontSize: 13, color: 'var(--gold)', fontWeight: 700 }}>{pack.tag}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>{pack.sessions} Sessions per month</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)' }}>${pack.price}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Base Monthly</div>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                  <button onClick={() => handleCheckout(pack.links.stand)} style={optionBtnStyle}><span style={spanStyle}>STANDARD</span><span style={priceStyle}>${pack.price}<small>/mo</small></span></button>
-                  <button onClick={() => handleCheckout(pack.links.m6)} style={optionBtnStyle}><span style={{...spanStyle, color: 'var(--gold)'}}>6 MONTHS</span><span style={priceStyle}>${p6}<small>/mo</small></span></button>
-                  <button onClick={() => handleCheckout(pack.links.m12)} style={optionBtnStyle}><span style={{...spanStyle, color: 'var(--gold)'}}>12 MONTHS</span><span style={priceStyle}>${p12}<small>/mo</small></span></button>
-                  <button onClick={() => handleCheckout(pack.links.annual)} style={{ ...optionBtnStyle, borderColor: 'var(--green)', background: 'rgba(46,204,113,0.05)' }}><span style={{...spanStyle, color: 'var(--green)'}}>FULL ANNUAL</span><span style={priceStyle}>${pAn}</span></button>
+                  <button onClick={() => handleCheckout(pack.links.stand)} style={optionBtnStyle}>STANDARD</button>
+                  <button onClick={() => handleCheckout(pack.links.m6)} style={optionBtnStyle}>6 MONTHS</button>
+                  <button onClick={() => handleCheckout(pack.links.m12)} style={optionBtnStyle}>12 MONTHS</button>
+                  <button onClick={() => handleCheckout(pack.links.annual)} style={{ ...optionBtnStyle, borderColor: 'var(--green)' }}>ANNUAL</button>
                 </div>
               </div>
-            )
-          })}
+          ))}
         </div>
       </Modal>
 
-      {/* EDIT MODAL (ENGLISH & FIXED) */}
+      {/* EDIT MODAL */}
       <Modal open={showEditPlayer} onClose={() => setShowEditPlayer(false)} title="Edit Player Details">
         <form onSubmit={handleUpdatePlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <Label>Player Name</Label>
@@ -269,26 +279,20 @@ export default function ParentPortal() {
               <input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} />
             </div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>SAVE CHANGES</Btn>
+          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
         </form>
       </Modal>
 
-      {/* ADD MODAL (ENGLISH) */}
+      {/* ADD MODAL */}
       <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Register New Player">
         <form onSubmit={handleAddPlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <Label>Player Name</Label>
           <input required style={inputStyle} value={newPlayerData.name} onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
-             <div>
-              <Label>Age</Label>
-              <input required type="number" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} />
-            </div>
-            <div>
-              <Label>Birthdate</Label>
-              <input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} />
-            </div>
+            <div><Label>Age</Label><input required type="number" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} /></div>
+            <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} /></div>
           </div>
-          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>REGISTER PLAYER</Btn>
+          <Btn type="submit" style={{ marginTop: 10, padding: 16 }}>{loading ? 'REGISTERING...' : 'REGISTER PLAYER'}</Btn>
         </form>
       </Modal>
     </div>
@@ -308,7 +312,7 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
                 <Edit2 size={14} />
               </button>
               <div style={{ display: 'flex', gap: 15, alignItems: 'center', marginBottom: 20 }}>
-                <Avatar initials={player.kid_name[0]} size={50} color="var(--red)" />
+                <Avatar initials={player.kid_name ? player.kid_name[0] : '?'} size={50} color="var(--red)" />
                 <div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>{player.kid_name}</div>
                   <div style={{ fontSize: 12, color: 'var(--text3)' }}>{m ? `Plan ${m.package_name}` : 'Membership Inactive'}</div>
@@ -316,8 +320,8 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
               </div>
               <div style={{ background: 'rgba(255,255,255,0.02)', padding: 20, borderRadius: 12, border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 800 }}>AVAILABLE SESSIONS</span>
-                  {m ? <span style={{ fontWeight: 900, color: 'var(--green)', fontSize: 18 }}>{m.total_sessions - m.sessions_used} / {m.total_sessions}</span> : <Btn variant="gold" size="sm" onClick={() => onBuy(player)}>+ Get Plan</Btn>}
+                  <span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 800 }}>SESSIONS LEFT</span>
+                  {m ? <span style={{ fontWeight: 900, color: 'var(--green)', fontSize: 18 }}>{m.total_sessions - m.sessions_used}</span> : <Btn variant="gold" size="sm" onClick={() => onBuy(player)}>+ Get Plan</Btn>}
                 </div>
                 <ProgressBar value={m ? (m.total_sessions - m.sessions_used) : 0} max={m ? m.total_sessions : 1} color="var(--green)" />
               </div>
@@ -337,7 +341,5 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
 const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, left: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
 const inputStyle = { width: '100%', padding: '14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white', marginTop: 6, fontSize: 14 };
 const navBtnStyle = (active) => ({ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent', cursor: 'pointer', fontWeight: 700, fontSize: 14, marginBottom: 4 });
-const optionBtnStyle = { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '15px 10px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', gap: 4 };
-const spanStyle = { fontSize: 9, fontWeight: 800, letterSpacing: '0.05em' };
-const priceStyle = { fontSize: 16, fontWeight: 800 };
-const descStyle = { fontSize: 8, opacity: 0.6 };
+const optionBtnStyle = { padding: '15px 10px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', fontWeight: 800, fontSize: 11 };
+const successToastStyle = { position: 'absolute', top: 20, right: 40, background: 'rgba(46, 204, 113, 0.15)', color: '#2ecc71', padding: '12px 20px', borderRadius: '12px', border: '1px solid rgba(46, 204, 113, 0.3)', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 13, zIndex: 1000, animation: 'fadeIn 0.3s ease' };
