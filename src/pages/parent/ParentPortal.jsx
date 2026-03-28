@@ -80,7 +80,7 @@ export default function ParentPortal() {
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
       if (prof) {
         setProfile(prof);
-        // FETCH CORREGIDO: Pedimos el id explícitamente
+        // FETCH EXPLÍCITO DE ID
         const { data: kids } = await supabase.from('players').select('id, kid_name, age, birthdate, parent_id').eq('parent_id', user.id);
         
         const kidsWithMemberships = await Promise.all((kids || []).map(async (kid) => {
@@ -101,7 +101,7 @@ export default function ParentPortal() {
   async function handleUpdatePlayer(e) {
     e.preventDefault();
     if (!editPlayerData.id) {
-      alert("Error: Missing Player ID. Please refresh the page.");
+      alert("Error: Player ID not found. Try refreshing the page.");
       return;
     }
 
@@ -119,7 +119,7 @@ export default function ParentPortal() {
       setSuccessMsg('Changes saved successfully!');
       fetchTorqueData(); 
     } else {
-      alert("Error: " + error.message);
+      alert("Update failed: " + error.message);
     }
     setLoading(false);
   }
@@ -130,29 +130,37 @@ export default function ParentPortal() {
             onAdd={() => setShowAddPlayer(true)} 
             onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true); }} 
             onEdit={(p) => { 
-              // CAZA-ID INTEGRADO
-              const pId = p.id || p.ID || p.id_player;
-              setEditPlayerData({ id: pId, name: p.kid_name, age: p.age, birthdate: p.birthdate });
+              setEditPlayerData({ id: p.id, name: p.kid_name, age: p.age, birthdate: p.birthdate });
               setShowEditPlayer(true); 
             }}
           />,
     sessions: <div style={{color:'white', padding: 20}}>Session History Coming Soon...</div>,
-    schedule: <div style={{color:'white', padding: 20}}>Calendar Booking Coming Soon...</div>,
-    billing: <div style={{color:'white', padding: 20}}>Invoices Coming Soon...</div>,
+    schedule: <div style={{color:'white', padding: 20}}>Booking Calendar Coming Soon...</div>,
+    billing: <div style={{color:'white', padding: 20}}>Billing & Invoices Coming Soon...</div>,
   }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* SIDEBAR */}
       <aside style={sidebarStyle}>
         <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, color: 'var(--text)' }}>TORQUE</div>
           <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 800 }}>PERFORMANCE</div>
         </div>
-        <nav style={{ flex: 1, padding: '12px 10px' }}>
+        <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column' }}>
           {['home', 'sessions', 'schedule', 'billing'].map(id => (
             <button key={id} onClick={() => setPage(id)} style={navBtnStyle(page === id)}>{id.toUpperCase()}</button>
           ))}
-          <button onClick={() => signOut()} style={logoutBtnStyle}><LogOut size={14} /> LOGOUT</button>
+          
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 20 }}>
+            {/* RECUPERAMOS EL BOTÓN DE SOPORTE */}
+            <button onClick={() => setShowSupport(true)} style={navBtnStyle(false)}>
+              <HelpCircle size={14} style={{marginRight: 8}} /> SUPPORT
+            </button>
+            <button onClick={() => signOut()} style={logoutBtnStyle}>
+              <LogOut size={14} style={{marginRight: 8}} /> LOGOUT
+            </button>
+          </div>
         </nav>
       </aside>
 
@@ -161,17 +169,56 @@ export default function ParentPortal() {
         {PAGE_MAP[page]}
       </main>
 
-      {/* MODAL DE COMPRA CON TODOS LOS PRECIOS RESTAURADOS */}
-      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Training Plans for ${selectedPlayer?.kid_name}`} width={750}>
+      {/* MODAL DE SOPORTE RESTAURADO */}
+      <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Support Center" width={400}>
+        <div style={{ textAlign: 'center', marginBottom: 20, color: 'var(--text2)' }}>Need help? Contact us.</div>
+        <Btn onClick={() => window.open('https://wa.me/19152343655', '_blank')} style={{ background: '#25D366', color: 'white', marginBottom: 10 }}>WhatsApp Support</Btn>
+        <Btn onClick={() => window.location.href = 'mailto:txtorq@gmail.com'} variant="outline">Email Support</Btn>
+      </Modal>
+
+      {/* MODAL DE EDICIÓN */}
+      <Modal open={showEditPlayer} onClose={() => setShowEditPlayer(false)} title="Edit Player Details">
+        <form onSubmit={handleUpdatePlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <Label>Player Name</Label>
+          <input required style={inputStyle} value={editPlayerData.name} onChange={e => setEditPlayerData({...editPlayerData, name: e.target.value})} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
+            <div><Label>Age</Label><input required type="number" style={inputStyle} value={editPlayerData.age} onChange={e => setEditPlayerData({...editPlayerData, age: e.target.value})} /></div>
+            <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} /></div>
+          </div>
+          <Btn type="submit">{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
+        </form>
+      </Modal>
+
+      {/* MODAL DE REGISTRO */}
+      <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Register New Player">
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          setLoading(true);
+          const { error } = await supabase.from('players').insert([{ parent_id: user.id, kid_name: newPlayerData.name, age: parseInt(newPlayerData.age), birthdate: newPlayerData.birthdate }]);
+          if (!error) { setShowAddPlayer(false); setSuccessMsg('Player registered!'); fetchTorqueData(); }
+          setLoading(false);
+        }} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <Label>Player Name</Label>
+          <input required style={inputStyle} value={newPlayerData.name} onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
+            <div><Label>Age</Label><input required type="number" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} /></div>
+            <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} /></div>
+          </div>
+          <Btn type="submit">REGISTER PLAYER</Btn>
+        </form>
+      </Modal>
+
+      {/* MODAL DE COMPRA CON TODOS LOS PRECIOS */}
+      <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Plans for ${selectedPlayer?.kid_name}`} width={750}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
           {PACKS.map(pack => (
             <div key={pack.id} style={packCardStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
                 <div>
-                  <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>{pack.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 700 }}>{pack.tag}</div>
+                  <div style={{ fontWeight: 900, fontSize: 20, color: 'var(--text)' }}>{pack.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--gold)' }}>{pack.tag}</div>
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>${pack.price}</div>
+                <div style={{ fontSize: 22, fontWeight: 900 }}>${pack.price}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                 <button onClick={() => handleCheckout(pack.links.stand)} style={optionBtnStyle}>STANDARD</button>
@@ -182,45 +229,6 @@ export default function ParentPortal() {
             </div>
           ))}
         </div>
-      </Modal>
-
-      <Modal open={showEditPlayer} onClose={() => setShowEditPlayer(false)} title="Edit Player Details">
-        <form onSubmit={handleUpdatePlayer} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-          <Label>Player Name</Label>
-          <input required style={inputStyle} value={editPlayerData.name} onChange={e => setEditPlayerData({...editPlayerData, name: e.target.value})} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
-            <div><Label>Age</Label><input required type="number" style={inputStyle} value={editPlayerData.age} onChange={e => setEditPlayerData({...editPlayerData, age: e.target.value})} /></div>
-            <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={editPlayerData.birthdate} onChange={e => setEditPlayerData({...editPlayerData, birthdate: e.target.value})} /></div>
-          </div>
-          <Btn type="submit" style={{marginTop: 10}}>{loading ? 'SAVING...' : 'SAVE CHANGES'}</Btn>
-        </form>
-      </Modal>
-
-      {/* MODAL PARA AGREGAR JUGADOR */}
-      <Modal open={showAddPlayer} onClose={() => setShowAddPlayer(false)} title="Register New Player">
-        <form onSubmit={async (e) => {
-          e.preventDefault();
-          setLoading(true);
-          const { error } = await supabase.from('players').insert([{ 
-            parent_id: user.id, kid_name: newPlayerData.name, 
-            age: parseInt(newPlayerData.age), birthdate: newPlayerData.birthdate 
-          }]);
-          if (!error) { 
-            setShowAddPlayer(false); 
-            setNewPlayerData({ name: '', age: '', birthdate: '' }); 
-            setSuccessMsg('Player added successfully!');
-            fetchTorqueData(); 
-          }
-          setLoading(false);
-        }} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-          <Label>Player Name</Label>
-          <input required style={inputStyle} value={newPlayerData.name} onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 15 }}>
-            <div><Label>Age</Label><input required type="number" style={inputStyle} value={newPlayerData.age} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} /></div>
-            <div><Label>Birthdate</Label><input required type="date" style={inputStyle} value={newPlayerData.birthdate} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} /></div>
-          </div>
-          <Btn type="submit" style={{marginTop: 10}}>REGISTER PLAYER</Btn>
-        </form>
       </Modal>
     </div>
   )
@@ -240,12 +248,12 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
                 <Avatar initials={p.kid_name ? p.kid_name[0] : '?'} size={50} color="var(--red)" />
                 <div>
                   <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>{p.kid_name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700 }}>{m ? `PLAN: ${m.package_name}` : 'NO ACTIVE PLAN'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{m ? `PLAN: ${m.package_name}` : 'NO ACTIVE PLAN'}</div>
                 </div>
               </div>
               <div style={progressBoxStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text2)' }}>SESSIONS REMAINING</span>
+                  <span style={{ fontSize: 10, fontWeight: 800 }}>SESSIONS REMAINING</span>
                   {m ? <span style={{ fontWeight: 900, color: 'var(--green)' }}>{m.total_sessions - m.sessions_used}</span> : <Btn variant="gold" size="sm" onClick={() => onBuy(p)}>+ BUY PLAN</Btn>}
                 </div>
                 <ProgressBar value={m ? (m.total_sessions - m.sessions_used) : 0} max={m ? m.total_sessions : 1} color="var(--green)" />
@@ -253,23 +261,19 @@ function ParentHome({ players, onAdd, onBuy, onEdit }) {
             </Card>
           )
         })}
-        <Card onClick={onAdd} style={addCardStyle}>
-          <Plus size={28} color="var(--text3)" />
-          <div style={{fontSize: 11, fontWeight: 800, marginTop: 10, color: 'var(--text3)' }}>ADD PLAYER</div>
-        </Card>
+        <Card onClick={onAdd} style={addCardStyle}><Plus size={28} /><div style={{fontSize: 11, marginTop: 10}}>ADD PLAYER</div></Card>
       </div>
     </div>
   )
 }
 
-// ESTILOS FINALIZADOS
 const sidebarStyle = { width: 220, background: '#080f18', borderRight: '1px solid var(--border)', position: 'fixed', top: 0, bottom: 0, display: 'flex', flexDirection: 'column', zIndex: 100 };
-const navBtnStyle = (active) => ({ width: '100%', padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, borderLeft: active ? '4px solid var(--gold)' : '4px solid transparent' });
-const logoutBtnStyle = { color: '#ff4d4d', background: 'none', border: 'none', padding: '20px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto' };
-const inputStyle = { width: '100%', padding: '14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white', fontSize: 14 };
-const successToastStyle = { position: 'fixed', top: 20, right: 40, background: '#2ecc71', color: 'white', padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, zIndex: 9999, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' };
+const navBtnStyle = (active) => ({ width: '100%', padding: '14px 20px', textAlign: 'left', background: active ? 'rgba(212,160,23,0.1)' : 'transparent', color: active ? 'var(--gold)' : 'var(--text2)', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center' });
+const logoutBtnStyle = { color: '#ff4d4d', background: 'none', border: 'none', padding: '14px 20px', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center' };
+const inputStyle = { width: '100%', padding: '14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--navy3)', color: 'white' };
+const successToastStyle = { position: 'fixed', top: 20, right: 40, background: '#2ecc71', color: 'white', padding: '12px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, zIndex: 9999 };
 const editBtnStyle = { position: 'absolute', top: 15, right: 15, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 8, padding: 8, cursor: 'pointer', color: 'var(--text3)' };
-const progressBoxStyle = { background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '10px', border: '1px solid var(--border)' };
+const progressBoxStyle = { background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '10px', border: '1px solid var(--border)' };
 const addCardStyle = { borderStyle: 'dashed', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', minHeight: 160, opacity: 0.6 };
 const packCardStyle = { padding: '24px', borderRadius: 16, border: '1px solid var(--border)', background: 'var(--navy3)' };
-const optionBtnStyle = { padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', fontWeight: 800, fontSize: 10, transition: 'all 0.2s' };
+const optionBtnStyle = { padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--navy4)', color: 'white', cursor: 'pointer', fontWeight: 800, fontSize: 10 };
