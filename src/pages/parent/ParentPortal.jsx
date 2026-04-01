@@ -278,7 +278,19 @@ export default function ParentPortal() {
   const [newPlayerData, setNewPlayerData] = useState({ name: '', age: '', birthdate: '' })
   const [onboardingData, setOnboardingData] = useState({ phone: '', kidName: '', kidAge: '', kidBirthdate: '' })
 
-  useEffect(() => { if (user) fetchTorqueData() }, [user])
+  useEffect(() => {
+    if (user) {
+      fetchTorqueData()
+
+      // Si viene de pagar, refresca después de 3 segundos para dar tiempo al webhook
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('payment') === 'success') {
+        setTimeout(() => fetchTorqueData(), 3000)
+        // Limpia la URL sin recargar la página
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [user])
 
   const navigateTo = (id) => { setPage(id); setSidebarOpen(false) }
 
