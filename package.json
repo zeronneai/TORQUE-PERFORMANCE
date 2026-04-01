@@ -15,7 +15,8 @@
     "lucide-react": "^0.383.0",
     "@clerk/clerk-react": "^5.0.0",
     "@clerk/themes": "^2.0.0",
-    "@supabase/supabase-js": "latest"
+    "@supabase/supabase-js": "latest",
+    "stripe": "^14.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
