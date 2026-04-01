@@ -57,7 +57,7 @@ function MainContent() {
   }
 
   // Si no es admin, asumimos que es Parent y usamos el UserID de Clerk como FamilyID
-  return <ParentPortal familyId={user?.id} />;
+  return <ParentPortal familyId={user?.id} paymentSuccess={new URLSearchParams(window.location.search).get('payment') === 'success'} />;
 }
 
 // ── APP ROOT (PROTEGIDO GLOBALMENTE) ──────────────────────────────────────────
