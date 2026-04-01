@@ -1,4 +1,3 @@
-// api/stripe-webhook.js
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
@@ -53,14 +52,21 @@ export default async function handler(req, res) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
-    const parentId = session.client_reference_id;
-    const kidName = session.metadata?.kid_name;
-    const priceId = session.metadata?.price_id;
+    // Decodear userId__kidName__priceId
+    const ref = decodeURIComponent(session.client_reference_id || '');
+    const parts = ref.split('__');
+
+    if (parts.length !== 3) {
+      console.error('client_reference_id inválido:', ref);
+      return res.status(400).json({ error: 'Invalid client_reference_id' });
+    }
+
+    const [parentId, kidName, priceId] = parts;
     const packageInfo = PACKAGE_SESSIONS[priceId];
 
-    if (!parentId || !kidName || !packageInfo) {
-      console.error('Faltan datos:', { parentId, kidName, priceId });
-      return res.status(400).json({ error: 'Missing required metadata' });
+    if (!packageInfo) {
+      console.error('Price ID no encontrado:', priceId);
+      return res.status(400).json({ error: 'Unknown price ID' });
     }
 
     const { error } = await supabase
@@ -79,7 +85,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'DB insert failed' });
     }
 
-    console.log(`✅ ${kidName} - ${packageInfo.name} - ${packageInfo.sessions} sesiones`);
+    console.log(`✅ Membresía creada: ${kidName} - ${packageInfo.name} - ${packageInfo.sessions} sesiones`);
   }
 
   res.status(200).json({ received: true });
