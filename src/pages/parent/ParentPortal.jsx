@@ -348,30 +348,39 @@ export default function ParentPortal() {
     try {
       setLoading(true)
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-      if (prof) {
-        setProfile(prof)
-        const { data: kids, error: kidsErr } = await supabase.from('players').select('*').eq('parent_id', user.id)
-        if (kidsErr) console.error('[Torque] players query error:', kidsErr)
 
-        // Fetch memberships from player_memberships (written by Stripe webhook)
-        const { data: allMemberships, error: memErr } = await supabase
-          .from('player_memberships')
-          .select('*')
-          .eq('parent_id', user.id)
-          .eq('status', 'active')
-        if (memErr) console.error('[Torque] player_memberships query error:', memErr)
-        console.log('[Torque] parent_id:', user.id, '| memberships found:', allMemberships?.length ?? 0, allMemberships)
+      // Si RLS bloquea el SELECT, usamos el cache local
+      const cacheKey = `torque_profile_${user.id}`
+      const effectiveProfile = prof || (() => {
+        try { return JSON.parse(localStorage.getItem(cacheKey) || 'null') } catch { return null }
+      })()
+      if (prof) localStorage.setItem(cacheKey, JSON.stringify(prof))
 
-        const kidsWithMemberships = (kids || []).map(kid => {
-          // Case-insensitive match on kid_name
-          const m = (allMemberships || []).find(
-            mem => mem.kid_name?.toLowerCase().trim() === kid.kid_name?.toLowerCase().trim()
+      if (effectiveProfile) {
+        setProfile(effectiveProfile)
+        const { data: kids } = await supabase.from('players').select('*').eq('parent_id', user.id)
+        const playersKey = `torque_players_${user.id}`
+        const effectiveKids = (kids && kids.length > 0) ? kids : (() => {
+          try { return JSON.parse(localStorage.getItem(playersKey) || '[]') } catch { return [] }
+        })()
+        if (kids && kids.length > 0) localStorage.setItem(playersKey, JSON.stringify(kids))
+
+        const { data: allMemberships } = await supabase
+          .from('player_memberships').select('*')
+          .eq('parent_id', user.id).eq('status', 'active')
+
+        setPlayers((effectiveKids || []).map(kid => ({
+          ...kid,
+          active_membership: (allMemberships || []).find(
+            m => m.kid_name?.toLowerCase().trim() === kid.kid_name?.toLowerCase().trim()
           ) || null
-          return { ...kid, active_membership: m }
-        })
-        setPlayers(kidsWithMemberships)
-      } else { setProfile(null) }
-    } finally { setLoading(false) }
+        })))
+      } else {
+        setProfile(null)
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleCheckout = (stripeUrl, priceId) => {
@@ -427,33 +436,32 @@ export default function ParentPortal() {
           <form onSubmit={async (e) => {
             e.preventDefault()
             setLoading(true)
+            try {
+              const profileData = {
+                id: user.id,
+                full_name: user.fullName,
+                email: user.primaryEmailAddress?.emailAddress,
+                phone: onboardingData.phone,
+                role: 'parent'
+              }
+              // Sin id — Supabase lo genera automáticamente
+              const playerInsert = {
+                parent_id: user.id,
+                kid_name: onboardingData.kidName,
+                age: parseInt(onboardingData.kidAge),
+                birthdate: onboardingData.kidBirthdate
+              }
 
-            const { error: profErr } = await supabase.from('profiles').insert([{
-              id: user.id,
-              full_name: user.fullName,
-              email: user.primaryEmailAddress?.emailAddress,
-              phone: onboardingData.phone,
-              role: 'parent'
-            }])
-            if (profErr) console.error('[Torque] profiles insert error:', profErr)
+              await supabase.from('profiles').insert([profileData])
+              await supabase.from('players').insert([playerInsert])
 
-            const { error: kidErr } = await supabase.from('players').insert([{
-              parent_id: user.id,
-              kid_name: onboardingData.kidName,
-              age: parseInt(onboardingData.kidAge),
-              birthdate: onboardingData.kidBirthdate
-            }])
-            if (kidErr) console.error('[Torque] players insert error:', kidErr)
-
-            // Si los inserts fallaron por RLS, seteamos el perfil manualmente
-            // para que el usuario pueda entrar igual mientras se resuelve RLS
-            if (profErr) {
-              setProfile({ id: user.id, full_name: user.fullName, role: 'parent' })
-              setPlayers([{ id: 'temp', parent_id: user.id, kid_name: onboardingData.kidName, age: parseInt(onboardingData.kidAge), active_membership: null }])
-              setLoading(false)
-            } else {
-              await fetchTorqueData()
+              // Cache local: el perfil y el player (con kid_name para hacer match de memberships)
+              localStorage.setItem(`torque_profile_${user.id}`, JSON.stringify(profileData))
+              localStorage.setItem(`torque_players_${user.id}`, JSON.stringify([{ ...playerInsert, id: 'local' }]))
+            } catch (err) {
+              console.error('[Torque] onboarding error:', err)
             }
+            await fetchTorqueData()
           }} style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div>
               <Label>Parent Phone</Label>
