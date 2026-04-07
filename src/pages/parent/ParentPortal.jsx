@@ -289,21 +289,52 @@ export default function ParentPortal() {
       fetchTorqueData()
 
       const params = new URLSearchParams(window.location.search)
-      if (params.get('payment') === 'success') {
+      const sessionId = params.get('session_id')
+      const paymentOk = params.get('payment') === 'success'
+
+      if (sessionId || paymentOk) {
         setPaymentBanner(true)
         window.history.replaceState({}, '', window.location.pathname)
-        // Poll hasta 8 veces cada 2s para dar tiempo al webhook
-        let attempt = 0
-        const interval = setInterval(async () => {
-          attempt++
-          await fetchTorqueData()
-          if (attempt >= 8) {
-            clearInterval(interval)
-          }
-        }, 2000)
+
+        // Si viene el session_id, verificamos el pago directamente con Stripe
+        if (sessionId) {
+          verifyAndRecord(sessionId)
+        } else {
+          // Fallback: polling simple (webhook externo)
+          startPolling()
+        }
       }
     }
   }, [user])
+
+  async function verifyAndRecord(sessionId) {
+    try {
+      console.log('[Torque] Verificando pago:', sessionId)
+      const res = await fetch(`/api/verify-payment?session_id=${encodeURIComponent(sessionId)}`)
+      const data = await res.json()
+      console.log('[Torque] verify-payment response:', data)
+      if (data.ok) {
+        // Refresca inmediatamente y luego 2 veces más por si hay delay
+        await fetchTorqueData()
+        setTimeout(() => fetchTorqueData(), 2000)
+      } else {
+        console.warn('[Torque] verify-payment no-ok:', data)
+        startPolling()
+      }
+    } catch (err) {
+      console.error('[Torque] verify-payment error:', err)
+      startPolling()
+    }
+  }
+
+  function startPolling() {
+    let attempt = 0
+    const interval = setInterval(async () => {
+      attempt++
+      await fetchTorqueData()
+      if (attempt >= 8) clearInterval(interval)
+    }, 2000)
+  }
 
   const navigateTo = (id) => { setPage(id); setSidebarOpen(false) }
 
@@ -343,7 +374,6 @@ export default function ParentPortal() {
     } finally { setLoading(false) }
   }
 
-  // ── CAMBIO 1: handleCheckout ahora recibe priceId también ──
   const handleCheckout = (stripeUrl, priceId) => {
     if (!selectedPlayer) return
     const ref = encodeURIComponent(`${user.id}__${selectedPlayer.kid_name}__${priceId}`)
