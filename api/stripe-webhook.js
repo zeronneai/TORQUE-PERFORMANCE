@@ -1,6 +1,5 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { buffer } from 'micro'; // Necesitas esta librería o usar la alternativa nativa
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -8,12 +7,21 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// IMPORTANTE: Esto le dice a Vercel/Next.js que no toque el cuerpo de la petición
+// Desactivamos el body parser automático de Next.js
 export const config = {
   api: {
     bodyParser: false,
   },
 };
+
+// Función auxiliar para leer el cuerpo crudo (raw body) sin librerías externas
+async function getRawBody(readable) {
+  const chunks = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
 
 const PACKAGE_SESSIONS = {
   'price_1TFiVSAaoJKjkq1OgPOYmeX7': { sessions: 4,   name: 'Paquete A' },
@@ -41,11 +49,11 @@ export default async function handler(req, res) {
 
   const sig = req.headers['stripe-signature'];
   let event;
-  let rawBody;
 
   try {
-    // Obtenemos el body como buffer para que la firma de Stripe sea válida
-    rawBody = await buffer(req); 
+    // Leemos el cuerpo crudo de la petición
+    const rawBody = await getRawBody(req);
+    
     event = stripe.webhooks.constructEvent(
       rawBody,
       sig,
@@ -58,12 +66,10 @@ export default async function handler(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-
     const ref = decodeURIComponent(session.client_reference_id || '');
     const parts = ref.split('__');
 
     if (parts.length !== 3) {
-      console.error('client_reference_id inválido:', ref);
       return res.status(400).json({ error: 'Invalid client_reference_id' });
     }
 
@@ -71,11 +77,9 @@ export default async function handler(req, res) {
     const packageInfo = PACKAGE_SESSIONS[priceId];
 
     if (!packageInfo) {
-      console.error('Price ID no encontrado:', priceId);
       return res.status(400).json({ error: 'Unknown price ID' });
     }
 
-    // Usamos supabase con la Service Role Key (ya configurada arriba) para saltar RLS
     const { error } = await supabase
       .from('player_memberships')
       .insert({
@@ -94,7 +98,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'DB insert failed' });
     }
 
-    console.log(`✅ Membresía creada: ${kidName} - ${packageInfo.name}`);
+    console.log(`✅ Membresía creada con éxito`);
   }
 
   res.status(200).json({ received: true });
