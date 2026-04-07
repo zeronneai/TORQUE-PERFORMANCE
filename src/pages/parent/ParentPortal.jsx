@@ -348,29 +348,44 @@ export default function ParentPortal() {
     try {
       setLoading(true)
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-      if (prof) {
-        setProfile(prof)
+
+      // Fallback: si RLS bloquea el SELECT, usamos el cache local
+      const cacheKey = `torque_profile_${user.id}`
+      const cached = localStorage.getItem(cacheKey)
+      const effectiveProfile = prof || (cached ? JSON.parse(cached) : null)
+
+      // Si Supabase devolvió el perfil, actualizamos el cache
+      if (prof) localStorage.setItem(cacheKey, JSON.stringify(prof))
+
+      if (effectiveProfile) {
+        setProfile(effectiveProfile)
+
         const { data: kids, error: kidsErr } = await supabase.from('players').select('*').eq('parent_id', user.id)
         if (kidsErr) console.error('[Torque] players query error:', kidsErr)
 
-        // Fetch memberships from player_memberships (written by Stripe webhook)
+        // Fallback de players desde cache si RLS bloquea
+        const playersKey = `torque_players_${user.id}`
+        const cachedPlayers = localStorage.getItem(playersKey)
+        const effectiveKids = (kids && kids.length > 0) ? kids : (cachedPlayers ? JSON.parse(cachedPlayers) : [])
+        if (kids && kids.length > 0) localStorage.setItem(playersKey, JSON.stringify(kids))
+
         const { data: allMemberships, error: memErr } = await supabase
           .from('player_memberships')
           .select('*')
           .eq('parent_id', user.id)
           .eq('status', 'active')
         if (memErr) console.error('[Torque] player_memberships query error:', memErr)
-        console.log('[Torque] parent_id:', user.id, '| memberships found:', allMemberships?.length ?? 0, allMemberships)
 
-        const kidsWithMemberships = (kids || []).map(kid => {
-          // Case-insensitive match on kid_name
+        const kidsWithMemberships = (effectiveKids || []).map(kid => {
           const m = (allMemberships || []).find(
             mem => mem.kid_name?.toLowerCase().trim() === kid.kid_name?.toLowerCase().trim()
           ) || null
           return { ...kid, active_membership: m }
         })
         setPlayers(kidsWithMemberships)
-      } else { setProfile(null) }
+      } else {
+        setProfile(null)
+      }
     } finally { setLoading(false) }
   }
 
@@ -428,32 +443,32 @@ export default function ParentPortal() {
             e.preventDefault()
             setLoading(true)
 
-            const { error: profErr } = await supabase.from('profiles').insert([{
+            const profileData = {
               id: user.id,
               full_name: user.fullName,
               email: user.primaryEmailAddress?.emailAddress,
               phone: onboardingData.phone,
               role: 'parent'
-            }])
-            if (profErr) console.error('[Torque] profiles insert error:', profErr)
-
-            const { error: kidErr } = await supabase.from('players').insert([{
+            }
+            const playerData = {
+              id: `local_${Date.now()}`,
               parent_id: user.id,
               kid_name: onboardingData.kidName,
               age: parseInt(onboardingData.kidAge),
               birthdate: onboardingData.kidBirthdate
-            }])
+            }
+
+            const { error: profErr } = await supabase.from('profiles').insert([profileData])
+            if (profErr) console.error('[Torque] profiles insert error:', profErr)
+
+            const { error: kidErr } = await supabase.from('players').insert([playerData])
             if (kidErr) console.error('[Torque] players insert error:', kidErr)
 
-            // Si los inserts fallaron por RLS, seteamos el perfil manualmente
-            // para que el usuario pueda entrar igual mientras se resuelve RLS
-            if (profErr) {
-              setProfile({ id: user.id, full_name: user.fullName, role: 'parent' })
-              setPlayers([{ id: 'temp', parent_id: user.id, kid_name: onboardingData.kidName, age: parseInt(onboardingData.kidAge), active_membership: null }])
-              setLoading(false)
-            } else {
-              await fetchTorqueData()
-            }
+            // Guardar en cache local para que no vuelva al onboarding si RLS bloquea el SELECT
+            localStorage.setItem(`torque_profile_${user.id}`, JSON.stringify(profileData))
+            localStorage.setItem(`torque_players_${user.id}`, JSON.stringify([playerData]))
+
+            await fetchTorqueData()
           }} style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div>
               <Label>Parent Phone</Label>
