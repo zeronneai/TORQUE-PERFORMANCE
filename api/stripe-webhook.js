@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { buffer } from 'micro'; // Necesitas esta librería o usar la alternativa nativa
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -7,23 +8,26 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// IMPORTANTE: Esto le dice a Vercel/Next.js que no toque el cuerpo de la petición
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 const PACKAGE_SESSIONS = {
-  // PAQUETE A
   'price_1TFiVSAaoJKjkq1OgPOYmeX7': { sessions: 4,   name: 'Paquete A' },
   'price_1TFiVSAaoJKjkq1OvDzbHwbd': { sessions: 24,  name: 'Paquete A' },
   'price_1TFiWHAaoJKjkq1OaioJwHRp': { sessions: 48,  name: 'Paquete A' },
   'price_1TFiWHAaoJKjkq1Oge43FYOo': { sessions: 48,  name: 'Paquete A' },
-  // PAQUETE AA
   'price_1TFiX7AaoJKjkq1OLnC5HLaS': { sessions: 8,   name: 'Paquete AA' },
   'price_1TFiYpAaoJKjkq1OxvBFuzPJ': { sessions: 48,  name: 'Paquete AA' },
   'price_1TFiYpAaoJKjkq1O8oFYz5VK': { sessions: 96,  name: 'Paquete AA' },
   'price_1TFiYpAaoJKjkq1OBHUagz9Y': { sessions: 96,  name: 'Paquete AA' },
-  // PAQUETE AAA
   'price_1TFia1AaoJKjkq1O9XQZ5YbZ': { sessions: 12,  name: 'Paquete AAA' },
   'price_1TFiaXAaoJKjkq1OTrt1aWsR': { sessions: 72,  name: 'Paquete AAA' },
   'price_1TFiaXAaoJKjkq1OObbQEbnX': { sessions: 144, name: 'Paquete AAA' },
   'price_1TFiaXAaoJKjkq1OW0sZ5nOP': { sessions: 144, name: 'Paquete AAA' },
-  // PAQUETE MLB
   'price_1TFibiAaoJKjkq1Oi9ZGJwyy': { sessions: 20,  name: 'Paquete MLB' },
   'price_1TFicFAaoJKjkq1OK0b6zjq5': { sessions: 120, name: 'Paquete MLB' },
   'price_1TFicFAaoJKjkq1OBV6hiqhS': { sessions: 240, name: 'Paquete MLB' },
@@ -37,22 +41,24 @@ export default async function handler(req, res) {
 
   const sig = req.headers['stripe-signature'];
   let event;
+  let rawBody;
 
   try {
+    // Obtenemos el body como buffer para que la firma de Stripe sea válida
+    rawBody = await buffer(req); 
     event = stripe.webhooks.constructEvent(
-      req.body,
+      rawBody,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
     console.error('Webhook signature error:', err.message);
-    return res.status(400).json({ error: `Webhook error: ${err.message}` });
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
-    // Decodear userId__kidName__priceId
     const ref = decodeURIComponent(session.client_reference_id || '');
     const parts = ref.split('__');
 
@@ -69,6 +75,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Unknown price ID' });
     }
 
+    // Usamos supabase con la Service Role Key (ya configurada arriba) para saltar RLS
     const { error } = await supabase
       .from('player_memberships')
       .insert({
@@ -87,7 +94,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'DB insert failed' });
     }
 
-    console.log(`✅ Membresía creada: ${kidName} - ${packageInfo.name} - ${packageInfo.sessions} sesiones`);
+    console.log(`✅ Membresía creada: ${kidName} - ${packageInfo.name}`);
   }
 
   res.status(200).json({ received: true });
