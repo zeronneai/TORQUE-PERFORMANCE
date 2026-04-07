@@ -349,44 +349,38 @@ export default function ParentPortal() {
       setLoading(true)
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
 
-      // Fallback: si RLS bloquea el SELECT, usamos el cache local
+      // Si RLS bloquea el SELECT, usamos el cache local
       const cacheKey = `torque_profile_${user.id}`
-      const cached = localStorage.getItem(cacheKey)
-      const effectiveProfile = prof || (cached ? JSON.parse(cached) : null)
-
-      // Si Supabase devolvió el perfil, actualizamos el cache
+      const effectiveProfile = prof || (() => {
+        try { return JSON.parse(localStorage.getItem(cacheKey) || 'null') } catch { return null }
+      })()
       if (prof) localStorage.setItem(cacheKey, JSON.stringify(prof))
 
       if (effectiveProfile) {
         setProfile(effectiveProfile)
-
-        const { data: kids, error: kidsErr } = await supabase.from('players').select('*').eq('parent_id', user.id)
-        if (kidsErr) console.error('[Torque] players query error:', kidsErr)
-
-        // Fallback de players desde cache si RLS bloquea
+        const { data: kids } = await supabase.from('players').select('*').eq('parent_id', user.id)
         const playersKey = `torque_players_${user.id}`
-        const cachedPlayers = localStorage.getItem(playersKey)
-        const effectiveKids = (kids && kids.length > 0) ? kids : (cachedPlayers ? JSON.parse(cachedPlayers) : [])
+        const effectiveKids = (kids && kids.length > 0) ? kids : (() => {
+          try { return JSON.parse(localStorage.getItem(playersKey) || '[]') } catch { return [] }
+        })()
         if (kids && kids.length > 0) localStorage.setItem(playersKey, JSON.stringify(kids))
 
-        const { data: allMemberships, error: memErr } = await supabase
-          .from('player_memberships')
-          .select('*')
-          .eq('parent_id', user.id)
-          .eq('status', 'active')
-        if (memErr) console.error('[Torque] player_memberships query error:', memErr)
+        const { data: allMemberships } = await supabase
+          .from('player_memberships').select('*')
+          .eq('parent_id', user.id).eq('status', 'active')
 
-        const kidsWithMemberships = (effectiveKids || []).map(kid => {
-          const m = (allMemberships || []).find(
-            mem => mem.kid_name?.toLowerCase().trim() === kid.kid_name?.toLowerCase().trim()
+        setPlayers((effectiveKids || []).map(kid => ({
+          ...kid,
+          active_membership: (allMemberships || []).find(
+            m => m.kid_name?.toLowerCase().trim() === kid.kid_name?.toLowerCase().trim()
           ) || null
-          return { ...kid, active_membership: m }
-        })
-        setPlayers(kidsWithMemberships)
+        })))
       } else {
         setProfile(null)
       }
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleCheckout = (stripeUrl, priceId) => {
@@ -442,32 +436,31 @@ export default function ParentPortal() {
           <form onSubmit={async (e) => {
             e.preventDefault()
             setLoading(true)
+            try {
+              const profileData = {
+                id: user.id,
+                full_name: user.fullName,
+                email: user.primaryEmailAddress?.emailAddress,
+                phone: onboardingData.phone,
+                role: 'parent'
+              }
+              // Sin id — Supabase lo genera automáticamente
+              const playerInsert = {
+                parent_id: user.id,
+                kid_name: onboardingData.kidName,
+                age: parseInt(onboardingData.kidAge),
+                birthdate: onboardingData.kidBirthdate
+              }
 
-            const profileData = {
-              id: user.id,
-              full_name: user.fullName,
-              email: user.primaryEmailAddress?.emailAddress,
-              phone: onboardingData.phone,
-              role: 'parent'
+              await supabase.from('profiles').insert([profileData])
+              await supabase.from('players').insert([playerInsert])
+
+              // Cache local: el perfil y el player (con kid_name para hacer match de memberships)
+              localStorage.setItem(`torque_profile_${user.id}`, JSON.stringify(profileData))
+              localStorage.setItem(`torque_players_${user.id}`, JSON.stringify([{ ...playerInsert, id: 'local' }]))
+            } catch (err) {
+              console.error('[Torque] onboarding error:', err)
             }
-            const playerData = {
-              id: `local_${Date.now()}`,
-              parent_id: user.id,
-              kid_name: onboardingData.kidName,
-              age: parseInt(onboardingData.kidAge),
-              birthdate: onboardingData.kidBirthdate
-            }
-
-            const { error: profErr } = await supabase.from('profiles').insert([profileData])
-            if (profErr) console.error('[Torque] profiles insert error:', profErr)
-
-            const { error: kidErr } = await supabase.from('players').insert([playerData])
-            if (kidErr) console.error('[Torque] players insert error:', kidErr)
-
-            // Guardar en cache local para que no vuelva al onboarding si RLS bloquea el SELECT
-            localStorage.setItem(`torque_profile_${user.id}`, JSON.stringify(profileData))
-            localStorage.setItem(`torque_players_${user.id}`, JSON.stringify([playerData]))
-
             await fetchTorqueData()
           }} style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div>
