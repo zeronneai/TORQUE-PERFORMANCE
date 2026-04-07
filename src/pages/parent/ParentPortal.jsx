@@ -425,10 +425,35 @@ export default function ParentPortal() {
           </div>
 
           <form onSubmit={async (e) => {
-            e.preventDefault(); setLoading(true)
-            await supabase.from('profiles').insert([{ id: user.id, full_name: user.fullName, email: user.primaryEmailAddress.emailAddress, phone: onboardingData.phone, role: 'parent' }])
-            await supabase.from('players').insert([{ parent_id: user.id, kid_name: onboardingData.kidName, age: parseInt(onboardingData.kidAge), birthdate: onboardingData.kidBirthdate }])
-            fetchTorqueData()
+            e.preventDefault()
+            setLoading(true)
+
+            const { error: profErr } = await supabase.from('profiles').insert([{
+              id: user.id,
+              full_name: user.fullName,
+              email: user.primaryEmailAddress?.emailAddress,
+              phone: onboardingData.phone,
+              role: 'parent'
+            }])
+            if (profErr) console.error('[Torque] profiles insert error:', profErr)
+
+            const { error: kidErr } = await supabase.from('players').insert([{
+              parent_id: user.id,
+              kid_name: onboardingData.kidName,
+              age: parseInt(onboardingData.kidAge),
+              birthdate: onboardingData.kidBirthdate
+            }])
+            if (kidErr) console.error('[Torque] players insert error:', kidErr)
+
+            // Si los inserts fallaron por RLS, seteamos el perfil manualmente
+            // para que el usuario pueda entrar igual mientras se resuelve RLS
+            if (profErr) {
+              setProfile({ id: user.id, full_name: user.fullName, role: 'parent' })
+              setPlayers([{ id: 'temp', parent_id: user.id, kid_name: onboardingData.kidName, age: parseInt(onboardingData.kidAge), active_membership: null }])
+              setLoading(false)
+            } else {
+              await fetchTorqueData()
+            }
           }} style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div>
               <Label>Parent Phone</Label>
