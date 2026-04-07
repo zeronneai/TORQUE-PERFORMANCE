@@ -281,22 +281,68 @@ export default function ParentPortal() {
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [newPlayerData, setNewPlayerData] = useState({ name: '', age: '', birthdate: '' })
   const [onboardingData, setOnboardingData] = useState({ phone: '', kidName: '', kidAge: '', kidBirthdate: '' })
+  const [paymentBanner, setPaymentBanner] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     if (user) {
       fetchTorqueData()
 
-      // Si viene de pagar, refresca después de 3 segundos para dar tiempo al webhook
       const params = new URLSearchParams(window.location.search)
-      if (params.get('payment') === 'success') {
-        setTimeout(() => fetchTorqueData(), 3000)
-        // Limpia la URL sin recargar la página
+      const sessionId = params.get('session_id')
+      const paymentOk = params.get('payment') === 'success'
+
+      if (sessionId || paymentOk) {
+        setPaymentBanner(true)
         window.history.replaceState({}, '', window.location.pathname)
+
+        // Si viene el session_id, verificamos el pago directamente con Stripe
+        if (sessionId) {
+          verifyAndRecord(sessionId)
+        } else {
+          // Fallback: polling simple (webhook externo)
+          startPolling()
+        }
       }
     }
   }, [user])
 
+  async function verifyAndRecord(sessionId) {
+    try {
+      console.log('[Torque] Verificando pago:', sessionId)
+      const res = await fetch(`/api/verify-payment?session_id=${encodeURIComponent(sessionId)}`)
+      const data = await res.json()
+      console.log('[Torque] verify-payment response:', data)
+      if (data.ok) {
+        // Refresca inmediatamente y luego 2 veces más por si hay delay
+        await fetchTorqueData()
+        setTimeout(() => fetchTorqueData(), 2000)
+      } else {
+        console.warn('[Torque] verify-payment no-ok:', data)
+        startPolling()
+      }
+    } catch (err) {
+      console.error('[Torque] verify-payment error:', err)
+      startPolling()
+    }
+  }
+
+  function startPolling() {
+    let attempt = 0
+    const interval = setInterval(async () => {
+      attempt++
+      await fetchTorqueData()
+      if (attempt >= 8) clearInterval(interval)
+    }, 2000)
+  }
+
   const navigateTo = (id) => { setPage(id); setSidebarOpen(false) }
+
+  async function manualRefresh() {
+    setRefreshing(true)
+    await fetchTorqueData()
+    setRefreshing(false)
+  }
 
   async function fetchTorqueData() {
     try {
@@ -304,15 +350,23 @@ export default function ParentPortal() {
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
       if (prof) {
         setProfile(prof)
-        const { data: kids } = await supabase.from('players').select('*').eq('parent_id', user.id)
+        const { data: kids, error: kidsErr } = await supabase.from('players').select('*').eq('parent_id', user.id)
+        if (kidsErr) console.error('[Torque] players query error:', kidsErr)
+
         // Fetch memberships from player_memberships (written by Stripe webhook)
-        const { data: allMemberships } = await supabase
+        const { data: allMemberships, error: memErr } = await supabase
           .from('player_memberships')
           .select('*')
           .eq('parent_id', user.id)
           .eq('status', 'active')
+        if (memErr) console.error('[Torque] player_memberships query error:', memErr)
+        console.log('[Torque] parent_id:', user.id, '| memberships found:', allMemberships?.length ?? 0, allMemberships)
+
         const kidsWithMemberships = (kids || []).map(kid => {
-          const m = (allMemberships || []).find(mem => mem.kid_name === kid.kid_name) || null
+          // Case-insensitive match on kid_name
+          const m = (allMemberships || []).find(
+            mem => mem.kid_name?.toLowerCase().trim() === kid.kid_name?.toLowerCase().trim()
+          ) || null
           return { ...kid, active_membership: m }
         })
         setPlayers(kidsWithMemberships)
@@ -320,7 +374,6 @@ export default function ParentPortal() {
     } finally { setLoading(false) }
   }
 
-  // ── CAMBIO 1: handleCheckout ahora recibe priceId también ──
   const handleCheckout = (stripeUrl, priceId) => {
     if (!selectedPlayer) return
     const ref = encodeURIComponent(`${user.id}__${selectedPlayer.kid_name}__${priceId}`)
@@ -372,10 +425,35 @@ export default function ParentPortal() {
           </div>
 
           <form onSubmit={async (e) => {
-            e.preventDefault(); setLoading(true)
-            await supabase.from('profiles').insert([{ id: user.id, full_name: user.fullName, email: user.primaryEmailAddress.emailAddress, phone: onboardingData.phone, role: 'parent' }])
-            await supabase.from('players').insert([{ parent_id: user.id, kid_name: onboardingData.kidName, age: parseInt(onboardingData.kidAge), birthdate: onboardingData.kidBirthdate }])
-            fetchTorqueData()
+            e.preventDefault()
+            setLoading(true)
+
+            const { error: profErr } = await supabase.from('profiles').insert([{
+              id: user.id,
+              full_name: user.fullName,
+              email: user.primaryEmailAddress?.emailAddress,
+              phone: onboardingData.phone,
+              role: 'parent'
+            }])
+            if (profErr) console.error('[Torque] profiles insert error:', profErr)
+
+            const { error: kidErr } = await supabase.from('players').insert([{
+              parent_id: user.id,
+              kid_name: onboardingData.kidName,
+              age: parseInt(onboardingData.kidAge),
+              birthdate: onboardingData.kidBirthdate
+            }])
+            if (kidErr) console.error('[Torque] players insert error:', kidErr)
+
+            // Si los inserts fallaron por RLS, seteamos el perfil manualmente
+            // para que el usuario pueda entrar igual mientras se resuelve RLS
+            if (profErr) {
+              setProfile({ id: user.id, full_name: user.fullName, role: 'parent' })
+              setPlayers([{ id: 'temp', parent_id: user.id, kid_name: onboardingData.kidName, age: parseInt(onboardingData.kidAge), active_membership: null }])
+              setLoading(false)
+            } else {
+              await fetchTorqueData()
+            }
           }} style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div>
               <Label>Parent Phone</Label>
@@ -502,6 +580,24 @@ export default function ParentPortal() {
 
         {/* Main content */}
         <main className="torque-main" style={{ flex:1, marginLeft:240, padding:'44px 48px', minHeight:'100vh' }}>
+          {/* Payment detected banner */}
+          {paymentBanner && (
+            <div style={{ marginBottom:24, padding:'14px 20px', borderRadius:10, background:'rgba(34,197,110,0.07)', border:'1px solid rgba(34,197,110,0.2)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--green2)', boxShadow:'0 0 8px var(--green2)', flexShrink:0 }} />
+                <div>
+                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'var(--green2)', letterSpacing:'0.06em', textTransform:'uppercase' }}>Pago recibido</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:1 }}>Cargando tus sesiones... Si no aparecen en unos segundos, presiona el botón.</div>
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                <button onClick={manualRefresh} disabled={refreshing} className="btn-ghost" style={{ fontSize:12 }}>
+                  {refreshing ? 'Buscando...' : '↺ Buscar sesiones'}
+                </button>
+                <button onClick={() => setPaymentBanner(false)} style={{ background:'none', border:'none', color:'var(--muted2)', cursor:'pointer', fontSize:18, lineHeight:1, padding:'0 4px' }}>✕</button>
+              </div>
+            </div>
+          )}
           {PAGE_MAP[page]}
         </main>
       </div>
