@@ -385,30 +385,66 @@ export default function ParentPortal() {
     setBookings(data || [])
   }
 
+  // Refresca datos sin mostrar la pantalla de loading completa
+  async function quietRefresh() {
+    const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+    const cacheKey = `torque_profile_${user.id}`
+    const effectiveProfile = prof || (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null') } catch { return null } })()
+    if (!effectiveProfile) return
+    if (prof) localStorage.setItem(cacheKey, JSON.stringify(prof))
+
+    const { data: kids } = await supabase.from('players').select('*').eq('parent_id', user.id)
+    const playersKey = `torque_players_${user.id}`
+    const effectiveKids = (kids && kids.length > 0) ? kids : (() => { try { return JSON.parse(localStorage.getItem(playersKey) || '[]') } catch { return [] } })()
+    if (kids && kids.length > 0) localStorage.setItem(playersKey, JSON.stringify(kids))
+
+    const { data: allMemberships } = await supabase
+      .from('player_memberships').select('*')
+      .eq('parent_id', user.id).eq('status', 'active')
+
+    setPlayers((effectiveKids || []).map(kid => ({
+      ...kid,
+      active_membership: (allMemberships || []).find(
+        m => m.kid_name?.toLowerCase().trim() === kid.kid_name?.toLowerCase().trim()
+      ) || null
+    })))
+
+    const { data: bks } = await supabase.from('bookings').select('*')
+      .eq('parent_id', user.id).order('session_date', { ascending: true })
+    setBookings(bks || [])
+  }
+
   async function handleBookSession() {
     if (!bookingPlayer || !bookingForm.date || !bookingForm.time) return
     setBookingLoading(true)
     try {
-      const m = bookingPlayer.active_membership
-      // Insert booking
-      await supabase.from('bookings').insert([{
+      // 1. Insertar booking
+      const { error: bookErr } = await supabase.from('bookings').insert([{
         parent_id: user.id,
         kid_name: bookingPlayer.kid_name,
-        membership_id: m?.id || null,
+        membership_id: bookingPlayer.active_membership?.id || null,
         session_date: bookingForm.date,
         session_time: bookingForm.time,
         session_type: bookingForm.type,
         status: 'confirmed'
       }])
-      // Increment sessions_used
-      if (m?.id) {
-        await supabase.from('player_memberships')
-          .update({ sessions_used: (m.sessions_used || 0) + 1 })
-          .eq('id', m.id)
-      }
+      if (bookErr) { console.error('[Torque] booking insert error:', bookErr); return }
+
+      // 2. Descontar sesión — usar parent_id + kid_name (no depende de id local)
+      const m = bookingPlayer.active_membership
+      const newUsed = (m?.sessions_used || 0) + 1
+      const { error: updErr } = await supabase.from('player_memberships')
+        .update({ sessions_used: newUsed })
+        .eq('parent_id', user.id)
+        .eq('kid_name', bookingPlayer.kid_name)
+        .eq('status', 'active')
+      if (updErr) console.error('[Torque] sessions_used update error:', updErr)
+
       setShowBookModal(false)
       setBookingForm({ date: '', time: '', type: 'Training' })
-      await Promise.all([fetchTorqueData(), fetchBookings()])
+
+      // 3. Refrescar silenciosamente (sin pantalla de loading)
+      await quietRefresh()
     } finally {
       setBookingLoading(false)
     }
