@@ -68,7 +68,7 @@ export default function AdminDashboard() {
               <XAxis dataKey="month" tick={{ fill: '#4a5a70', fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#4a5a70', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `$${v / 1000}k`} />
               <Tooltip content={<CT />} />
-              <Bar dataKey="revenue" fill="var(--red)" radius={[4, 4, 0, 0]} opacity={0.9} name="revenue" />
+              <Bar dataKey="revenue" fill="rgba(255,255,255,0.7)" radius={[4, 4, 0, 0]} opacity={0.9} name="revenue" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -97,7 +97,7 @@ export default function AdminDashboard() {
               const remaining = player.sessionsTotal - player.sessionsUsed
               return (
                 <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <Avatar initials={player.name.split(' ').map(n => n[0]).join('')} size={32} color={remaining === 0 ? 'var(--text3)' : remaining <= 2 ? 'var(--amber)' : 'var(--red)'} />
+                  <Avatar initials={player.name.split(' ').map(n => n[0]).join('')} size={32} color={remaining === 0 ? 'var(--text3)' : remaining <= 2 ? 'var(--amber)' : 'var(--navy4)'} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 500, display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>

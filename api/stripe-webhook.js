@@ -74,9 +74,11 @@ export default async function handler(req, res) {
       .insert({
         parent_id: parentId,
         kid_name: kidName,
+        package_name: packageInfo.name,
         sessions_total: packageInfo.sessions,
         sessions_used: 0,
         stripe_payment_id: session.payment_intent,
+        stripe_session_id: session.id,
         status: 'active',
       });
 

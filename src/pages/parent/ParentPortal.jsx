@@ -39,8 +39,12 @@ const GLOBAL_CSS = `
     --navy3:   #111F35;
     --navy4:   #152440;
     --navy5:   #1A2B4A;
-    --red:     #C8102E;
-    --red2:    #E8132F;
+    /* Brand accent: blanco */
+    --accent:  #FFFFFF;
+    --accent2: rgba(255,255,255,0.75);
+    /* Kept as aliases so existing var(--red) / var(--red2) still work */
+    --red:     #FFFFFF;
+    --red2:    rgba(255,255,255,0.75);
     --white:   #FFFFFF;
     --offwhite:#EEF2F7;
     --muted:   #7A8EA8;
@@ -83,9 +87,9 @@ const GLOBAL_CSS = `
     from { opacity: 0; } to { opacity: 1; }
   }
   @keyframes redPulse {
-    0%   { box-shadow: 0 0 0 0 rgba(200,16,46,0.5); }
-    70%  { box-shadow: 0 0 0 8px rgba(200,16,46,0);  }
-    100% { box-shadow: 0 0 0 0 rgba(200,16,46,0);    }
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.3); }
+    70%  { box-shadow: 0 0 0 8px rgba(255,255,255,0);  }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0);    }
   }
   @keyframes slideRight {
     from { transform: scaleX(0); } to { transform: scaleX(1); }
@@ -117,8 +121,8 @@ const GLOBAL_CSS = `
   .nav-item:hover { color: var(--offwhite); background: rgba(255,255,255,0.04); }
   .nav-item.active {
     color: var(--white);
-    background: rgba(200,16,46,0.08);
-    border-left-color: var(--red);
+    background: rgba(255,255,255,0.05);
+    border-left-color: var(--accent);
   }
 
   /* ── Player cards ── */
@@ -138,8 +142,8 @@ const GLOBAL_CSS = `
   }
   .player-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(200,16,46,0.2);
-    border-color: rgba(200,16,46,0.25);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.15);
   }
   .player-card:hover::after { opacity: 1; }
 
@@ -154,10 +158,10 @@ const GLOBAL_CSS = `
     transition: all 0.22s ease;
   }
   .add-card:hover {
-    border-color: rgba(200,16,46,0.5);
-    background: rgba(200,16,46,0.04);
+    border-color: rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.03);
   }
-  .add-card:hover .add-icon { color: var(--red2); transform: rotate(90deg) scale(1.1); }
+  .add-card:hover .add-icon { color: var(--accent); transform: rotate(90deg) scale(1.1); }
   .add-icon { color: var(--muted2); transition: all 0.3s ease; }
 
   /* ── Pack option buttons ── */
@@ -171,8 +175,8 @@ const GLOBAL_CSS = `
     position: relative; overflow: hidden;
   }
   .pack-option:hover {
-    border-color: rgba(200,16,46,0.5);
-    background: rgba(200,16,46,0.06);
+    border-color: rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.05);
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   }
@@ -209,26 +213,26 @@ const GLOBAL_CSS = `
     transition: border-color 0.18s, box-shadow 0.18s;
   }
   .torque-input:focus {
-    border-color: rgba(200,16,46,0.5);
-    box-shadow: 0 0 0 3px rgba(200,16,46,0.08);
+    border-color: rgba(255,255,255,0.3);
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.05);
   }
   .torque-input::placeholder { color: var(--muted2); }
 
   /* ── Primary button ── */
   .btn-primary {
     padding: 14px 24px; border-radius: 8px;
-    background: var(--red); color: var(--white);
+    background: #FFFFFF; color: #0B1423;
     border: none; cursor: pointer;
     font-family: var(--font-display); font-weight: 800;
     font-style: italic; font-size: 16px;
     letter-spacing: 0.08em; text-transform: uppercase;
     transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
-    box-shadow: 0 4px 20px rgba(200,16,46,0.3);
+    box-shadow: 0 4px 20px rgba(255,255,255,0.12);
   }
   .btn-primary:hover {
-    background: var(--red2);
+    background: rgba(255,255,255,0.88);
     transform: translateY(-1px);
-    box-shadow: 0 6px 28px rgba(200,16,46,0.45);
+    box-shadow: 0 6px 28px rgba(255,255,255,0.18);
   }
   .btn-primary:active { transform: translateY(0); }
 
@@ -236,15 +240,15 @@ const GLOBAL_CSS = `
   .btn-ghost {
     padding: 8px 16px; border-radius: 6px;
     background: transparent;
-    color: var(--red2); border: 1px solid rgba(200,16,46,0.4);
+    color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.2);
     cursor: pointer; font-family: var(--font-display);
     font-weight: 700; font-style: italic; font-size: 13px;
     letter-spacing: 0.06em; text-transform: uppercase;
     transition: all 0.18s ease;
   }
   .btn-ghost:hover {
-    background: rgba(200,16,46,0.1);
-    border-color: var(--red2);
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.35);
     color: var(--white);
   }
 
@@ -301,10 +305,16 @@ export default function ParentPortal() {
       if (prof) {
         setProfile(prof)
         const { data: kids } = await supabase.from('players').select('*').eq('parent_id', user.id)
-        const kidsWithMemberships = await Promise.all((kids || []).map(async (kid) => {
-          const { data: m } = await supabase.from('memberships').select('*').eq('player_id', kid.id).eq('status', 'active').maybeSingle()
-          return { ...kid, active_membership: m || null }
-        }))
+        // Fetch memberships from player_memberships (written by Stripe webhook)
+        const { data: allMemberships } = await supabase
+          .from('player_memberships')
+          .select('*')
+          .eq('parent_id', user.id)
+          .eq('status', 'active')
+        const kidsWithMemberships = (kids || []).map(kid => {
+          const m = (allMemberships || []).find(mem => mem.kid_name === kid.kid_name) || null
+          return { ...kid, active_membership: m }
+        })
         setPlayers(kidsWithMemberships)
       } else { setProfile(null) }
     } finally { setLoading(false) }
@@ -332,10 +342,10 @@ export default function ParentPortal() {
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--navy)', flexDirection:'column', gap:20 }}>
       <style>{GLOBAL_CSS}</style>
       <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:56, letterSpacing:'0.1em', color:'var(--white)' }}>
-        TOR<span style={{ color:'var(--red)' }}>QUE</span>
+        TORQUE
       </div>
       <div style={{ width:48, height:3, background:'var(--navy4)', borderRadius:2, overflow:'hidden' }}>
-        <div style={{ height:'100%', width:'45%', background:'var(--red)', borderRadius:2, animation:'slideRight 0.8s ease infinite alternate' }} />
+        <div style={{ height:'100%', width:'45%', background:'rgba(255,255,255,0.6)', borderRadius:2, animation:'slideRight 0.8s ease infinite alternate' }} />
       </div>
       <div style={{ fontSize:11, color:'var(--muted)', letterSpacing:'0.25em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Loading your portal...</div>
     </div>
@@ -348,14 +358,14 @@ export default function ParentPortal() {
       <div style={{ width:'100%', maxWidth:460 }} className="animate-fade-up">
         <div style={{ textAlign:'center', marginBottom:36 }}>
           <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:60, letterSpacing:'0.1em', lineHeight:1 }}>
-            TOR<span style={{ color:'var(--red)' }}>QUE</span>
+            TORQUE
           </div>
           <div style={{ fontSize:11, color:'var(--muted)', letterSpacing:'0.3em', marginTop:6, textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Performance Training</div>
         </div>
 
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:36, position:'relative', overflow:'hidden' }}>
-          {/* Red top accent */}
-          <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg, var(--red), transparent)' }} />
+          {/* Top accent */}
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg, rgba(255,255,255,0.35), transparent)' }} />
 
           <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:22, letterSpacing:'0.08em', color:'var(--white)', marginBottom:24, textTransform:'uppercase' }}>
             New Account Setup
@@ -408,8 +418,8 @@ export default function ParentPortal() {
             </button>
           )}
         </div>
-        {/* Red underline */}
-        <div style={{ height:2, background:'linear-gradient(90deg, var(--red) 40%, transparent)', marginBottom:0 }} />
+        {/* Underline */}
+        <div style={{ height:2, background:'linear-gradient(90deg, rgba(255,255,255,0.4) 40%, transparent)', marginBottom:0 }} />
       </div>
 
       {/* User badge */}
@@ -463,7 +473,7 @@ export default function ParentPortal() {
         <div className="torque-topbar" style={{
           position:'fixed', top:0, left:0, right:0, height:60,
           background:'rgba(11,20,35,0.97)', backdropFilter:'blur(12px)',
-          borderBottom:'2px solid var(--red)',
+          borderBottom:'1px solid rgba(255,255,255,0.1)',
           alignItems:'center', justifyContent:'space-between',
           padding:'0 20px', zIndex:200, display:'none'
         }}>
@@ -499,8 +509,8 @@ export default function ParentPortal() {
       {/* ── MODAL: BUY PACK ── */}
       <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Training Plans · ${selectedPlayer?.kid_name}`} width={800}>
         {/* Discount strip */}
-        <div style={{ marginBottom:22, padding:'12px 18px', background:'rgba(200,16,46,0.07)', borderRadius:8, border:'1px solid rgba(200,16,46,0.2)', display:'flex', alignItems:'center', gap:24, flexWrap:'wrap' }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--red2)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Membership Discounts</div>
+        <div style={{ marginBottom:22, padding:'12px 18px', background:'rgba(255,255,255,0.04)', borderRadius:8, border:'1px solid rgba(255,255,255,0.1)', display:'flex', alignItems:'center', gap:24, flexWrap:'wrap' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'rgba(255,255,255,0.75)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Membership Discounts</div>
           <div style={{ display:'flex', gap:20, fontSize:12, color:'var(--muted)', fontFamily:'var(--font-body)' }}>
             <span>6 Mo <b style={{ color:'var(--offwhite)' }}>–10%</b></span>
             <span>12 Mo <b style={{ color:'var(--offwhite)' }}>–15%</b></span>
@@ -515,13 +525,13 @@ export default function ParentPortal() {
             const pAn = (pack.price * 12 * 0.80).toFixed(0)
             return (
               <div key={pack.id} style={{ padding:'20px 22px', borderRadius:12, border:'1px solid var(--border)', background:'var(--navy3)', position:'relative', overflow:'hidden' }}>
-                {/* Red left bar */}
-                <div style={{ position:'absolute', left:0, top:0, bottom:0, width:3, background:'var(--red)' }} />
+                {/* Left accent bar */}
+                <div style={{ position:'absolute', left:0, top:0, bottom:0, width:3, background:'rgba(255,255,255,0.25)' }} />
 
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, paddingLeft:8 }}>
                   <div>
                     <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:28, letterSpacing:'0.06em', color:'var(--white)', lineHeight:1 }}>{pack.name}</div>
-                    <div style={{ fontSize:12, color:'var(--red2)', fontWeight:600, marginTop:3, letterSpacing:'0.05em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{pack.tag}</div>
+                    <div style={{ fontSize:12, color:'rgba(255,255,255,0.55)', fontWeight:600, marginTop:3, letterSpacing:'0.05em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{pack.tag}</div>
                     <div style={{ fontSize:11, color:'var(--muted)', marginTop:2, fontFamily:'var(--font-mono)' }}>{pack.sessions} sessions / month</div>
                   </div>
                   <div style={{ textAlign:'right' }}>
@@ -538,14 +548,14 @@ export default function ParentPortal() {
                     <span style={{ fontSize:9, color:'var(--muted2)', fontFamily:'var(--font-mono)' }}>no commit</span>
                   </button>
                   <button onClick={() => handleCheckout(pack.links.m6, pack.prices.m6)} className="pack-option">
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'var(--red2)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>6 MONTHS</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'rgba(255,255,255,0.6)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>6 MONTHS</span>
                     <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22 }}>${p6}</span>
-                    <span style={{ fontSize:9, color:'var(--red2)', fontFamily:'var(--font-mono)' }}>–10% /mo</span>
+                    <span style={{ fontSize:9, color:'rgba(255,255,255,0.5)', fontFamily:'var(--font-mono)' }}>–10% /mo</span>
                   </button>
                   <button onClick={() => handleCheckout(pack.links.m12, pack.prices.m12)} className="pack-option">
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'var(--red2)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>12 MONTHS</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'rgba(255,255,255,0.6)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>12 MONTHS</span>
                     <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22 }}>${p12}</span>
-                    <span style={{ fontSize:9, color:'var(--red2)', fontFamily:'var(--font-mono)' }}>–15% /mo</span>
+                    <span style={{ fontSize:9, color:'rgba(255,255,255,0.5)', fontFamily:'var(--font-mono)' }}>–15% /mo</span>
                   </button>
                   <button onClick={() => handleCheckout(pack.links.annual, pack.prices.annual)} className="pack-option annual">
                     <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'var(--green2)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>ANNUAL</span>
@@ -597,9 +607,9 @@ export default function ParentPortal() {
           </a>
           <a href="mailto:txtorq@gmail.com"
             className="support-btn"
-            style={{ border:'1px solid rgba(200,16,46,0.25)', background:'rgba(200,16,46,0.05)' }}>
+            style={{ border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.03)' }}>
             <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color:'var(--red2)', flexShrink:0 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color:'rgba(255,255,255,0.5)', flexShrink:0 }}>
                 <rect x="2" y="4" width="20" height="16" rx="2"/>
                 <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
               </svg>
@@ -608,7 +618,7 @@ export default function ParentPortal() {
                 <div style={{ fontSize:12, color:'var(--muted)', fontFamily:'var(--font-mono)', marginTop:2 }}>txtorq@gmail.com · reply within 24h</div>
               </div>
             </div>
-            <ChevronRight size={16} color="var(--red2)" />
+            <ChevronRight size={16} color="rgba(255,255,255,0.35)" />
           </a>
         </div>
       </Modal>
@@ -621,19 +631,19 @@ function ParentHome({ players, onAdd, onBuy }) {
   return (
     <div>
       <div style={{ marginBottom:36 }} className="animate-fade-up">
-        <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, color:'var(--red2)', letterSpacing:'0.25em', textTransform:'uppercase', marginBottom:6 }}>Parent Portal</div>
+        <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, color:'var(--muted)', letterSpacing:'0.25em', textTransform:'uppercase', marginBottom:6 }}>Parent Portal</div>
         <h1 style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:52, letterSpacing:'0.06em', color:'var(--white)', lineHeight:1 }}>
           MY PLAYERS
         </h1>
         {/* Red underbar */}
-        <div style={{ marginTop:12, width:48, height:3, background:'var(--red)', borderRadius:2 }} />
+        <div style={{ marginTop:12, width:48, height:3, background:'rgba(255,255,255,0.3)', borderRadius:2 }} />
       </div>
 
       <div className="players-grid stagger" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
         {players.map((player) => {
           const m = player.active_membership
           const used = m ? m.sessions_used : 0
-          const total = m ? m.total_sessions : 0
+          const total = m ? m.sessions_total : 0
           const remaining = total - used
           const pct = total > 0 ? (remaining / total) * 100 : 0
           const lowSessions = pct < 30
@@ -647,7 +657,7 @@ function ParentHome({ players, onAdd, onBuy }) {
 
               {/* Avatar + name */}
               <div style={{ display:'flex', gap:16, alignItems:'center', marginBottom:22, position:'relative' }}>
-                <div style={{ width:54, height:54, borderRadius:12, background:'linear-gradient(135deg, var(--red) 0%, #7B0A1A 100%)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, color:'white', flexShrink:0, boxShadow:'0 4px 16px rgba(200,16,46,0.35)' }}>
+                <div style={{ width:54, height:54, borderRadius:12, background:'linear-gradient(135deg, var(--navy4) 0%, var(--navy5) 100%)', border:'1px solid rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, color:'white', flexShrink:0, boxShadow:'0 4px 16px rgba(0,0,0,0.4)' }}>
                   {player.kid_name[0]}
                 </div>
                 <div>
@@ -707,9 +717,9 @@ function ParentHome({ players, onAdd, onBuy }) {
 function PlaceholderPage({ title }) {
   return (
     <div className="animate-fade-up">
-      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, color:'var(--red2)', letterSpacing:'0.25em', textTransform:'uppercase', marginBottom:6 }}>Coming Soon</div>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, color:'var(--muted)', letterSpacing:'0.25em', textTransform:'uppercase', marginBottom:6 }}>Coming Soon</div>
       <h1 style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:52, letterSpacing:'0.06em', color:'var(--white)', lineHeight:1, marginBottom:14 }}>{title.toUpperCase()}</h1>
-      <div style={{ width:48, height:3, background:'var(--red)', borderRadius:2, marginBottom:24 }} />
+      <div style={{ width:48, height:3, background:'rgba(255,255,255,0.3)', borderRadius:2, marginBottom:24 }} />
       <div style={{ fontSize:14, color:'var(--muted)' }}>This section is under construction.</div>
     </div>
   )
@@ -719,7 +729,7 @@ function PlaceholderPage({ title }) {
 const sidebarStyle = {
   width: 240,
   background: 'linear-gradient(180deg, #0B1525 0%, #0A1220 100%)',
-  borderRight: '1px solid rgba(200,16,46,0.15)',
+  borderRight: '1px solid rgba(255,255,255,0.07)',
   position: 'fixed', top: 0, left: 0, bottom: 0,
   display: 'flex', flexDirection: 'column', zIndex: 100,
   boxShadow: '4px 0 32px rgba(0,0,0,0.5)',
