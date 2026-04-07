@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Plus, LogOut, ChevronRight, Menu, X } from 'lucide-react'
 import { Card, Avatar, Btn, Modal, ProgressBar, Label } from '../../components/UI'
 import { useUser, useClerk } from "@clerk/clerk-react"
@@ -252,6 +252,35 @@ const GLOBAL_CSS = `
     color: var(--white);
   }
 
+  /* ── Calendar ── */
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .cal-day {
+    aspect-ratio:1; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; border-radius:8px; cursor:default;
+    font-family:var(--font-display); font-size:14px; font-weight:700;
+    position:relative; transition:background 0.15s;
+  }
+  .cal-day.has-booking { background:rgba(34,197,110,0.1); cursor:pointer; }
+  .cal-day.has-booking:hover { background:rgba(34,197,110,0.18); }
+  .cal-day.today { background:rgba(255,255,255,0.08); }
+  .cal-day.other-month { opacity:0.25; }
+  .cal-dot { width:5px; height:5px; border-radius:50%; background:var(--green2); margin-top:3px; }
+
+  /* ── Booking slots ── */
+  .slot-btn {
+    padding:12px 14px; border-radius:8px; border:1px solid var(--border);
+    background:var(--navy4); color:var(--white); cursor:pointer;
+    font-family:var(--font-display); font-size:13px; font-weight:700;
+    text-align:center; transition:all 0.15s;
+  }
+  .slot-btn:hover { border-color:rgba(255,255,255,0.3); background:var(--navy5); }
+  .slot-btn.selected { border-color:var(--green2); background:rgba(34,197,110,0.1); color:var(--green2); }
+
+  /* ── Section header ── */
+  .section-eyebrow { font-family:var(--font-display); font-style:italic; font-weight:700; font-size:12px; color:var(--muted); letter-spacing:0.25em; text-transform:uppercase; margin-bottom:6px; }
+  .section-title { font-family:var(--font-display); font-style:italic; font-weight:900; font-size:48px; letter-spacing:0.06em; color:var(--white); line-height:1; }
+  .section-bar { margin-top:10px; width:40px; height:3px; background:rgba(255,255,255,0.3); border-radius:2px; margin-bottom:28px; }
+
   /* ── Mobile ── */
   @media (max-width: 768px) {
     .torque-sidebar-desktop { display: none !important; }
@@ -283,10 +312,16 @@ export default function ParentPortal() {
   const [onboardingData, setOnboardingData] = useState({ phone: '', kidName: '', kidAge: '', kidBirthdate: '' })
   const [paymentBanner, setPaymentBanner] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [bookings, setBookings] = useState([])
+  const [showBookModal, setShowBookModal] = useState(false)
+  const [bookingPlayer, setBookingPlayer] = useState(null)
+  const [bookingForm, setBookingForm] = useState({ date: '', time: '', type: 'Training' })
+  const [bookingLoading, setBookingLoading] = useState(false)
 
   useEffect(() => {
     if (user) {
       fetchTorqueData()
+      fetchBookings()
 
       const params = new URLSearchParams(window.location.search)
       const sessionId = params.get('session_id')
@@ -340,8 +375,43 @@ export default function ParentPortal() {
 
   async function manualRefresh() {
     setRefreshing(true)
-    await fetchTorqueData()
+    await Promise.all([fetchTorqueData(), fetchBookings()])
     setRefreshing(false)
+  }
+
+  async function fetchBookings() {
+    const { data } = await supabase.from('bookings').select('*')
+      .eq('parent_id', user.id).order('session_date', { ascending: true })
+    setBookings(data || [])
+  }
+
+  async function handleBookSession() {
+    if (!bookingPlayer || !bookingForm.date || !bookingForm.time) return
+    setBookingLoading(true)
+    try {
+      const m = bookingPlayer.active_membership
+      // Insert booking
+      await supabase.from('bookings').insert([{
+        parent_id: user.id,
+        kid_name: bookingPlayer.kid_name,
+        membership_id: m?.id || null,
+        session_date: bookingForm.date,
+        session_time: bookingForm.time,
+        session_type: bookingForm.type,
+        status: 'confirmed'
+      }])
+      // Increment sessions_used
+      if (m?.id) {
+        await supabase.from('player_memberships')
+          .update({ sessions_used: (m.sessions_used || 0) + 1 })
+          .eq('id', m.id)
+      }
+      setShowBookModal(false)
+      setBookingForm({ date: '', time: '', type: 'Training' })
+      await Promise.all([fetchTorqueData(), fetchBookings()])
+    } finally {
+      setBookingLoading(false)
+    }
   }
 
   async function fetchTorqueData() {
@@ -484,9 +554,9 @@ export default function ParentPortal() {
 
   const PAGE_MAP = {
     home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} />,
-    sessions: <PlaceholderPage title="Session History" />,
-    schedule: <PlaceholderPage title="Training Schedule" />,
-    billing:  <PlaceholderPage title="Billing & Invoices" />,
+    sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'', type:'Training' }); setShowBookModal(true) }} />,
+    schedule: <SchedulePage bookings={bookings} />,
+    billing:  <BillingPage players={players} />,
   }
 
   // ── SIDEBAR CONTENT ──
@@ -688,6 +758,85 @@ export default function ParentPortal() {
         </form>
       </Modal>
 
+      {/* ── MODAL: BOOK SESSION ── */}
+      <Modal open={showBookModal} onClose={() => setShowBookModal(false)} title={`Agendar Sesión · ${bookingPlayer?.kid_name}`} width={520}>
+        {bookingPlayer && (() => {
+          const m = bookingPlayer.active_membership
+          const remaining = m ? m.sessions_total - m.sessions_used : 0
+          // Available days: Mon=1, Wed=3, Fri=5, Sat=6
+          const AVAILABLE_DAYS = [1, 3, 5, 6]
+          const TIMES = ['9:00 AM', '11:00 AM', '2:00 PM', '4:00 PM']
+          const TYPES = ['Speed & Agility', 'Fielding / Defense', 'Batting', 'General Training']
+          // Build next 21 days that match available days
+          const availableDates = []
+          const today = new Date(); today.setHours(0,0,0,0)
+          for (let i = 1; availableDates.length < 12; i++) {
+            const d = new Date(today); d.setDate(today.getDate() + i)
+            if (AVAILABLE_DAYS.includes(d.getDay())) {
+              availableDates.push(d.toISOString().split('T')[0])
+            }
+          }
+          const DAY_NAMES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+          const fmt = (iso) => { const d = new Date(iso+'T12:00:00'); return `${DAY_NAMES[d.getDay()]} ${d.getDate()}` }
+          return (
+            <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+              {remaining <= 0 ? (
+                <div style={{ textAlign:'center', padding:'24px 0', color:'var(--muted)' }}>
+                  <div style={{ fontSize:36, marginBottom:8 }}>⚠️</div>
+                  <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>Sin sesiones disponibles</div>
+                  <div style={{ fontSize:13, marginTop:6 }}>Adquiere un plan para agendar sesiones.</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ padding:'10px 16px', background:'rgba(34,197,110,0.07)', border:'1px solid rgba(34,197,110,0.2)', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <span style={{ fontSize:13, color:'var(--muted)' }}>Sesiones disponibles</span>
+                    <span style={{ fontFamily:'var(--font-display)', fontWeight:900, fontSize:22, color:'var(--green2)' }}>{remaining}</span>
+                  </div>
+                  <div>
+                    <Label>Fecha</Label>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6, marginTop:8 }}>
+                      {availableDates.map(d => (
+                        <button key={d} onClick={() => setBookingForm(f => ({...f, date:d}))}
+                          className={`slot-btn${bookingForm.date === d ? ' selected' : ''}`}>
+                          {fmt(d)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Horario</Label>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6, marginTop:8 }}>
+                      {TIMES.map(t => (
+                        <button key={t} onClick={() => setBookingForm(f => ({...f, time:t}))}
+                          className={`slot-btn${bookingForm.time === t ? ' selected' : ''}`}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Tipo de sesión</Label>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:8 }}>
+                      {TYPES.map(tp => (
+                        <button key={tp} onClick={() => setBookingForm(f => ({...f, type:tp}))}
+                          className={`slot-btn${bookingForm.type === tp ? ' selected' : ''}`}
+                          style={{ fontSize:12 }}>
+                          {tp}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={handleBookSession} disabled={!bookingForm.date || !bookingForm.time || bookingLoading}
+                    className="btn-primary" style={{ marginTop:4 }}>
+                    {bookingLoading ? 'Agendando...' : `Confirmar sesión`}
+                  </button>
+                </>
+              )}
+            </div>
+          )
+        })()}
+      </Modal>
+
       {/* ── MODAL: SUPPORT ── */}
       <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Help & Support">
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
@@ -818,6 +967,288 @@ function ParentHome({ players, onAdd, onBuy }) {
 }
 
 // ── PLACEHOLDER ───────────────────────────────────────────────────────────────
+// ── SESSIONS PAGE ─────────────────────────────────────────────────────────────
+function SessionsPage({ players, bookings, onBook }) {
+  const playersWithPlan = players.filter(p => p.active_membership)
+  const today = new Date().toISOString().split('T')[0]
+  const upcoming = bookings.filter(b => b.session_date >= today && b.status === 'confirmed')
+
+  return (
+    <div className="animate-fade-up">
+      <div className="section-eyebrow">Parent Portal</div>
+      <h1 className="section-title">SESSIONS</h1>
+      <div className="section-bar" />
+
+      {playersWithPlan.length === 0 ? (
+        <div style={{ padding:'48px 0', textAlign:'center', color:'var(--muted)', fontSize:14 }}>
+          Ningún jugador tiene un plan activo. Compra un plan desde el Dashboard.
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {players.map(player => {
+            const m = player.active_membership
+            const used = m ? m.sessions_used : 0
+            const total = m ? m.sessions_total : 0
+            const remaining = total - used
+            const pct = total > 0 ? Math.round((remaining / total) * 100) : 0
+            const playerBookings = upcoming.filter(b => b.kid_name?.toLowerCase() === player.kid_name?.toLowerCase())
+
+            return (
+              <div key={player.id} style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24, position:'relative', overflow:'hidden' }}>
+                <div style={{ position:'absolute', right:20, top:16, fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:80, color:'rgba(255,255,255,0.025)', lineHeight:1, userSelect:'none' }}>{player.kid_name[0]}</div>
+
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:16 }}>
+                  {/* Left: player info */}
+                  <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                    <div style={{ width:48, height:48, borderRadius:10, background:'linear-gradient(135deg, var(--navy4), var(--navy5))', border:'1px solid rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'white', flexShrink:0 }}>
+                      {player.kid_name[0]}
+                    </div>
+                    <div>
+                      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--white)' }}>{player.kid_name}</div>
+                      <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.1em', fontFamily:'var(--font-display)', fontStyle:'italic', marginTop:2 }}>{m ? m.package_name : 'Sin plan'}</div>
+                    </div>
+                  </div>
+
+                  {/* Right: big counter */}
+                  <div style={{ display:'flex', alignItems:'center', gap:20 }}>
+                    <div style={{ textAlign:'center' }}>
+                      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:56, lineHeight:1, color: remaining === 0 ? 'var(--muted2)' : remaining <= 2 ? '#E8A020' : 'var(--green2)' }}>{remaining}</div>
+                      <div style={{ fontSize:10, color:'var(--muted)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', marginTop:2 }}>de {total} restantes</div>
+                    </div>
+                    {m && remaining > 0 && (
+                      <button onClick={() => onBook(player)} className="btn-primary" style={{ padding:'12px 20px', fontSize:14 }}>
+                        + Agendar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                {m && (
+                  <div style={{ marginTop:20 }}>
+                    <div style={{ height:6, background:'rgba(255,255,255,0.06)', borderRadius:6, overflow:'hidden' }}>
+                      <div style={{ height:'100%', borderRadius:6, transition:'width 0.6s ease', width:`${pct}%`, background: remaining === 0 ? 'var(--muted2)' : remaining <= 2 ? 'linear-gradient(90deg,#E8A020,#F0C040)' : 'linear-gradient(90deg,var(--green),var(--green2))' }} />
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, fontSize:11, color:'var(--muted)', fontFamily:'var(--font-mono)' }}>
+                      <span>{used} usadas</span><span>{remaining} disponibles</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Upcoming bookings for this player */}
+                {playerBookings.length > 0 && (
+                  <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)' }}>
+                    <div style={{ fontSize:10, color:'var(--muted2)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic', marginBottom:10 }}>Próximas sesiones</div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {playerBookings.slice(0,3).map(b => (
+                        <div key={b.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', background:'rgba(34,197,110,0.06)', borderRadius:8, border:'1px solid rgba(34,197,110,0.15)' }}>
+                          <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
+                          <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)' }}>
+                            {new Date(b.session_date+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',month:'short',day:'numeric'})} · {b.session_time}
+                          </span>
+                          <span style={{ marginLeft:'auto', fontSize:11, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── SCHEDULE PAGE ─────────────────────────────────────────────────────────────
+function SchedulePage({ bookings }) {
+  const [viewDate, setViewDate] = useState(new Date())
+  const today = new Date(); today.setHours(0,0,0,0)
+
+  const year = viewDate.getFullYear()
+  const month = viewDate.getMonth()
+  const firstDay = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  const DAY_NAMES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+
+  // Map bookings by date for fast lookup
+  const bookingsByDate = {}
+  bookings.forEach(b => {
+    if (!bookingsByDate[b.session_date]) bookingsByDate[b.session_date] = []
+    bookingsByDate[b.session_date].push(b)
+  })
+
+  const isoToday = today.toISOString().split('T')[0]
+  const upcoming = bookings
+    .filter(b => b.session_date >= isoToday && b.status === 'confirmed')
+    .slice(0, 8)
+
+  // Build calendar cells
+  const cells = []
+  for (let i = 0; i < firstDay; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+
+  return (
+    <div className="animate-fade-up">
+      <div className="section-eyebrow">Parent Portal</div>
+      <h1 className="section-title">SCHEDULE</h1>
+      <div className="section-bar" />
+
+      <div style={{ display:'grid', gridTemplateColumns:'1.1fr 0.9fr', gap:20, alignItems:'start' }}>
+        {/* Calendar */}
+        <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
+          {/* Month nav */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+            <button onClick={() => setViewDate(new Date(year, month-1, 1))} style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:34, height:34, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:16 }}>‹</button>
+            <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:20, letterSpacing:'0.06em', color:'var(--white)', textTransform:'uppercase' }}>
+              {MONTH_NAMES[month]} {year}
+            </div>
+            <button onClick={() => setViewDate(new Date(year, month+1, 1))} style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:34, height:34, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:16 }}>›</button>
+          </div>
+          {/* Day headers */}
+          <div className="cal-grid" style={{ marginBottom:4 }}>
+            {DAY_NAMES.map(d => (
+              <div key={d} style={{ textAlign:'center', fontFamily:'var(--font-display)', fontSize:11, fontWeight:700, color:'var(--muted2)', letterSpacing:'0.1em', padding:'4px 0', textTransform:'uppercase' }}>{d}</div>
+            ))}
+          </div>
+          {/* Days */}
+          <div className="cal-grid">
+            {cells.map((day, i) => {
+              if (!day) return <div key={`e-${i}`} />
+              const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+              const hasB = !!bookingsByDate[iso]
+              const isToday = iso === isoToday
+              return (
+                <div key={iso} className={`cal-day${hasB ? ' has-booking' : ''}${isToday ? ' today' : ''}`}
+                  title={hasB ? bookingsByDate[iso].map(b => `${b.kid_name} · ${b.session_time}`).join('\n') : ''}>
+                  <span style={{ color: isToday ? 'var(--white)' : hasB ? 'var(--green2)' : 'var(--text2)', fontWeight: isToday || hasB ? 800 : 600, fontSize:13 }}>{day}</span>
+                  {hasB && <div className="cal-dot" />}
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ marginTop:16, display:'flex', alignItems:'center', gap:8, fontSize:11, color:'var(--muted)' }}>
+            <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--green2)' }} />
+            <span>Sesión agendada</span>
+          </div>
+        </div>
+
+        {/* Upcoming sessions list */}
+        <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', marginBottom:16, letterSpacing:'0.04em' }}>PRÓXIMAS SESIONES</div>
+          {upcoming.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)', fontSize:13 }}>No hay sesiones agendadas.<br/>Ve a Sessions para agendar.</div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {upcoming.map(b => (
+                <div key={b.id} style={{ padding:'12px 14px', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'var(--white)' }}>
+                      {new Date(b.session_date+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',month:'short',day:'numeric'})}
+                    </div>
+                    <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--green2)' }}>{b.session_time}</div>
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, fontSize:12, color:'var(--muted)' }}>
+                    <span>{b.kid_name}</span>
+                    <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── BILLING PAGE ──────────────────────────────────────────────────────────────
+function BillingPage({ players }) {
+  const memberships = players.flatMap(p => p.active_membership ? [{ ...p.active_membership, kid_name: p.kid_name }] : [])
+
+  function nextPayment(purchasedAt, total) {
+    if (!purchasedAt) return '—'
+    const d = new Date(purchasedAt)
+    // Estimate cycle: annual if sessions >= 96, monthly otherwise
+    const isAnnual = total >= 96
+    if (isAnnual) d.setFullYear(d.getFullYear() + 1)
+    else d.setMonth(d.getMonth() + 1)
+    return d.toLocaleDateString('es-MX', { year:'numeric', month:'long', day:'numeric' })
+  }
+
+  function cycleLabel(total) {
+    if (total >= 96) return 'Anual'
+    if (total >= 48) return '6 Meses'
+    if (total >= 24) return '12 Meses'
+    return 'Mensual'
+  }
+
+  return (
+    <div className="animate-fade-up">
+      <div className="section-eyebrow">Parent Portal</div>
+      <h1 className="section-title">BILLING</h1>
+      <div className="section-bar" />
+
+      {memberships.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'48px 0', color:'var(--muted)', fontSize:14 }}>No hay planes activos.</div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {memberships.map((m, i) => (
+            <div key={m.id || i} style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
+              {/* Header */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 }}>
+                <div>
+                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--white)' }}>{m.kid_name}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:3, fontFamily:'var(--font-display)', fontStyle:'italic', letterSpacing:'0.06em', textTransform:'uppercase' }}>{m.package_name} · {cycleLabel(m.sessions_total)}</div>
+                </div>
+                <div style={{ padding:'4px 12px', background:'rgba(34,197,110,0.1)', border:'1px solid rgba(34,197,110,0.25)', borderRadius:20, fontSize:11, fontFamily:'var(--font-display)', fontWeight:700, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase' }}>Activo</div>
+              </div>
+
+              {/* Stats row */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
+                {[
+                  { label:'Sesiones totales', value: m.sessions_total },
+                  { label:'Sesiones usadas',  value: m.sessions_used },
+                  { label:'Sesiones restantes', value: m.sessions_total - m.sessions_used },
+                ].map(s => (
+                  <div key={s.label} style={{ background:'rgba(0,0,0,0.2)', borderRadius:10, padding:'12px 14px', textAlign:'center' }}>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:28, color:'var(--white)' }}>{s.value}</div>
+                    <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.1em', fontFamily:'var(--font-display)', marginTop:2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Payment info */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div style={{ padding:'12px 16px', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
+                  <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.12em', fontFamily:'var(--font-display)', marginBottom:4 }}>Fecha de compra</div>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--offwhite)' }}>
+                    {m.purchased_at ? new Date(m.purchased_at).toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'}) : '—'}
+                  </div>
+                </div>
+                <div style={{ padding:'12px 16px', background:'rgba(34,197,110,0.05)', border:'1px solid rgba(34,197,110,0.15)', borderRadius:10 }}>
+                  <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.12em', fontFamily:'var(--font-display)', marginBottom:4 }}>Próximo pago</div>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--green2)' }}>{nextPayment(m.purchased_at, m.sessions_total)}</div>
+                </div>
+              </div>
+
+              {/* Stripe reference */}
+              {m.stripe_payment_id && (
+                <div style={{ marginTop:12, padding:'8px 14px', background:'rgba(0,0,0,0.2)', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.1em', fontFamily:'var(--font-display)' }}>Referencia de pago</span>
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text2)' }}>{m.stripe_payment_id?.slice(0,24)}…</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PlaceholderPage({ title }) {
   return (
     <div className="animate-fade-up">
