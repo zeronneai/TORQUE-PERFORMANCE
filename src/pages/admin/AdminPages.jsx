@@ -98,25 +98,26 @@ export function Schedule() {
                   onClick={() => hasB && setSelectedDay(isSelected ? null : iso)}
                   style={{
                     aspectRatio:'1', display:'flex', flexDirection:'column',
-                    alignItems:'center', justifyContent:'center', borderRadius:10,
+                    alignItems:'center', justifyContent:'center', borderRadius:8,
                     cursor: hasB ? 'pointer' : 'default', transition:'all 0.15s',
+                    overflow:'hidden', minWidth:0,
                     background: isSelected ? 'rgba(34,197,110,0.18)' : hasB ? 'rgba(34,197,110,0.09)' : isToday ? 'rgba(255,255,255,0.07)' : 'transparent',
                     border: isSelected ? '1.5px solid rgba(34,197,110,0.5)' : hasB ? '1px solid rgba(34,197,110,0.2)' : isToday ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
                   }}>
-                  <span style={{ fontFamily:'var(--font-display)', fontWeight: hasB||isToday ? 800 : 500, fontSize:14,
+                  <span style={{ fontFamily:'var(--font-display)', fontWeight: hasB||isToday ? 800 : 500, fontSize:13, lineHeight:1,
                     color: isSelected ? 'var(--green2)' : hasB ? 'var(--green2)' : isToday ? 'var(--white)' : 'var(--text2)' }}>
                     {day}
                   </span>
                   {hasB && (
-                    <div style={{ display:'flex', gap:2, marginTop:3, flexWrap:'wrap', justifyContent:'center' }}>
-                      {dayBks.slice(0,4).map((b,bi) => (
-                        <div key={bi} style={{ width:5, height:5, borderRadius:'50%', background: TYPE_COLORS[b.session_type] || 'var(--green2)' }} />
+                    <div style={{ display:'flex', gap:2, marginTop:2, flexWrap:'nowrap', justifyContent:'center', overflow:'hidden' }}>
+                      {dayBks.slice(0,3).map((b,bi) => (
+                        <div key={bi} style={{ width:4, height:4, borderRadius:'50%', flexShrink:0, background: TYPE_COLORS[b.session_type] || 'var(--green2)' }} />
                       ))}
                     </div>
                   )}
-                  {hasB && (
-                    <span style={{ fontSize:9, color:'var(--green2)', fontFamily:'var(--font-display)', fontWeight:700, marginTop:1 }}>
-                      {dayBks.length}
+                  {hasB && dayBks.length > 3 && (
+                    <span style={{ fontSize:8, color:'var(--green2)', fontFamily:'var(--font-display)', fontWeight:700, marginTop:1, lineHeight:1 }}>
+                      +{dayBks.length - 3}
                     </span>
                   )}
                 </div>

@@ -85,7 +85,7 @@ body::after {
   content: '';
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background-image: url('https://res.cloudinary.com/dsprn0ew4/image/upload/v1774490841/TORQUE_hauofb.png');
-  background-size: 420px;
+  background-size: 65vmin;
   background-position: center center;
   background-repeat: no-repeat;
   opacity: 0.045;

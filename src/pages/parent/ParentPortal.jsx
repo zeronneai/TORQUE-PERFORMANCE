@@ -282,13 +282,38 @@ const GLOBAL_CSS = `
   .section-title { font-family:var(--font-display); font-style:italic; font-weight:900; font-size:48px; letter-spacing:0.06em; color:var(--white); line-height:1; }
   .section-bar { margin-top:10px; width:40px; height:3px; background:rgba(255,255,255,0.3); border-radius:2px; margin-bottom:28px; }
 
+  /* ── Responsive layout helpers ── */
+  .schedule-layout   { display:grid; grid-template-columns:1.2fr 0.8fr; gap:20px; align-items:start; }
+  .sessions-layout   { display:flex; flex-direction:column; gap:16px; }
+  .billing-stats     { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+  .events-grid       { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+
   /* ── Mobile ── */
   @media (max-width: 768px) {
     .torque-sidebar-desktop { display: none !important; }
     .torque-topbar { display: flex !important; }
-    .torque-main { margin-left: 0 !important; padding: 20px 16px !important; padding-top: 76px !important; }
-    .players-grid { grid-template-columns: 1fr !important; }
+    .torque-main { margin-left: 0 !important; padding: 16px 14px !important; padding-top: 72px !important; }
+
+    /* Typography */
+    .section-title  { font-size: 32px !important; }
+    .section-bar    { margin-bottom: 18px !important; }
+
+    /* Grids → stack */
+    .players-grid      { grid-template-columns: 1fr !important; }
     .pack-options-grid { grid-template-columns: repeat(2,1fr) !important; }
+    .schedule-layout   { grid-template-columns: 1fr !important; }
+    .billing-stats     { grid-template-columns: repeat(2,1fr) !important; }
+    .events-grid       { grid-template-columns: 1fr !important; }
+
+    /* Calendar cells — tighter gap on small screens */
+    .cal-grid { gap: 1px !important; }
+
+    /* Slots (fecha/hora picker) → 3 columnas en móvil */
+    .slots-grid-4 { grid-template-columns: repeat(3,1fr) !important; }
+    .slots-grid-2 { grid-template-columns: repeat(2,1fr) !important; }
+
+    /* Modal ancho completo */
+    .torque-modal-inner { width: calc(100vw - 32px) !important; max-width: 100% !important; margin: 16px !important; }
   }
   @media (min-width: 769px) {
     .torque-topbar { display: none !important; }
@@ -1186,7 +1211,7 @@ function SchedulePage({ bookings }) {
       <h1 className="section-title">SCHEDULE</h1>
       <div className="section-bar" />
 
-      <div style={{ display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:20, alignItems:'start' }}>
+      <div className="schedule-layout">
 
         {/* ── CALENDAR ── */}
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
@@ -1222,21 +1247,21 @@ function SchedulePage({ bookings }) {
                   onClick={() => hasB && setSelectedDay(isSelected ? null : iso)}
                   style={{
                     aspectRatio:'1', display:'flex', flexDirection:'column',
-                    alignItems:'center', justifyContent:'center', borderRadius:10,
-                    cursor: hasB ? 'pointer' : 'default', position:'relative',
-                    transition:'all 0.15s',
+                    alignItems:'center', justifyContent:'center', borderRadius:8,
+                    cursor: hasB ? 'pointer' : 'default', overflow:'hidden',
+                    transition:'all 0.15s', minWidth:0,
                     background: isSelected ? 'rgba(34,197,110,0.18)' : hasB ? 'rgba(34,197,110,0.09)' : isToday ? 'rgba(255,255,255,0.07)' : 'transparent',
                     border: isSelected ? '1.5px solid rgba(34,197,110,0.5)' : hasB ? '1px solid rgba(34,197,110,0.2)' : isToday ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
                   }}>
-                  <span style={{ fontFamily:'var(--font-display)', fontWeight: hasB || isToday ? 800 : 500, fontSize:14,
+                  <span style={{ fontFamily:'var(--font-display)', fontWeight: hasB || isToday ? 800 : 500, fontSize:13, lineHeight:1,
                     color: isSelected ? 'var(--green2)' : hasB ? 'var(--green2)' : isToday ? 'var(--white)' : 'var(--text2)' }}>
                     {day}
                   </span>
-                  {/* Colored dots per booking type */}
+                  {/* Colored dots per booking type — single row, no wrap */}
                   {hasB && (
-                    <div style={{ display:'flex', gap:2, marginTop:3, flexWrap:'wrap', justifyContent:'center' }}>
+                    <div style={{ display:'flex', gap:2, marginTop:2, flexWrap:'nowrap', justifyContent:'center', overflow:'hidden' }}>
                       {dayBks.slice(0,3).map((b,bi) => (
-                        <div key={bi} style={{ width:5, height:5, borderRadius:'50%', background: TYPE_COLORS[b.session_type] || 'var(--green2)' }} />
+                        <div key={bi} style={{ width:4, height:4, borderRadius:'50%', flexShrink:0, background: TYPE_COLORS[b.session_type] || 'var(--green2)' }} />
                       ))}
                     </div>
                   )}
@@ -1443,7 +1468,7 @@ function EventsPage() {
           <div style={{ fontSize:13, marginTop:8 }}>Los coaches publicarán eventos próximamente.</div>
         </div>
       ) : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>
+        <div className="events-grid">
           {events.map(ev => {
             const pct = ((ev.registered||0) / (ev.spots||1)) * 100
             const spotsLeft = (ev.spots||0) - (ev.registered||0)
