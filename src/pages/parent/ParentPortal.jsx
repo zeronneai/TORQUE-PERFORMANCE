@@ -386,32 +386,45 @@ export default function ParentPortal() {
   }
 
   // Refresca datos sin mostrar la pantalla de loading completa
+  // Cada query tiene timeout de 8s para que nunca cuelgue la UI
   async function quietRefresh() {
-    const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-    const cacheKey = `torque_profile_${user.id}`
-    const effectiveProfile = prof || (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null') } catch { return null } })()
-    if (!effectiveProfile) return
-    if (prof) localStorage.setItem(cacheKey, JSON.stringify(prof))
+    const withTimeout = (promise, ms = 8000) =>
+      Promise.race([promise, new Promise(res => setTimeout(() => res({ data: null }), ms))])
 
-    const { data: kids } = await supabase.from('players').select('*').eq('parent_id', user.id)
-    const playersKey = `torque_players_${user.id}`
-    const effectiveKids = (kids && kids.length > 0) ? kids : (() => { try { return JSON.parse(localStorage.getItem(playersKey) || '[]') } catch { return [] } })()
-    if (kids && kids.length > 0) localStorage.setItem(playersKey, JSON.stringify(kids))
+    try {
+      const { data: prof } = await withTimeout(
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+      )
+      const cacheKey = `torque_profile_${user.id}`
+      const effectiveProfile = prof || (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null') } catch { return null } })()
+      if (!effectiveProfile) return
+      if (prof) localStorage.setItem(cacheKey, JSON.stringify(prof))
 
-    const { data: allMemberships } = await supabase
-      .from('player_memberships').select('*')
-      .eq('parent_id', user.id).eq('status', 'active')
+      const [kidsRes, membershipsRes, bksRes] = await Promise.all([
+        withTimeout(supabase.from('players').select('*').eq('parent_id', user.id)),
+        withTimeout(supabase.from('player_memberships').select('*').eq('parent_id', user.id).eq('status', 'active')),
+        withTimeout(supabase.from('bookings').select('*').eq('parent_id', user.id).order('session_date', { ascending: true })),
+      ])
 
-    setPlayers((effectiveKids || []).map(kid => ({
-      ...kid,
-      active_membership: (allMemberships || []).find(
-        m => m.kid_name?.toLowerCase().trim() === kid.kid_name?.toLowerCase().trim()
-      ) || null
-    })))
+      const kids = kidsRes.data
+      const allMemberships = membershipsRes.data
+      const bks = bksRes.data
 
-    const { data: bks } = await supabase.from('bookings').select('*')
-      .eq('parent_id', user.id).order('session_date', { ascending: true })
-    setBookings(bks || [])
+      const playersKey = `torque_players_${user.id}`
+      const effectiveKids = (kids && kids.length > 0) ? kids : (() => { try { return JSON.parse(localStorage.getItem(playersKey) || '[]') } catch { return [] } })()
+      if (kids && kids.length > 0) localStorage.setItem(playersKey, JSON.stringify(kids))
+
+      setPlayers((effectiveKids || []).map(kid => ({
+        ...kid,
+        active_membership: (allMemberships || []).find(
+          m => m.kid_name?.toLowerCase().trim() === kid.kid_name?.toLowerCase().trim()
+        ) || null
+      })))
+
+      if (bks) setBookings(bks)
+    } catch(err) {
+      console.error('[Torque] quietRefresh error:', err)
+    }
   }
 
   async function handleBookSession() {
@@ -420,31 +433,57 @@ export default function ParentPortal() {
     try {
       // 1. Insertar booking
       const { error: bookErr } = await supabase.from('bookings').insert([{
-        parent_id: user.id,
-        kid_name: bookingPlayer.kid_name,
-        membership_id: bookingPlayer.active_membership?.id || null,
+        parent_id:    user.id,
+        kid_name:     bookingPlayer.kid_name,
+        membership_id: bookingPlayer.active_membership?.id && bookingPlayer.active_membership.id !== 'local'
+                        ? bookingPlayer.active_membership.id : null,
         session_date: bookingForm.date,
         session_time: bookingForm.time,
         session_type: bookingForm.type,
-        status: 'confirmed'
+        status:       'confirmed'
       }])
-      if (bookErr) { console.error('[Torque] booking insert error:', bookErr); return }
+      if (bookErr) {
+        console.error('[Torque] booking insert error:', bookErr)
+        alert('Error al agendar: ' + (bookErr.message || JSON.stringify(bookErr)))
+        return
+      }
 
-      // 2. Descontar sesión — usar parent_id + kid_name (no depende de id local)
+      // 2. Descontar sesión
       const m = bookingPlayer.active_membership
       const newUsed = (m?.sessions_used || 0) + 1
-      const { error: updErr } = await supabase.from('player_memberships')
+      await supabase.from('player_memberships')
         .update({ sessions_used: newUsed })
         .eq('parent_id', user.id)
         .eq('kid_name', bookingPlayer.kid_name)
         .eq('status', 'active')
-      if (updErr) console.error('[Torque] sessions_used update error:', updErr)
 
+      // 3. Actualización optimista inmediata (sin esperar refetch)
+      const newBooking = {
+        id: 'local_' + Date.now(),
+        parent_id:    user.id,
+        kid_name:     bookingPlayer.kid_name,
+        session_date: bookingForm.date,
+        session_time: bookingForm.time,
+        session_type: bookingForm.type,
+        status:       'confirmed'
+      }
+      setBookings(prev => [...prev, newBooking])
+      setPlayers(prev => prev.map(p =>
+        p.kid_name !== bookingPlayer.kid_name ? p
+          : { ...p, active_membership: p.active_membership
+                ? { ...p.active_membership, sessions_used: newUsed }
+                : null }
+      ))
+
+      // 4. Cerrar modal
       setShowBookModal(false)
       setBookingForm({ date: '', time: '', type: 'Training' })
 
-      // 3. Refrescar silenciosamente (sin pantalla de loading)
-      await quietRefresh()
+      // 5. Sync en background (sin bloquear UI)
+      quietRefresh()
+    } catch(err) {
+      console.error('[Torque] handleBookSession unexpected error:', err)
+      alert('Error inesperado. Revisa la consola.')
     } finally {
       setBookingLoading(false)
     }
