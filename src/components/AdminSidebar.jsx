@@ -1,13 +1,12 @@
 import React from 'react'
-import { LayoutDashboard, Users, Calendar, ClipboardCheck, DollarSign, Megaphone, ChevronRight, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Calendar, DollarSign, Megaphone, ChevronRight, LogOut } from 'lucide-react'
 
 const NAV = [
-  { id: 'dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
-  { id: 'families',   label: 'Families',   icon: Users },
-  { id: 'schedule',   label: 'Schedule',   icon: Calendar },
-  { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
-  { id: 'payments',   label: 'Payments',   icon: DollarSign },
-  { id: 'events',     label: 'Events',     icon: Megaphone },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'families',  label: 'Families',  icon: Users },
+  { id: 'schedule',  label: 'Schedule',  icon: Calendar },
+  { id: 'payments',  label: 'Payments',  icon: DollarSign },
+  { id: 'events',    label: 'Events',    icon: Megaphone },
 ]
 
 export default function AdminSidebar({ active, onNav, onSwitchToParent }) {

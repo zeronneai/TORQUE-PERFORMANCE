@@ -25,6 +25,7 @@ const NAV_ITEMS = [
   { id: 'sessions', label: 'Sessions'  },
   { id: 'schedule', label: 'Schedule'  },
   { id: 'billing',  label: 'Billing'   },
+  { id: 'events',   label: 'Events'    },
 ]
 
 // ── GLOBAL CSS ────────────────────────────────────────────────────────────────
@@ -632,6 +633,7 @@ export default function ParentPortal() {
     sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'', type:'Training' }); setShowBookModal(true) }} />,
     schedule: <SchedulePage bookings={bookings} />,
     billing:  <BillingPage players={players} />,
+    events:   <EventsPage />,
   }
 
   // ── SIDEBAR CONTENT ──
@@ -1404,6 +1406,91 @@ function PlaceholderPage({ title }) {
       <h1 style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:52, letterSpacing:'0.06em', color:'var(--white)', lineHeight:1, marginBottom:14 }}>{title.toUpperCase()}</h1>
       <div style={{ width:48, height:3, background:'rgba(255,255,255,0.3)', borderRadius:2, marginBottom:24 }} />
       <div style={{ fontSize:14, color:'var(--muted)' }}>This section is under construction.</div>
+    </div>
+  )
+}
+
+// ── EVENTS PAGE (solo lectura) ────────────────────────────────────────────────
+function EventsPage() {
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.from('events').select('*').order('date', { ascending: true })
+      .then(({ data }) => { setEvents(data || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const typeColor = { showcase:'#ff4466', camp:'#f39c12', clinic:'#4fa8ff', social:'#22C56E' }
+  const typeLabel = { showcase:'Showcase', camp:'Camp', clinic:'Clínica', social:'Social' }
+
+  if (loading) return (
+    <div className="animate-fade-up" style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Cargando eventos…</div>
+    </div>
+  )
+
+  return (
+    <div className="animate-fade-up">
+      <div className="section-eyebrow">Parent Portal</div>
+      <h1 className="section-title">EVENTS</h1>
+      <div className="section-bar" />
+
+      {events.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'60px 0', color:'var(--muted)' }}>
+          <div style={{ fontSize:48, marginBottom:16 }}>📅</div>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18 }}>No hay eventos próximos</div>
+          <div style={{ fontSize:13, marginTop:8 }}>Los coaches publicarán eventos próximamente.</div>
+        </div>
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:16 }}>
+          {events.map(ev => {
+            const pct = ((ev.registered||0) / (ev.spots||1)) * 100
+            const spotsLeft = (ev.spots||0) - (ev.registered||0)
+            const tColor = typeColor[ev.type] || 'var(--muted)'
+            return (
+              <div key={ev.id} style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:20, display:'flex', flexDirection:'column', gap:12 }}>
+                {/* Header */}
+                <div style={{ display:'flex', alignItems:'flex-start', gap:14 }}>
+                  <div style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>{ev.image || '⚾'}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap' }}>
+                      <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:17, color:'var(--white)', lineHeight:1.2 }}>{ev.title}</span>
+                      <span style={{ fontSize:10, fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:tColor, background:`${tColor}18`, padding:'2px 8px', borderRadius:6, border:`1px solid ${tColor}40` }}>{typeLabel[ev.type] || ev.type}</span>
+                    </div>
+                    <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--accent)', letterSpacing:'0.03em' }}>
+                      {ev.date}{ev.time ? ` · ${ev.time}` : ''}
+                    </div>
+                    {ev.location && (
+                      <div style={{ fontSize:12, color:'var(--muted)', marginTop:3 }}>📍 {ev.location}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Descripción */}
+                {ev.description && (
+                  <p style={{ fontSize:13, color:'var(--text2)', lineHeight:1.7, margin:0 }}>{ev.description}</p>
+                )}
+
+                {/* Cupo */}
+                <div>
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
+                    <span style={{ color:'var(--muted)' }}>{ev.registered||0} registrados</span>
+                    <span style={{ color: spotsLeft<=5?'var(--amber)':'var(--green2)', fontWeight:600 }}>
+                      {spotsLeft > 0 ? `${spotsLeft} lugares disponibles` : 'Evento lleno'}
+                    </span>
+                  </div>
+                  <div style={{ height:5, background:'var(--navy4)', borderRadius:5, overflow:'hidden' }}>
+                    <div style={{ height:'100%', borderRadius:5, width:`${Math.min(pct,100)}%`,
+                      background: pct>=90?'var(--red)':pct>=60?'var(--amber)':'var(--green2)',
+                      transition:'width 0.3s' }} />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

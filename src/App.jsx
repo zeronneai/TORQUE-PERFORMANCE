@@ -12,18 +12,16 @@ import { AppProvider, useApp } from './context/AppContext'
 import AdminSidebar from './components/AdminSidebar'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Families from './pages/admin/Families'
-import Attendance from './pages/admin/Attendance'
 import { Schedule, Payments, Events } from './pages/admin/AdminPages'
 import ParentPortal from './pages/parent/ParentPortal'
 
 // ── CONFIGURACIÓN DE PÁGINAS ADMIN ──────────────────────────────────────────
 const ADMIN_PAGES = {
   dashboard: AdminDashboard,
-  families: Families,
-  schedule: Schedule,
-  attendance: Attendance,
-  payments: Payments,
-  events: Events,
+  families:  Families,
+  schedule:  Schedule,
+  payments:  Payments,
+  events:    Events,
 }
 
 // ── VISTA ADMIN ──────────────────────────────────────────────────────────────
