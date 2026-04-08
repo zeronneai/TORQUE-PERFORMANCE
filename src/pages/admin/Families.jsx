@@ -1,146 +1,178 @@
-import React, { useState } from 'react'
-import { Plus, ChevronDown, ChevronRight, Search, Users } from 'lucide-react'
-import { Card, Badge, Avatar, PageHeader, Btn, Modal, Label, SessionBubble, ProgressBar } from '../../components/UI'
-import { useApp } from '../../context/AppContext'
-import { PACKAGES } from '../../data/mockData'
-
-const statusColor = { active: 'green', expiring: 'amber', inactive: 'red' }
-const paymentIcon = { card: '💳', paypal: '🅿️', cash: '💵' }
+import React, { useState, useMemo } from 'react'
+import { ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { Card, Badge, Avatar, PageHeader, ProgressBar } from '../../components/UI'
+import { useAdminData, PACK_INFO, parentName } from '../../hooks/useAdminData'
 
 export default function Families() {
-  const { families, addFamily, updatePlayer } = useApp()
+  const { players, memberships, profiles, loading } = useAdminData()
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState({})
-  const [showAdd, setShowAdd] = useState(false)
-  const [selectedPlayer, setSelectedPlayer] = useState(null)
-  const [form, setForm] = useState({
-    parentFirst: '', parentLast: '', email: '', phone: '',
-    playerName: '', playerAge: '', playerDob: '',
-    packageId: 'pkg-monthly-8', paymentMethod: 'card', autoRenew: true,
-    addSibling: false,
-    siblingName: '', siblingAge: '', siblingDob: '',
-  })
 
-  const filtered = families.filter(f =>
-    `${f.parent.firstName} ${f.parent.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-    f.players.some(p => p.name.toLowerCase().includes(search.toLowerCase())) ||
-    f.parent.email.includes(search)
-  )
-
-  const toggleFamily = (id) => setExpanded(p => ({ ...p, [id]: !p[id] }))
-
-  const handleAdd = () => {
-    if (!form.parentFirst || !form.playerName) return
-    const pkg = PACKAGES.find(p => p.id === form.packageId)
-    const players = [{
-      id: `p${Date.now()}`, name: form.playerName,
-      age: parseInt(form.playerAge) || 10, dob: form.playerDob,
-      packageId: form.packageId, sessionsUsed: 0, sessionsTotal: pkg?.sessions || 8,
-      nextBilling: form.autoRenew ? '2025-05-01' : null, status: 'active',
-    }]
-    if (form.addSibling && form.siblingName) {
-      players.push({
-        id: `p${Date.now() + 1}`, name: form.siblingName,
-        age: parseInt(form.siblingAge) || 8, dob: form.siblingDob,
-        packageId: form.packageId, sessionsUsed: 0, sessionsTotal: pkg?.sessions || 8,
-        nextBilling: form.autoRenew ? '2025-05-01' : null, status: 'active', isSibling: true,
-      })
-    }
-    addFamily({
-      parent: { firstName: form.parentFirst, lastName: form.parentLast, email: form.email, phone: form.phone },
-      players, paymentMethod: form.paymentMethod, autoRenew: form.autoRenew,
+  // Agrupa jugadores por parent_id y une con profile y membresía
+  const families = useMemo(() => {
+    const grouped = {}
+    players.forEach(player => {
+      const pid = player.parent_id
+      if (!grouped[pid]) {
+        const profile = profiles.find(pr => pr.id === pid) || null
+        grouped[pid] = { parent_id: pid, profile, players: [] }
+      }
+      const membership = memberships.find(
+        m => m.parent_id === pid &&
+          m.kid_name?.toLowerCase().trim() === player.kid_name?.toLowerCase().trim()
+      ) || null
+      grouped[pid].players.push({ ...player, membership })
     })
-    setShowAdd(false)
-    setForm({ parentFirst: '', parentLast: '', email: '', phone: '', playerName: '', playerAge: '', playerDob: '', packageId: 'pkg-monthly-8', paymentMethod: 'card', autoRenew: true, addSibling: false, siblingName: '', siblingAge: '', siblingDob: '' })
-  }
+    return Object.values(grouped)
+  }, [players, memberships, profiles])
 
-  const allPlayers = families.flatMap(f => f.players)
-  const activePlayers = allPlayers.filter(p => p.status === 'active' || p.status === 'expiring')
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    if (!q) return families
+    return families.filter(f => {
+      const pName = (parentName(f.profile) || '').toLowerCase()
+      const pEmail = (f.profile?.email || '').toLowerCase()
+      const kidMatch = f.players.some(p => (p.kid_name || '').toLowerCase().includes(q))
+      return pName.includes(q) || pEmail.includes(q) || kidMatch
+    })
+  }, [families, search])
+
+  const toggleFamily = id => setExpanded(p => ({ ...p, [id]: !p[id] }))
+
+  const totalActive = families.reduce((s, f) => s + f.players.filter(p => p.membership).length, 0)
+
+  if (loading) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Cargando...</div>
+    </div>
+  )
 
   return (
     <div className="fade-in">
       <PageHeader
         eyebrow="Academy"
         title="Families & Players"
-        subtitle={`${families.length} families · ${activePlayers.length} active players`}
-        action={<Btn onClick={() => setShowAdd(true)}><Plus size={14} /> New Family</Btn>}
+        subtitle={`${families.length} familias · ${totalActive} jugadores activos`}
       />
 
-      {/* Search */}
-      <div style={{ position: 'relative', marginBottom: 16 }}>
-        <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by parent name, player name, or email..." style={{ paddingLeft: 40 }} />
+      <div style={{ position:'relative', marginBottom:16 }}>
+        <Search size={14} style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', color:'var(--text3)' }} />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar por nombre de padre, jugador o email..."
+          style={{ paddingLeft:40 }} />
       </div>
 
-      {/* Family cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {filtered.length === 0 && (
+        <div style={{ textAlign:'center', padding:48, color:'var(--muted)' }}>
+          <div style={{ fontSize:36, marginBottom:12 }}>👥</div>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>
+            {search ? 'Sin resultados' : 'No hay familias registradas aún'}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         {filtered.map(family => {
-          const isOpen = expanded[family.id]
+          const isOpen = expanded[family.parent_id]
+          const pName = parentName(family.profile) || `Parent ${family.parent_id.slice(0,6)}…`
+          const pEmail = family.profile?.email || '—'
+          const pPhone = family.profile?.phone || ''
+          const initials = pName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)
+
           return (
-            <Card key={family.id} style={{ padding: 0, overflow: 'hidden' }}>
-              {/* Family header */}
+            <Card key={family.parent_id} style={{ padding:0, overflow:'hidden' }}>
+              {/* Header de la familia */}
               <div
-                onClick={() => toggleFamily(family.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', cursor: 'pointer', transition: 'background 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                onClick={() => toggleFamily(family.parent_id)}
+                style={{ display:'flex', alignItems:'center', gap:14, padding:'16px 20px', cursor:'pointer', transition:'background 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.03)'}
+                onMouseLeave={e => e.currentTarget.style.background='transparent'}
               >
-                <Avatar initials={`${family.parent.firstName[0]}${family.parent.lastName[0]}`} size={42} color="var(--navy4)" />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 800 }}>
-                    {family.parent.firstName} {family.parent.lastName}
-                    <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--text3)', marginLeft: 10 }}>{paymentIcon[family.paymentMethod]}</span>
-                    {family.autoRenew && <span style={{ marginLeft: 8 }}><Badge color="green">Auto-Pay</Badge></span>}
+                <Avatar initials={initials} size={42} color="var(--navy4)" />
+                <div style={{ flex:1 }}>
+                  <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:800 }}>{pName}</div>
+                  <div style={{ fontSize:13, color:'var(--text2)', marginTop:2 }}>
+                    {pEmail}{pPhone ? ` · ${pPhone}` : ''}
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>{family.parent.email} · {family.parent.phone}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end' }}>
                   {family.players.map(p => (
-                    <Badge key={p.id} color={statusColor[p.status]}>{p.name.split(' ')[0]}</Badge>
+                    <Badge key={p.id} color={p.membership ? 'green' : 'default'}>
+                      {(p.kid_name || '').split(' ')[0]}
+                    </Badge>
                   ))}
-                  <Badge color="default">{family.players.length} {family.players.length === 1 ? 'player' : 'players'}</Badge>
-                  {isOpen ? <ChevronDown size={16} color="var(--text3)" /> : <ChevronRight size={16} color="var(--text3)" />}
+                  <Badge color="default">
+                    {family.players.length} {family.players.length === 1 ? 'jugador' : 'jugadores'}
+                  </Badge>
+                  {isOpen
+                    ? <ChevronDown size={16} color="var(--text3)" />
+                    : <ChevronRight size={16} color="var(--text3)" />}
                 </div>
               </div>
 
-              {/* Players detail */}
+              {/* Detalle de jugadores */}
               {isOpen && (
-                <div style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
+                <div style={{ borderTop:'1px solid var(--border)', background:'rgba(0,0,0,0.2)' }}>
                   {family.players.map((player, idx) => {
-                    const pkg = PACKAGES.find(p => p.id === player.packageId)
-                    const remaining = player.sessionsTotal - player.sessionsUsed
+                    const m = player.membership
+                    const remaining = m ? (m.sessions_total||0) - (m.sessions_used||0) : 0
+                    const pkgColor = PACK_INFO[m?.package_name]?.color || 'var(--muted)'
+                    const initials = (player.kid_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)
                     return (
                       <div key={player.id} style={{
-                        padding: '16px 24px',
+                        padding:'16px 24px',
                         borderBottom: idx < family.players.length - 1 ? '1px solid var(--border)' : 'none',
-                        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto',
-                        gap: 20, alignItems: 'center',
+                        display:'grid', gridTemplateColumns:'1.4fr 1fr 1.4fr',
+                        gap:20, alignItems:'center',
                       }}>
-                        {/* Player info */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <Avatar initials={player.name.split(' ').map(n => n[0]).join('')} size={36} color={player.isSibling ? 'var(--gold)' : 'var(--red)'} />
+                        {/* Info jugador */}
+                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                          <Avatar initials={initials} size={36} color={pkgColor} />
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 500 }}>{player.name}
-                              {player.isSibling && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--gold)' }}>⭐ 50% off</span>}
+                            <div style={{ fontSize:14, fontWeight:600 }}>{player.kid_name}</div>
+                            <div style={{ fontSize:12, color:'var(--text3)' }}>
+                              {player.age ? `${player.age} años` : ''}
+                              {player.birthdate ? ` · Nac. ${player.birthdate}` : ''}
                             </div>
-                            <div style={{ fontSize: 12, color: 'var(--text3)' }}>Age {player.age} · DOB {player.dob}</div>
                           </div>
                         </div>
 
-                        {/* Package */}
+                        {/* Paquete */}
                         <div>
-                          <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 3 }}>Package</div>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: pkg?.color }}>{pkg?.name}</div>
-                          {player.nextBilling && <div style={{ fontSize: 11, color: 'var(--text3)' }}>Next billing: {player.nextBilling}</div>}
+                          <div style={{ fontSize:11, color:'var(--text3)', marginBottom:3, textTransform:'uppercase', letterSpacing:'0.06em' }}>Paquete</div>
+                          {m ? (
+                            <>
+                              <div style={{ fontSize:13, fontWeight:600, color:pkgColor }}>{m.package_name || '—'}</div>
+                              <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
+                                ${PACK_INFO[m.package_name]?.price?.toLocaleString() || '—'}/mes
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ fontSize:12, color:'var(--muted)' }}>Sin membresía activa</div>
+                          )}
                         </div>
 
-                        {/* Sessions */}
+                        {/* Sesiones */}
                         <div>
-                          <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>Sessions: {player.sessionsUsed}/{player.sessionsTotal} used · <span style={{ color: remaining <= 2 ? 'var(--amber)' : 'var(--green)' }}>{remaining} left</span></div>
-                          <SessionBubble used={player.sessionsUsed} total={player.sessionsTotal} />
+                          {m ? (
+                            <>
+                              <div style={{ fontSize:12, color:'var(--text3)', marginBottom:5 }}>
+                                {m.sessions_used||0}/{m.sessions_total||0} usadas
+                                {' · '}
+                                <span style={{ color: remaining<=0?'#ff4466':remaining<=2?'var(--amber)':'var(--green2)', fontWeight:600 }}>
+                                  {remaining} restantes
+                                </span>
+                              </div>
+                              <ProgressBar
+                                value={m.sessions_used||0}
+                                max={m.sessions_total||1}
+                                color={remaining<=0?'var(--red)':remaining<=2?'var(--amber)':'var(--green)'}
+                              />
+                            </>
+                          ) : (
+                            <div style={{ fontSize:12, color:'var(--muted)' }}>—</div>
+                          )}
                         </div>
-
-                        <Btn size="sm" variant="navy" onClick={() => setSelectedPlayer({ ...player, family })}>View</Btn>
                       </div>
                     )
                   })}
@@ -150,125 +182,6 @@ export default function Families() {
           )
         })}
       </div>
-
-      {/* Player detail modal */}
-      <Modal open={!!selectedPlayer} onClose={() => setSelectedPlayer(null)} title="Player Profile" width={480}>
-        {selectedPlayer && (() => {
-          const pkg = PACKAGES.find(p => p.id === selectedPlayer.packageId)
-          const remaining = selectedPlayer.sessionsTotal - selectedPlayer.sessionsUsed
-          return (
-            <div>
-              <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--border)' }}>
-                <Avatar initials={selectedPlayer.name.split(' ').map(n => n[0]).join('')} size={52} color={selectedPlayer.isSibling ? 'var(--gold)' : 'var(--red)'} />
-                <div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800 }}>{selectedPlayer.name}</div>
-                  <div style={{ color: 'var(--text2)', fontSize: 13 }}>Parent: {selectedPlayer.family.parent.firstName} {selectedPlayer.family.parent.lastName}</div>
-                  <div style={{ marginTop: 6, display: 'flex', gap: 8 }}>
-                    <Badge color={statusColor[selectedPlayer.status]}>{selectedPlayer.status}</Badge>
-                    {selectedPlayer.isSibling && <Badge color="gold">Sibling 50% off</Badge>}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-                {[
-                  { label: 'Age', value: `${selectedPlayer.age} years old` },
-                  { label: 'Date of Birth', value: selectedPlayer.dob },
-                  { label: 'Package', value: pkg?.name, color: pkg?.color },
-                  { label: 'Package Price', value: `$${selectedPlayer.isSibling ? pkg?.siblingPrice?.toLocaleString() : pkg?.price?.toLocaleString()}/mo` },
-                  { label: 'Sessions Used', value: `${selectedPlayer.sessionsUsed} of ${selectedPlayer.sessionsTotal}` },
-                  { label: 'Sessions Left', value: `${remaining}`, color: remaining <= 2 ? 'var(--amber)' : 'var(--green)' },
-                  ...(selectedPlayer.nextBilling ? [{ label: 'Next Billing', value: selectedPlayer.nextBilling }] : []),
-                  { label: 'Payment Method', value: `${paymentIcon[selectedPlayer.family.paymentMethod]} ${selectedPlayer.family.paymentMethod}` },
-                ].map(({ label, value, color }) => (
-                  <div key={label} style={{ background: 'var(--navy3)', borderRadius: 8, padding: '10px 14px' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3, fontFamily: 'var(--font-display)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: color || 'var(--text)' }}>{value}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>Session Progress</div>
-                <ProgressBar value={selectedPlayer.sessionsUsed} max={selectedPlayer.sessionsTotal} />
-              </div>
-              <Btn variant="ghost" onClick={() => setSelectedPlayer(null)} style={{ width: '100%', justifyContent: 'center' }}>Close</Btn>
-            </div>
-          )
-        })()}
-      </Modal>
-
-      {/* Add Family Modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Register New Family" width={560}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--red)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Parent / Guardian Info</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div><Label>First Name *</Label><input value={form.parentFirst} onChange={e => setForm(p => ({ ...p, parentFirst: e.target.value }))} placeholder="Michael" /></div>
-              <div><Label>Last Name *</Label><input value={form.parentLast} onChange={e => setForm(p => ({ ...p, parentLast: e.target.value }))} placeholder="Johnson" /></div>
-              <div><Label>Email</Label><input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="michael@email.com" /></div>
-              <div><Label>Phone</Label><input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="614-555-0000" /></div>
-            </div>
-          </div>
-
-          <div style={{ paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--red)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Player Info</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div style={{ gridColumn: '1/-1' }}><Label>Player Full Name *</Label><input value={form.playerName} onChange={e => setForm(p => ({ ...p, playerName: e.target.value }))} placeholder="Tyler Johnson" /></div>
-              <div><Label>Age</Label><input type="number" value={form.playerAge} onChange={e => setForm(p => ({ ...p, playerAge: e.target.value }))} placeholder="10" /></div>
-              <div style={{ gridColumn: '2/-1' }}><Label>Date of Birth</Label><input type="date" value={form.playerDob} onChange={e => setForm(p => ({ ...p, playerDob: e.target.value }))} /></div>
-            </div>
-          </div>
-
-          <div style={{ paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--red)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Package & Payment</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={{ gridColumn: '1/-1' }}>
-                <Label>Package</Label>
-                <select value={form.packageId} onChange={e => setForm(p => ({ ...p, packageId: e.target.value }))}>
-                  {PACKAGES.map(p => <option key={p.id} value={p.id}>{p.name} — ${p.price.toLocaleString()}/mo</option>)}
-                </select>
-              </div>
-              <div><Label>Payment Method</Label>
-                <select value={form.paymentMethod} onChange={e => setForm(p => ({ ...p, paymentMethod: e.target.value }))}>
-                  <option value="card">💳 Credit/Debit Card</option>
-                  <option value="paypal">🅿️ PayPal</option>
-                  <option value="cash">💵 Cash</option>
-                </select>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input type="checkbox" id="autorenew" checked={form.autoRenew} onChange={e => setForm(p => ({ ...p, autoRenew: e.target.checked }))} style={{ width: 'auto' }} />
-                <label htmlFor="autorenew" style={{ fontSize: 13, color: 'var(--text2)', cursor: 'pointer' }}>Enable Auto-Pay</label>
-              </div>
-            </div>
-          </div>
-
-          {/* Sibling */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: form.addSibling ? 12 : 0 }}>
-              <input type="checkbox" id="sibling" checked={form.addSibling} onChange={e => setForm(p => ({ ...p, addSibling: e.target.checked }))} style={{ width: 'auto' }} />
-              <label htmlFor="sibling" style={{ fontSize: 13, cursor: 'pointer' }}>
-                <span style={{ color: 'var(--gold)', fontWeight: 600 }}>⭐ Add sibling (50% discount)</span>
-              </label>
-            </div>
-            {form.addSibling && (
-              <div style={{ background: 'var(--gold-soft)', borderRadius: 8, padding: 14 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                  <div style={{ gridColumn: '1/-1' }}><Label>Sibling Full Name</Label><input value={form.siblingName} onChange={e => setForm(p => ({ ...p, siblingName: e.target.value }))} placeholder="Lucas Johnson" /></div>
-                  <div><Label>Age</Label><input type="number" value={form.siblingAge} onChange={e => setForm(p => ({ ...p, siblingAge: e.target.value }))} /></div>
-                  <div style={{ gridColumn: '2/-1' }}><Label>Date of Birth</Label><input type="date" value={form.siblingDob} onChange={e => setForm(p => ({ ...p, siblingDob: e.target.value }))} /></div>
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: 8 }}>
-                  ⭐ Sibling price: ${PACKAGES.find(p => p.id === form.packageId)?.siblingPrice?.toLocaleString()}/mo (50% off)
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-            <Btn variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Btn>
-            <Btn onClick={handleAdd}><Plus size={14} /> Register Family</Btn>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }
