@@ -1,4 +1,5 @@
 import React from 'react'
+import { useClerk } from '@clerk/clerk-react'
 import { LayoutDashboard, Users, Calendar, DollarSign, Megaphone, ChevronRight, LogOut } from 'lucide-react'
 
 const NAV = [
@@ -9,7 +10,8 @@ const NAV = [
   { id: 'events',    label: 'Events',    icon: Megaphone },
 ]
 
-export default function AdminSidebar({ active, onNav, onSwitchToParent }) {
+export default function AdminSidebar({ active, onNav }) {
+  const { signOut } = useClerk()
   return (
     <aside style={{
       width: 230, minHeight: '100vh',
@@ -62,17 +64,19 @@ export default function AdminSidebar({ active, onNav, onSwitchToParent }) {
 
       {/* Footer */}
       <div style={{ padding: '14px 10px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-        <button onClick={onSwitchToParent} style={{
+        <button onClick={() => signOut({ redirectUrl: '/' })} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 12px', borderRadius: 8, color: 'var(--text3)',
-          fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em',
-          textTransform: 'uppercase', transition: 'all 0.15s',
+          padding: '10px 12px', borderRadius: 8,
+          color: '#ff3355', border: '1px solid rgba(255,51,85,0.25)',
+          background: 'rgba(255,51,85,0.07)',
+          fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+          letterSpacing: '0.08em', textTransform: 'uppercase', transition: 'all 0.15s',
         }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.background = 'transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,51,85,0.18)'; e.currentTarget.style.borderColor = 'rgba(255,51,85,0.5)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,51,85,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,51,85,0.25)' }}
         >
           <LogOut size={14} />
-          <span>View as Parent</span>
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>

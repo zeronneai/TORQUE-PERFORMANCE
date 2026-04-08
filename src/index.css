@@ -76,3 +76,17 @@ select option { background: var(--navy2); }
 
 .fade-in { animation: fadeIn 0.3s ease forwards; }
 .slide-in { animation: slideIn 0.25s ease forwards; }
+
+/* ── Calendar grid (used by both admin and parent portals) ── */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+
+/* ── Background watermark (both portals) ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url('https://res.cloudinary.com/dsprn0ew4/image/upload/v1774490841/TORQUE_hauofb.png');
+  background-size: 420px;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: 0.045;
+}
