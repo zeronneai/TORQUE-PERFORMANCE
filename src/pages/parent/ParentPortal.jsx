@@ -1100,31 +1100,44 @@ function SessionsPage({ players, bookings, onBook }) {
 // ── SCHEDULE PAGE ─────────────────────────────────────────────────────────────
 function SchedulePage({ bookings }) {
   const [viewDate, setViewDate] = useState(new Date())
+  const [selectedDay, setSelectedDay] = useState(null)
   const today = new Date(); today.setHours(0,0,0,0)
 
-  const year = viewDate.getFullYear()
+  const year  = viewDate.getFullYear()
   const month = viewDate.getMonth()
-  const firstDay = new Date(year, month, 1).getDay()
+  const firstDay    = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-  const DAY_NAMES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+  const DAY_NAMES   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
 
-  // Map bookings by date for fast lookup
+  // Normalize date: Supabase sometimes returns "2026-04-14T00:00:00+00:00"
+  const normDate = (d) => (d || '').split('T')[0]
+
+  // Map bookings by normalized date
   const bookingsByDate = {}
   bookings.forEach(b => {
-    if (!bookingsByDate[b.session_date]) bookingsByDate[b.session_date] = []
-    bookingsByDate[b.session_date].push(b)
+    const key = normDate(b.session_date)
+    if (!key) return
+    if (!bookingsByDate[key]) bookingsByDate[key] = []
+    bookingsByDate[key].push(b)
   })
 
   const isoToday = today.toISOString().split('T')[0]
-  const upcoming = bookings
-    .filter(b => b.session_date >= isoToday && b.status === 'confirmed')
-    .slice(0, 8)
+  const upcoming  = bookings
+    .filter(b => normDate(b.session_date) >= isoToday && b.status === 'confirmed')
+    .sort((a,b) => normDate(a.session_date).localeCompare(normDate(b.session_date)))
+    .slice(0, 10)
 
-  // Build calendar cells
   const cells = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+
+  const TYPE_COLORS = {
+    'Speed & Agility':    '#4fa8ff',
+    'Fielding / Defense': '#22C56E',
+    'Batting':            '#f39c12',
+    'General Training':   '#a78bfa',
+  }
 
   return (
     <div className="animate-fade-up">
@@ -1132,69 +1145,129 @@ function SchedulePage({ bookings }) {
       <h1 className="section-title">SCHEDULE</h1>
       <div className="section-bar" />
 
-      <div style={{ display:'grid', gridTemplateColumns:'1.1fr 0.9fr', gap:20, alignItems:'start' }}>
-        {/* Calendar */}
+      <div style={{ display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:20, alignItems:'start' }}>
+
+        {/* ── CALENDAR ── */}
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
           {/* Month nav */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-            <button onClick={() => setViewDate(new Date(year, month-1, 1))} style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:34, height:34, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:16 }}>‹</button>
+            <button onClick={() => { setViewDate(new Date(year,month-1,1)); setSelectedDay(null) }}
+              style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:18, fontWeight:700 }}>‹</button>
             <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:20, letterSpacing:'0.06em', color:'var(--white)', textTransform:'uppercase' }}>
               {MONTH_NAMES[month]} {year}
             </div>
-            <button onClick={() => setViewDate(new Date(year, month+1, 1))} style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:34, height:34, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:16 }}>›</button>
+            <button onClick={() => { setViewDate(new Date(year,month+1,1)); setSelectedDay(null) }}
+              style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:18, fontWeight:700 }}>›</button>
           </div>
+
           {/* Day headers */}
-          <div className="cal-grid" style={{ marginBottom:4 }}>
+          <div className="cal-grid" style={{ marginBottom:6 }}>
             {DAY_NAMES.map(d => (
-              <div key={d} style={{ textAlign:'center', fontFamily:'var(--font-display)', fontSize:11, fontWeight:700, color:'var(--muted2)', letterSpacing:'0.1em', padding:'4px 0', textTransform:'uppercase' }}>{d}</div>
+              <div key={d} style={{ textAlign:'center', fontFamily:'var(--font-display)', fontSize:11, fontWeight:700, color:'var(--muted2)', letterSpacing:'0.08em', padding:'4px 0', textTransform:'uppercase' }}>{d}</div>
             ))}
           </div>
-          {/* Days */}
-          <div className="cal-grid">
+
+          {/* Days grid */}
+          <div className="cal-grid" style={{ gap:4 }}>
             {cells.map((day, i) => {
               if (!day) return <div key={`e-${i}`} />
-              const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-              const hasB = !!bookingsByDate[iso]
-              const isToday = iso === isoToday
+              const iso    = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+              const dayBks = bookingsByDate[iso] || []
+              const hasB   = dayBks.length > 0
+              const isToday    = iso === isoToday
+              const isSelected = iso === selectedDay
               return (
-                <div key={iso} className={`cal-day${hasB ? ' has-booking' : ''}${isToday ? ' today' : ''}`}
-                  title={hasB ? bookingsByDate[iso].map(b => `${b.kid_name} · ${b.session_time}`).join('\n') : ''}>
-                  <span style={{ color: isToday ? 'var(--white)' : hasB ? 'var(--green2)' : 'var(--text2)', fontWeight: isToday || hasB ? 800 : 600, fontSize:13 }}>{day}</span>
-                  {hasB && <div className="cal-dot" />}
+                <div key={iso}
+                  onClick={() => hasB && setSelectedDay(isSelected ? null : iso)}
+                  style={{
+                    aspectRatio:'1', display:'flex', flexDirection:'column',
+                    alignItems:'center', justifyContent:'center', borderRadius:10,
+                    cursor: hasB ? 'pointer' : 'default', position:'relative',
+                    transition:'all 0.15s',
+                    background: isSelected ? 'rgba(34,197,110,0.18)' : hasB ? 'rgba(34,197,110,0.09)' : isToday ? 'rgba(255,255,255,0.07)' : 'transparent',
+                    border: isSelected ? '1.5px solid rgba(34,197,110,0.5)' : hasB ? '1px solid rgba(34,197,110,0.2)' : isToday ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                  }}>
+                  <span style={{ fontFamily:'var(--font-display)', fontWeight: hasB || isToday ? 800 : 500, fontSize:14,
+                    color: isSelected ? 'var(--green2)' : hasB ? 'var(--green2)' : isToday ? 'var(--white)' : 'var(--text2)' }}>
+                    {day}
+                  </span>
+                  {/* Colored dots per booking type */}
+                  {hasB && (
+                    <div style={{ display:'flex', gap:2, marginTop:3, flexWrap:'wrap', justifyContent:'center' }}>
+                      {dayBks.slice(0,3).map((b,bi) => (
+                        <div key={bi} style={{ width:5, height:5, borderRadius:'50%', background: TYPE_COLORS[b.session_type] || 'var(--green2)' }} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
-          <div style={{ marginTop:16, display:'flex', alignItems:'center', gap:8, fontSize:11, color:'var(--muted)' }}>
-            <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--green2)' }} />
-            <span>Sesión agendada</span>
-          </div>
-        </div>
 
-        {/* Upcoming sessions list */}
-        <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', marginBottom:16, letterSpacing:'0.04em' }}>PRÓXIMAS SESIONES</div>
-          {upcoming.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)', fontSize:13 }}>No hay sesiones agendadas.<br/>Ve a Sessions para agendar.</div>
-          ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {upcoming.map(b => (
-                <div key={b.id} style={{ padding:'12px 14px', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'var(--white)' }}>
-                      {new Date(b.session_date+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',month:'short',day:'numeric'})}
-                    </div>
-                    <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--green2)' }}>{b.session_time}</div>
-                  </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, fontSize:12, color:'var(--muted)' }}>
-                    <span>{b.kid_name}</span>
-                    <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
-                  </div>
+          {/* Selected day detail */}
+          {selectedDay && bookingsByDate[selectedDay] && (
+            <div style={{ marginTop:16, padding:'14px 16px', background:'rgba(34,197,110,0.06)', border:'1px solid rgba(34,197,110,0.2)', borderRadius:10 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:10 }}>
+                {new Date(selectedDay+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})}
+              </div>
+              {bookingsByDate[selectedDay].map((b,i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderTop: i>0 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background: TYPE_COLORS[b.session_type] || 'var(--green2)', flexShrink:0 }} />
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)', fontWeight:600 }}>{b.session_time}</span>
+                  <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
+                  <span style={{ fontSize:12, color:'var(--offwhite)' }}>{b.kid_name}</span>
+                  <span style={{ marginLeft:'auto', fontSize:11, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
                 </div>
               ))}
             </div>
           )}
+
+          {/* Legend */}
+          <div style={{ marginTop:14, display:'flex', flexWrap:'wrap', gap:12 }}>
+            {Object.entries(TYPE_COLORS).map(([type, color]) => (
+              <div key={type} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:'var(--muted)' }}>
+                <div style={{ width:7, height:7, borderRadius:'50%', background:color }} />
+                {type}
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* ── UPCOMING LIST ── */}
+        <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', marginBottom:16, letterSpacing:'0.04em' }}>PRÓXIMAS SESIONES</div>
+          {upcoming.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)', fontSize:13, lineHeight:1.7 }}>No hay sesiones agendadas.<br/>Ve a Sessions para agendar.</div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {upcoming.map(b => {
+                const iso = normDate(b.session_date)
+                const typeColor = TYPE_COLORS[b.session_type] || 'var(--green2)'
+                const isNext = iso === upcoming[0] ? normDate(upcoming[0].session_date) : null
+                return (
+                  <div key={b.id}
+                    onClick={() => { setSelectedDay(iso); setViewDate(new Date(iso+'T12:00:00')) }}
+                    style={{ padding:'12px 14px', background:'rgba(255,255,255,0.03)', border:`1px solid ${iso === selectedDay ? 'rgba(34,197,110,0.3)' : 'var(--border)'}`, borderRadius:10, cursor:'pointer', transition:'all 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.06)'}
+                    onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--white)' }}>
+                        {new Date(iso+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',month:'short',day:'numeric'})}
+                      </div>
+                      <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:typeColor, fontWeight:600 }}>{b.session_time}</div>
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:5 }}>
+                      <div style={{ width:6, height:6, borderRadius:'50%', background:typeColor, flexShrink:0 }} />
+                      <span style={{ fontSize:11, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
+                      <span style={{ marginLeft:'auto', fontSize:11, color:'var(--text2)' }}>{b.kid_name}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )
