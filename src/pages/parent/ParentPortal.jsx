@@ -292,7 +292,7 @@ const GLOBAL_CSS = `
   @media (max-width: 768px) {
     .torque-sidebar-desktop { display: none !important; }
     .torque-topbar { display: flex !important; }
-    .torque-main { margin-left: 0 !important; padding: 16px 14px !important; padding-top: 72px !important; }
+    .torque-main { margin-left: 0 !important; padding: 16px 14px !important; padding-top: calc(72px + env(safe-area-inset-top)) !important; }
 
     /* Typography */
     .section-title  { font-size: 32px !important; }
@@ -729,11 +729,13 @@ export default function ParentPortal() {
 
         {/* Topbar Mobile */}
         <div className="torque-topbar" style={{
-          position:'fixed', top:0, left:0, right:0, height:60,
+          position:'fixed', top:0, left:0, right:0,
+          height:'calc(60px + env(safe-area-inset-top))',
           background:'rgba(11,20,35,0.97)', backdropFilter:'blur(12px)',
           borderBottom:'1px solid rgba(255,255,255,0.1)',
-          alignItems:'center', justifyContent:'space-between',
-          padding:'0 20px', zIndex:200, display:'none'
+          alignItems:'flex-end', justifyContent:'space-between',
+          padding:'0 20px 12px', paddingTop:'env(safe-area-inset-top)',
+          zIndex:200, display:'none'
         }}>
           <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, letterSpacing:'0.1em', lineHeight:1 }}>
             TOR<span style={{ color:'var(--red)' }}>QUE</span>
