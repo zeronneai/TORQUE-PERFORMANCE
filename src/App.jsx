@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
-import { 
-  SignedIn, 
-  SignedOut, 
-  SignIn, 
-  UserButton, 
-  useUser 
+import {
+  SignedIn,
+  SignedOut,
+  SignIn,
+  UserButton,
+  useUser
 } from "@clerk/clerk-react";
 import { dark } from '@clerk/themes';
+import { Menu } from 'lucide-react';
 
 import { AppProvider, useApp } from './context/AppContext'
 import AdminSidebar from './components/AdminSidebar'
@@ -27,12 +28,30 @@ const ADMIN_PAGES = {
 // ── VISTA ADMIN ──────────────────────────────────────────────────────────────
 function AdminShell() {
   const [page, setPage] = useState('dashboard')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const Page = ADMIN_PAGES[page] || AdminDashboard
-  
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--navy)' }}>
-      <AdminSidebar active={page} onNav={setPage} />
-      <main style={{ flex: 1, marginLeft: 230, padding: '36px 40px', minHeight: '100vh' }}>
+
+      {/* Topbar mobile */}
+      <div className="admin-topbar">
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 22, letterSpacing: '0.08em', color: '#fff' }}>
+          TORQUE
+        </div>
+        <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 6, display: 'flex', alignItems: 'center' }}>
+          <Menu size={22} />
+        </button>
+      </div>
+
+      {/* Overlay mobile */}
+      {sidebarOpen && (
+        <div className="admin-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <AdminSidebar active={page} onNav={setPage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <main className="admin-main" style={{ flex: 1, marginLeft: 230, padding: '36px 40px', minHeight: '100vh' }}>
         {/* BOTÓN DE PERFIL EN LA ESQUINA */}
         <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}>
           <UserButton afterSignOutUrl="/" />
