@@ -12,13 +12,13 @@ export function Schedule() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  // Enriquecer bookings con profile del padre
+  // Enrich bookings with parent profile
   const enriched = useMemo(() => bookings.map(b => ({
     ...b,
     profile: profiles.find(pr => pr.id === b.parent_id) || null,
   })), [bookings, profiles])
 
-  // Próximas sesiones ordenadas
+  // Upcoming sessions sorted
   const upcoming = useMemo(() =>
     enriched
       .filter(b => normDate(b.session_date) >= today)
@@ -28,7 +28,7 @@ export function Schedule() {
       })
   , [enriched, today])
 
-  // Mapa fecha → bookings
+  // Map date → bookings
   const bookingsByDate = useMemo(() => {
     const map = {}
     enriched.forEach(b => {
@@ -40,13 +40,13 @@ export function Schedule() {
     return map
   }, [enriched])
 
-  // Calendário
+  // Calendar
   const year  = viewDate.getFullYear()
   const month = viewDate.getMonth()
   const firstDay    = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-  const DAY_NAMES   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
   const cells = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
@@ -54,19 +54,19 @@ export function Schedule() {
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
-      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Cargando...</div>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Loading...</div>
     </div>
   )
 
   return (
     <div className="fade-in">
-      <PageHeader eyebrow="Academy" title="Schedule" subtitle="Todas las sesiones agendadas" />
+      <PageHeader eyebrow="Academy" title="Schedule" subtitle="All scheduled sessions" />
 
       <div style={{ display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:20, alignItems:'start' }}>
 
-        {/* ── CALENDARIO ── */}
+        {/* ── CALENDAR ── */}
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
-          {/* Nav mes */}
+          {/* Month nav */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
             <button onClick={() => { setViewDate(new Date(year,month-1,1)); setSelectedDay(null) }}
               style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:18, fontWeight:700 }}>‹</button>
@@ -77,14 +77,14 @@ export function Schedule() {
               style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:18, fontWeight:700 }}>›</button>
           </div>
 
-          {/* Headers días */}
+          {/* Day headers */}
           <div className="cal-grid" style={{ marginBottom:6 }}>
             {DAY_NAMES.map(d => (
               <div key={d} style={{ textAlign:'center', fontFamily:'var(--font-display)', fontSize:11, fontWeight:700, color:'var(--muted2)', letterSpacing:'0.08em', padding:'4px 0', textTransform:'uppercase' }}>{d}</div>
             ))}
           </div>
 
-          {/* Grid días */}
+          {/* Days grid */}
           <div className="cal-grid" style={{ gap:4 }}>
             {cells.map((day, i) => {
               if (!day) return <div key={`e-${i}`} />
@@ -125,12 +125,12 @@ export function Schedule() {
             })}
           </div>
 
-          {/* Panel día seleccionado */}
+          {/* Selected day panel */}
           {selectedDay && bookingsByDate[selectedDay] && (
             <div style={{ marginTop:16, padding:'14px 16px', background:'rgba(34,197,110,0.06)', border:'1px solid rgba(34,197,110,0.2)', borderRadius:10 }}>
               <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:10 }}>
-                {new Date(selectedDay+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})}
-                {' — '}{bookingsByDate[selectedDay].length} sesiones
+                {new Date(selectedDay+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',day:'numeric',month:'long'})}
+                {' — '}{bookingsByDate[selectedDay].length} sessions
               </div>
               {bookingsByDate[selectedDay]
                 .sort((a,b) => (a.session_time||'').localeCompare(b.session_time||''))
@@ -149,7 +149,7 @@ export function Schedule() {
             </div>
           )}
 
-          {/* Leyenda */}
+          {/* Legend */}
           <div style={{ marginTop:14, display:'flex', flexWrap:'wrap', gap:12 }}>
             {Object.entries(TYPE_COLORS).map(([type, color]) => (
               <div key={type} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:'var(--muted)' }}>
@@ -160,11 +160,11 @@ export function Schedule() {
           </div>
         </div>
 
-        {/* ── LISTA PRÓXIMAS ── */}
+        {/* ── UPCOMING LIST ── */}
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', marginBottom:16, letterSpacing:'0.04em' }}>PRÓXIMAS SESIONES</div>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', marginBottom:16, letterSpacing:'0.04em' }}>UPCOMING SESSIONS</div>
           {upcoming.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)', fontSize:13, lineHeight:1.7 }}>No hay sesiones agendadas.</div>
+            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)', fontSize:13, lineHeight:1.7 }}>No sessions scheduled.</div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {upcoming.slice(0,20).map(b => {
@@ -179,7 +179,7 @@ export function Schedule() {
                     onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--white)' }}>
-                        {new Date(iso+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',month:'short',day:'numeric'})}
+                        {new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
                       </div>
                       <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:typeColor, fontWeight:600 }}>{b.session_time}</div>
                     </div>
@@ -210,37 +210,37 @@ export function Payments() {
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
-      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Cargando...</div>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Loading...</div>
     </div>
   )
 
   return (
     <div className="fade-in">
-      <PageHeader eyebrow="Finance" title="Payments" subtitle="Resumen de facturación y membresías activas" />
+      <PageHeader eyebrow="Finance" title="Payments" subtitle="Billing summary and active memberships" />
 
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
-        <StatCard label="Ingresos del Mes"   value={`$${totalRevenue.toLocaleString()}`}  sub="membresías activas" icon="💰" />
-        <StatCard label="Membresías Activas" value={memberships.length}                   sub="jugadores activos"  icon="✅" />
-        <StatCard label="Paquete A"          value={memberships.filter(m=>m.package_name==='PAQUETE A').length}   sub={`$260/mes`} icon="⚾" />
-        <StatCard label="Paquete MLB"        value={memberships.filter(m=>m.package_name==='PAQUETE MLB').length} sub={`$600/mes`} icon="🏆" />
+        <StatCard label="Monthly Revenue"    value={`$${totalRevenue.toLocaleString()}`}  sub="active memberships" icon="💰" />
+        <StatCard label="Active Memberships" value={memberships.length}                   sub="active players"     icon="✅" />
+        <StatCard label="Package A"          value={memberships.filter(m=>m.package_name==='PAQUETE A').length}   sub={`$260/mo`} icon="⚾" />
+        <StatCard label="Package MLB"        value={memberships.filter(m=>m.package_name==='PAQUETE MLB').length} sub={`$600/mo`} icon="🏆" />
       </div>
 
       <Card style={{ padding:0, overflow:'hidden' }}>
         <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)', fontFamily:'var(--font-display)', fontSize:16, fontWeight:800 }}>
-          Resumen de Membresías Activas
+          Active Memberships Summary
         </div>
 
         {memberships.length === 0 ? (
           <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>
             <div style={{ fontSize:32, marginBottom:12 }}>💳</div>
-            <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>No hay membresías activas</div>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>No active memberships</div>
           </div>
         ) : (
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr>
-                {['Jugador','Padre/Madre','Paquete','Sesiones','Restantes','Precio'].map(h => (
+                {['Player','Parent','Package','Sessions','Remaining','Price'].map(h => (
                   <th key={h} style={{ padding:'10px 16px', textAlign:'left', color:'var(--text3)', fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.08em', textTransform:'uppercase', borderBottom:'1px solid var(--border)', fontWeight:700 }}>{h}</th>
                 ))}
               </tr>
@@ -269,19 +269,19 @@ export function Payments() {
                     </td>
                     <td style={{ padding:'12px 16px' }}>
                       <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                        <span style={{ fontSize:12, color:'var(--muted)' }}>{m.sessions_used||0}/{m.sessions_total||0} usadas</span>
+                        <span style={{ fontSize:12, color:'var(--muted)' }}>{m.sessions_used||0}/{m.sessions_total||0} used</span>
                         <ProgressBar value={m.sessions_used||0} max={m.sessions_total||1}
                           color={remaining<=0?'var(--red)':remaining<=2?'var(--amber)':'var(--green)'} height={4} />
                       </div>
                     </td>
                     <td style={{ padding:'12px 16px' }}>
-                      <Badge color={remaining<=0?'red':remaining<=2?'amber':'green'}>{remaining} restantes</Badge>
+                      <Badge color={remaining<=0?'red':remaining<=2?'amber':'green'}>{remaining} remaining</Badge>
                     </td>
                     <td style={{ padding:'12px 16px' }}>
                       <span style={{ fontFamily:'var(--font-display)', fontWeight:700, color:'var(--green2)', fontSize:15 }}>
                         ${PACK_INFO[m.package_name]?.price?.toLocaleString() || '—'}
                       </span>
-                      <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4 }}>/mes</span>
+                      <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4 }}>/mo</span>
                     </td>
                   </tr>
                 )
@@ -294,7 +294,7 @@ export function Payments() {
   )
 }
 
-// ── EVENTS PAGE (lee/escribe en Supabase) ─────────────────────────────────────
+// ── EVENTS PAGE ───────────────────────────────────────────────────────────────
 export function Events() {
   const [events, setEvents] = useState([])
   const [loadingEvts, setLoadingEvts] = useState(true)
@@ -328,15 +328,15 @@ export function Events() {
 
   return (
     <div className="fade-in">
-      <PageHeader eyebrow="Academy" title="Events" subtitle="Showcases, camps y clínicas · visibles para los padres"
+      <PageHeader eyebrow="Academy" title="Events" subtitle="Showcases, camps & clinics · visible to parents"
         action={<Btn onClick={() => setShowAdd(true)}><Plus size={14} /> New Event</Btn>} />
 
       {loadingEvts ? (
-        <div style={{ textAlign:'center', padding:40, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Cargando eventos...</div>
+        <div style={{ textAlign:'center', padding:40, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Loading events...</div>
       ) : events.length === 0 ? (
         <div style={{ textAlign:'center', padding:48, color:'var(--muted)' }}>
           <div style={{ fontSize:36, marginBottom:12 }}>📅</div>
-          <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>No hay eventos. Crea el primero.</div>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>No events yet. Create the first one.</div>
         </div>
       ) : (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16 }}>
@@ -356,8 +356,8 @@ export function Events() {
                     {ev.location && <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10 }}>📍 {ev.location}</div>}
                     {ev.description && <p style={{ fontSize:13, color:'var(--text2)', lineHeight:1.6, marginBottom:14 }}>{ev.description}</p>}
                     <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:8 }}>
-                      <span style={{ color:'var(--text3)' }}>{ev.registered||0} registrados</span>
-                      <span style={{ color: spotsLeft<=5?'var(--amber)':'var(--green2)', fontWeight:600 }}>{spotsLeft} lugares disponibles</span>
+                      <span style={{ color:'var(--text3)' }}>{ev.registered||0} registered</span>
+                      <span style={{ color: spotsLeft<=5?'var(--amber)':'var(--green2)', fontWeight:600 }}>{spotsLeft} spots available</span>
                     </div>
                     <ProgressBar value={ev.registered||0} max={ev.spots||1} color={pct>=90?'var(--red)':pct>=60?'var(--amber)':'var(--green)'} />
                   </div>
@@ -370,23 +370,23 @@ export function Events() {
 
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Create New Event">
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <div><Label>Título *</Label><input value={form.title} onChange={e => setForm(p=>({...p,title:e.target.value}))} placeholder="Spring Showcase 2026" /></div>
+          <div><Label>Title *</Label><input value={form.title} onChange={e => setForm(p=>({...p,title:e.target.value}))} placeholder="Spring Showcase 2026" /></div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <div><Label>Fecha *</Label><input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} /></div>
-            <div><Label>Hora</Label><input type="time" value={form.time} onChange={e => setForm(p=>({...p,time:e.target.value}))} /></div>
-            <div><Label>Tipo</Label>
+            <div><Label>Date *</Label><input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} /></div>
+            <div><Label>Time</Label><input type="time" value={form.time} onChange={e => setForm(p=>({...p,time:e.target.value}))} /></div>
+            <div><Label>Type</Label>
               <select value={form.type} onChange={e => setForm(p=>({...p,type:e.target.value}))}>
                 {['showcase','camp','clinic','social'].map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div><Label>Cupo máximo</Label><input type="number" value={form.spots} onChange={e => setForm(p=>({...p,spots:+e.target.value}))} /></div>
+            <div><Label>Max Capacity</Label><input type="number" value={form.spots} onChange={e => setForm(p=>({...p,spots:+e.target.value}))} /></div>
           </div>
-          <div><Label>Lugar</Label><input value={form.location} onChange={e => setForm(p=>({...p,location:e.target.value}))} placeholder="Torque Performance Field" /></div>
-          <div><Label>Emoji / Imagen</Label><input value={form.image} onChange={e => setForm(p=>({...p,image:e.target.value}))} placeholder="⚾" style={{ maxWidth:80 }} /></div>
-          <div><Label>Descripción</Label><textarea value={form.description} onChange={e => setForm(p=>({...p,description:e.target.value}))} style={{ minHeight:80 }} /></div>
+          <div><Label>Location</Label><input value={form.location} onChange={e => setForm(p=>({...p,location:e.target.value}))} placeholder="Torque Performance Field" /></div>
+          <div><Label>Emoji / Image</Label><input value={form.image} onChange={e => setForm(p=>({...p,image:e.target.value}))} placeholder="⚾" style={{ maxWidth:80 }} /></div>
+          <div><Label>Description</Label><textarea value={form.description} onChange={e => setForm(p=>({...p,description:e.target.value}))} style={{ minHeight:80 }} /></div>
           <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-            <Btn variant="ghost" onClick={() => setShowAdd(false)}>Cancelar</Btn>
-            <Btn onClick={handleAdd} disabled={saving}><Plus size={14} /> {saving ? 'Guardando…' : 'Crear Evento'}</Btn>
+            <Btn variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Btn>
+            <Btn onClick={handleAdd} disabled={saving}><Plus size={14} /> {saving ? 'Saving…' : 'Create Event'}</Btn>
           </div>
         </div>
       </Modal>

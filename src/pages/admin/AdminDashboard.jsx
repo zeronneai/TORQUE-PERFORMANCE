@@ -29,7 +29,7 @@ export default function AdminDashboard() {
     memberships.filter(m => ((m.sessions_total || 0) - (m.sessions_used || 0)) <= 2).length
   , [memberships])
 
-  // Sesiones por día de la semana (de los bookings reales)
+  // Sessions by day of week (from real bookings)
   const sessionsByDay = useMemo(() => {
     const counts = { 1:0, 3:0, 5:0, 6:0 }
     bookings.forEach(b => {
@@ -39,14 +39,14 @@ export default function AdminDashboard() {
       if (day in counts) counts[day]++
     })
     return [
-      { day: 'Lun', sessions: counts[1] },
-      { day: 'Mié', sessions: counts[3] },
-      { day: 'Vie', sessions: counts[5] },
-      { day: 'Sáb', sessions: counts[6] },
+      { day: 'Mon', sessions: counts[1] },
+      { day: 'Wed', sessions: counts[3] },
+      { day: 'Fri', sessions: counts[5] },
+      { day: 'Sat', sessions: counts[6] },
     ]
   }, [bookings])
 
-  // Distribución de paquetes
+  // Package distribution
   const pkgDist = useMemo(() =>
     Object.entries(PACK_INFO).map(([name, info]) => ({
       name,
@@ -55,7 +55,7 @@ export default function AdminDashboard() {
     }))
   , [memberships])
 
-  // Jugadores + membresía merged
+  // Players + membership merged
   const playersWithMembership = useMemo(() =>
     players.map(player => {
       const m = memberships.find(
@@ -68,20 +68,20 @@ export default function AdminDashboard() {
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
-      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Cargando datos...</div>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Loading...</div>
     </div>
   )
 
   return (
     <div className="fade-in">
-      <PageHeader eyebrow="Torque Performance" title="Command Center" subtitle="Resumen de operaciones de la academia" />
+      <PageHeader eyebrow="Torque Performance" title="Command Center" subtitle="Academy operations overview" />
 
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
-        <StatCard label="Jugadores Activos"  value={memberships.length}              sub="membresías activas"        icon="⚾" />
-        <StatCard label="Sesiones Hoy"       value={todayBookings.length}            sub="confirmadas para hoy"      icon="📅" />
-        <StatCard label="Ingresos del Mes"   value={`$${monthlyRevenue.toLocaleString()}`} sub="membresías activas"  icon="💰" />
-        <StatCard label="Por Vencer"         value={expiringSoon}                    sub="≤ 2 sesiones restantes"    icon="⚠️" />
+        <StatCard label="Active Players"    value={memberships.length}              sub="active memberships"      icon="⚾" />
+        <StatCard label="Today's Sessions"  value={todayBookings.length}            sub="confirmed for today"     icon="📅" />
+        <StatCard label="Monthly Revenue"   value={`$${monthlyRevenue.toLocaleString()}`} sub="active memberships" icon="💰" />
+        <StatCard label="Expiring Soon"     value={expiringSoon}                    sub="≤ 2 sessions left"       icon="⚠️" />
       </div>
 
       {/* Charts */}
@@ -89,8 +89,8 @@ export default function AdminDashboard() {
         <Card>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
             <div>
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>Sesiones por Día</div>
-              <div style={{ fontSize:12, color:'var(--text3)' }}>Total sesiones agendadas por día</div>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>Sessions by Day</div>
+              <div style={{ fontSize:12, color:'var(--text3)' }}>Total booked sessions by day</div>
             </div>
             <Badge color="green">{bookings.length} total</Badge>
           </div>
@@ -100,20 +100,20 @@ export default function AdminDashboard() {
               <XAxis dataKey="day" tick={{ fill:'#4a5a70', fontSize:11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill:'#4a5a70', fontSize:10 }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip content={<CT />} />
-              <Bar dataKey="sessions" fill="rgba(255,255,255,0.7)" radius={[4,4,0,0]} name="sesiones" />
+              <Bar dataKey="sessions" fill="rgba(255,255,255,0.7)" radius={[4,4,0,0]} name="sessions" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
 
         <Card>
-          <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16, marginBottom:4 }}>Paquetes Activos</div>
-          <div style={{ fontSize:12, color:'var(--text3)', marginBottom:16 }}>Membresías por paquete</div>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16, marginBottom:4 }}>Active Packages</div>
+          <div style={{ fontSize:12, color:'var(--text3)', marginBottom:16 }}>Memberships by package</div>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {pkgDist.map(pkg => (
               <div key={pkg.name}>
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:5 }}>
                   <span style={{ color:'var(--text2)', fontSize:12 }}>{pkg.name}</span>
-                  <span style={{ fontFamily:'var(--font-display)', fontWeight:700, color:pkg.color }}>{pkg.count} jugadores</span>
+                  <span style={{ fontFamily:'var(--font-display)', fontWeight:700, color:pkg.color }}>{pkg.count} players</span>
                 </div>
                 <div style={{ height:6, background:'var(--navy4)', borderRadius:6, overflow:'hidden' }}>
                   <div style={{ height:'100%', borderRadius:6, background:pkg.color,
@@ -125,11 +125,11 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Sesiones de hoy */}
+      {/* Today's Sessions */}
       {todayBookings.length > 0 && (
         <Card style={{ marginBottom:14 }}>
           <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:15, marginBottom:16 }}>
-            Sesiones de Hoy — {new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})}
+            Today's Sessions — {new Date().toLocaleDateString('en-US',{weekday:'long',day:'numeric',month:'long'})}
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {todayBookings
@@ -152,11 +152,11 @@ export default function AdminDashboard() {
         </Card>
       )}
 
-      {/* Jugadores — sesiones restantes */}
+      {/* Players — Sessions Remaining */}
       <Card>
-        <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:15, marginBottom:16 }}>Jugadores — Sesiones Restantes</div>
+        <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:15, marginBottom:16 }}>Players — Sessions Remaining</div>
         {playersWithMembership.length === 0 ? (
-          <div style={{ textAlign:'center', padding:24, color:'var(--muted)', fontSize:13 }}>No hay jugadores con membresía activa</div>
+          <div style={{ textAlign:'center', padding:24, color:'var(--muted)', fontSize:13 }}>No players with active membership</div>
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 24px' }}>
             {playersWithMembership.map(player => {

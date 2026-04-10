@@ -8,7 +8,7 @@ export default function Families() {
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState({})
 
-  // Agrupa jugadores por parent_id y une con profile y membresía
+  // Group players by parent_id and join with profile and membership
   const families = useMemo(() => {
     const grouped = {}
     players.forEach(player => {
@@ -43,7 +43,7 @@ export default function Families() {
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
-      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Cargando...</div>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Loading...</div>
     </div>
   )
 
@@ -52,13 +52,13 @@ export default function Families() {
       <PageHeader
         eyebrow="Academy"
         title="Families & Players"
-        subtitle={`${families.length} familias · ${totalActive} jugadores activos`}
+        subtitle={`${families.length} families · ${totalActive} active players`}
       />
 
       <div style={{ position:'relative', marginBottom:16 }}>
         <Search size={14} style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', color:'var(--text3)' }} />
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por nombre de padre, jugador o email..."
+          placeholder="Search by parent name, player or email..."
           style={{ paddingLeft:40 }} />
       </div>
 
@@ -66,7 +66,7 @@ export default function Families() {
         <div style={{ textAlign:'center', padding:48, color:'var(--muted)' }}>
           <div style={{ fontSize:36, marginBottom:12 }}>👥</div>
           <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>
-            {search ? 'Sin resultados' : 'No hay familias registradas aún'}
+            {search ? 'No results' : 'No families registered yet'}
           </div>
         </div>
       )}
@@ -81,7 +81,7 @@ export default function Families() {
 
           return (
             <Card key={family.parent_id} style={{ padding:0, overflow:'hidden' }}>
-              {/* Header de la familia */}
+              {/* Family header */}
               <div
                 onClick={() => toggleFamily(family.parent_id)}
                 style={{ display:'flex', alignItems:'center', gap:14, padding:'16px 20px', cursor:'pointer', transition:'background 0.15s' }}
@@ -102,7 +102,7 @@ export default function Families() {
                     </Badge>
                   ))}
                   <Badge color="default">
-                    {family.players.length} {family.players.length === 1 ? 'jugador' : 'jugadores'}
+                    {family.players.length} {family.players.length === 1 ? 'player' : 'players'}
                   </Badge>
                   {isOpen
                     ? <ChevronDown size={16} color="var(--text3)" />
@@ -110,7 +110,7 @@ export default function Families() {
                 </div>
               </div>
 
-              {/* Detalle de jugadores */}
+              {/* Player details */}
               {isOpen && (
                 <div style={{ borderTop:'1px solid var(--border)', background:'rgba(0,0,0,0.2)' }}>
                   {family.players.map((player, idx) => {
@@ -125,42 +125,42 @@ export default function Families() {
                         display:'grid', gridTemplateColumns:'1.4fr 1fr 1.4fr',
                         gap:20, alignItems:'center',
                       }}>
-                        {/* Info jugador */}
+                        {/* Player info */}
                         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                           <Avatar initials={initials} size={36} color={pkgColor} />
                           <div>
                             <div style={{ fontSize:14, fontWeight:600 }}>{player.kid_name}</div>
                             <div style={{ fontSize:12, color:'var(--text3)' }}>
-                              {player.age ? `${player.age} años` : ''}
-                              {player.birthdate ? ` · Nac. ${player.birthdate}` : ''}
+                              {player.age ? `${player.age} yrs` : ''}
+                              {player.birthdate ? ` · Born ${player.birthdate}` : ''}
                             </div>
                           </div>
                         </div>
 
-                        {/* Paquete */}
+                        {/* Package */}
                         <div>
-                          <div style={{ fontSize:11, color:'var(--text3)', marginBottom:3, textTransform:'uppercase', letterSpacing:'0.06em' }}>Paquete</div>
+                          <div style={{ fontSize:11, color:'var(--text3)', marginBottom:3, textTransform:'uppercase', letterSpacing:'0.06em' }}>Package</div>
                           {m ? (
                             <>
                               <div style={{ fontSize:13, fontWeight:600, color:pkgColor }}>{m.package_name || '—'}</div>
                               <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
-                                ${PACK_INFO[m.package_name]?.price?.toLocaleString() || '—'}/mes
+                                ${PACK_INFO[m.package_name]?.price?.toLocaleString() || '—'}/mo
                               </div>
                             </>
                           ) : (
-                            <div style={{ fontSize:12, color:'var(--muted)' }}>Sin membresía activa</div>
+                            <div style={{ fontSize:12, color:'var(--muted)' }}>No active membership</div>
                           )}
                         </div>
 
-                        {/* Sesiones */}
+                        {/* Sessions */}
                         <div>
                           {m ? (
                             <>
                               <div style={{ fontSize:12, color:'var(--text3)', marginBottom:5 }}>
-                                {m.sessions_used||0}/{m.sessions_total||0} usadas
+                                {m.sessions_used||0}/{m.sessions_total||0} used
                                 {' · '}
                                 <span style={{ color: remaining<=0?'#ff4466':remaining<=2?'var(--amber)':'var(--green2)', fontWeight:600 }}>
-                                  {remaining} restantes
+                                  {remaining} remaining
                                 </span>
                               </div>
                               <ProgressBar

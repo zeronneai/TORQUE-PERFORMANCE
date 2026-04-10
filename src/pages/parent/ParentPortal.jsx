@@ -470,7 +470,7 @@ export default function ParentPortal() {
       }])
       if (bookErr) {
         console.error('[Torque] booking insert error:', bookErr)
-        alert('Error al agendar: ' + (bookErr.message || JSON.stringify(bookErr)))
+        alert('Error booking session: ' + (bookErr.message || JSON.stringify(bookErr)))
         return
       }
 
@@ -509,7 +509,7 @@ export default function ParentPortal() {
       quietRefresh()
     } catch(err) {
       console.error('[Torque] handleBookSession unexpected error:', err)
-      alert('Error inesperado. Revisa la consola.')
+      alert('Unexpected error. Please check the console.')
     } finally {
       setBookingLoading(false)
     }
@@ -768,13 +768,13 @@ export default function ParentPortal() {
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--green2)', boxShadow:'0 0 8px var(--green2)', flexShrink:0 }} />
                 <div>
-                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'var(--green2)', letterSpacing:'0.06em', textTransform:'uppercase' }}>Pago recibido</div>
-                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:1 }}>Cargando tus sesiones... Si no aparecen en unos segundos, presiona el botón.</div>
+                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'var(--green2)', letterSpacing:'0.06em', textTransform:'uppercase' }}>Payment received</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:1 }}>Loading your sessions... If they don't appear in a few seconds, press the button.</div>
                 </div>
               </div>
               <div style={{ display:'flex', gap:10, alignItems:'center' }}>
                 <button onClick={manualRefresh} disabled={refreshing} className="btn-ghost" style={{ fontSize:12 }}>
-                  {refreshing ? 'Buscando...' : '↺ Buscar sesiones'}
+                  {refreshing ? 'Searching...' : '↺ Refresh sessions'}
                 </button>
                 <button onClick={() => setPaymentBanner(false)} style={{ background:'none', border:'none', color:'var(--muted2)', cursor:'pointer', fontSize:18, lineHeight:1, padding:'0 4px' }}>✕</button>
               </div>
@@ -863,7 +863,7 @@ export default function ParentPortal() {
       </Modal>
 
       {/* ── MODAL: BOOK SESSION ── */}
-      <Modal open={showBookModal} onClose={() => setShowBookModal(false)} title={`Agendar Sesión · ${bookingPlayer?.kid_name}`} width={520}>
+      <Modal open={showBookModal} onClose={() => setShowBookModal(false)} title={`Book Session · ${bookingPlayer?.kid_name}`} width={520}>
         {bookingPlayer && (() => {
           const m = bookingPlayer.active_membership
           const remaining = m ? m.sessions_total - m.sessions_used : 0
@@ -880,24 +880,24 @@ export default function ParentPortal() {
               availableDates.push(d.toISOString().split('T')[0])
             }
           }
-          const DAY_NAMES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+          const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
           const fmt = (iso) => { const d = new Date(iso+'T12:00:00'); return `${DAY_NAMES[d.getDay()]} ${d.getDate()}` }
           return (
             <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
               {remaining <= 0 ? (
                 <div style={{ textAlign:'center', padding:'24px 0', color:'var(--muted)' }}>
                   <div style={{ fontSize:36, marginBottom:8 }}>⚠️</div>
-                  <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>Sin sesiones disponibles</div>
-                  <div style={{ fontSize:13, marginTop:6 }}>Adquiere un plan para agendar sesiones.</div>
+                  <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>No sessions available</div>
+                  <div style={{ fontSize:13, marginTop:6 }}>Purchase a plan to book sessions.</div>
                 </div>
               ) : (
                 <>
                   <div style={{ padding:'10px 16px', background:'rgba(34,197,110,0.07)', border:'1px solid rgba(34,197,110,0.2)', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <span style={{ fontSize:13, color:'var(--muted)' }}>Sesiones disponibles</span>
+                    <span style={{ fontSize:13, color:'var(--muted)' }}>Available sessions</span>
                     <span style={{ fontFamily:'var(--font-display)', fontWeight:900, fontSize:22, color:'var(--green2)' }}>{remaining}</span>
                   </div>
                   <div>
-                    <Label>Fecha</Label>
+                    <Label>Date</Label>
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6, marginTop:8 }}>
                       {availableDates.map(d => (
                         <button key={d} onClick={() => setBookingForm(f => ({...f, date:d}))}
@@ -908,7 +908,7 @@ export default function ParentPortal() {
                     </div>
                   </div>
                   <div>
-                    <Label>Horario</Label>
+                    <Label>Time Slot</Label>
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6, marginTop:8 }}>
                       {TIMES.map(t => (
                         <button key={t} onClick={() => setBookingForm(f => ({...f, time:t}))}
@@ -919,7 +919,7 @@ export default function ParentPortal() {
                     </div>
                   </div>
                   <div>
-                    <Label>Tipo de sesión</Label>
+                    <Label>Session Type</Label>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:8 }}>
                       {TYPES.map(tp => (
                         <button key={tp} onClick={() => setBookingForm(f => ({...f, type:tp}))}
@@ -932,7 +932,7 @@ export default function ParentPortal() {
                   </div>
                   <button onClick={handleBookSession} disabled={!bookingForm.date || !bookingForm.time || bookingLoading}
                     className="btn-primary" style={{ marginTop:4 }}>
-                    {bookingLoading ? 'Agendando...' : `Confirmar sesión`}
+                    {bookingLoading ? 'Booking...' : `Confirm Session`}
                   </button>
                 </>
               )}
@@ -1085,7 +1085,7 @@ function SessionsPage({ players, bookings, onBook }) {
 
       {playersWithPlan.length === 0 ? (
         <div style={{ padding:'48px 0', textAlign:'center', color:'var(--muted)', fontSize:14 }}>
-          Ningún jugador tiene un plan activo. Compra un plan desde el Dashboard.
+          No players have an active plan. Get a plan from the Dashboard.
         </div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -1109,7 +1109,7 @@ function SessionsPage({ players, bookings, onBook }) {
                     </div>
                     <div>
                       <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--white)' }}>{player.kid_name}</div>
-                      <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.1em', fontFamily:'var(--font-display)', fontStyle:'italic', marginTop:2 }}>{m ? m.package_name : 'Sin plan'}</div>
+                      <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.1em', fontFamily:'var(--font-display)', fontStyle:'italic', marginTop:2 }}>{m ? m.package_name : 'No plan'}</div>
                     </div>
                   </div>
 
@@ -1117,11 +1117,11 @@ function SessionsPage({ players, bookings, onBook }) {
                   <div style={{ display:'flex', alignItems:'center', gap:20 }}>
                     <div style={{ textAlign:'center' }}>
                       <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:56, lineHeight:1, color: remaining === 0 ? 'var(--muted2)' : remaining <= 2 ? '#E8A020' : 'var(--green2)' }}>{remaining}</div>
-                      <div style={{ fontSize:10, color:'var(--muted)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', marginTop:2 }}>de {total} restantes</div>
+                      <div style={{ fontSize:10, color:'var(--muted)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', marginTop:2 }}>of {total} remaining</div>
                     </div>
                     {m && remaining > 0 && (
                       <button onClick={() => onBook(player)} className="btn-primary" style={{ padding:'12px 20px', fontSize:14 }}>
-                        + Agendar
+                        + Book
                       </button>
                     )}
                   </div>
@@ -1134,7 +1134,7 @@ function SessionsPage({ players, bookings, onBook }) {
                       <div style={{ height:'100%', borderRadius:6, transition:'width 0.6s ease', width:`${pct}%`, background: remaining === 0 ? 'var(--muted2)' : remaining <= 2 ? 'linear-gradient(90deg,#E8A020,#F0C040)' : 'linear-gradient(90deg,var(--green),var(--green2))' }} />
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, fontSize:11, color:'var(--muted)', fontFamily:'var(--font-mono)' }}>
-                      <span>{used} usadas</span><span>{remaining} disponibles</span>
+                      <span>{used} used</span><span>{remaining} left</span>
                     </div>
                   </div>
                 )}
@@ -1142,13 +1142,13 @@ function SessionsPage({ players, bookings, onBook }) {
                 {/* Upcoming bookings for this player */}
                 {playerBookings.length > 0 && (
                   <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)' }}>
-                    <div style={{ fontSize:10, color:'var(--muted2)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic', marginBottom:10 }}>Próximas sesiones</div>
+                    <div style={{ fontSize:10, color:'var(--muted2)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic', marginBottom:10 }}>Upcoming sessions</div>
                     <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                       {playerBookings.slice(0,3).map(b => (
                         <div key={b.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', background:'rgba(34,197,110,0.06)', borderRadius:8, border:'1px solid rgba(34,197,110,0.15)' }}>
                           <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
                           <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)' }}>
-                            {new Date(b.session_date+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',month:'short',day:'numeric'})} · {b.session_time}
+                            {new Date(b.session_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · {b.session_time}
                           </span>
                           <span style={{ marginLeft:'auto', fontSize:11, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
                         </div>
@@ -1175,8 +1175,8 @@ function SchedulePage({ bookings }) {
   const month = viewDate.getMonth()
   const firstDay    = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-  const DAY_NAMES   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
   // Normalize date: Supabase sometimes returns "2026-04-14T00:00:00+00:00"
   const normDate = (d) => (d || '').split('T')[0]
@@ -1276,7 +1276,7 @@ function SchedulePage({ bookings }) {
           {selectedDay && bookingsByDate[selectedDay] && (
             <div style={{ marginTop:16, padding:'14px 16px', background:'rgba(34,197,110,0.06)', border:'1px solid rgba(34,197,110,0.2)', borderRadius:10 }}>
               <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:10 }}>
-                {new Date(selectedDay+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})}
+                {new Date(selectedDay+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',day:'numeric',month:'long'})}
               </div>
               {bookingsByDate[selectedDay].map((b,i) => (
                 <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderTop: i>0 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
@@ -1303,9 +1303,9 @@ function SchedulePage({ bookings }) {
 
         {/* ── UPCOMING LIST ── */}
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', marginBottom:16, letterSpacing:'0.04em' }}>PRÓXIMAS SESIONES</div>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', marginBottom:16, letterSpacing:'0.04em' }}>UPCOMING SESSIONS</div>
           {upcoming.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)', fontSize:13, lineHeight:1.7 }}>No hay sesiones agendadas.<br/>Ve a Sessions para agendar.</div>
+            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)', fontSize:13, lineHeight:1.7 }}>No sessions scheduled.<br/>Go to Sessions to book.</div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {upcoming.map(b => {
@@ -1320,7 +1320,7 @@ function SchedulePage({ bookings }) {
                     onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--white)' }}>
-                        {new Date(iso+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',month:'short',day:'numeric'})}
+                        {new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
                       </div>
                       <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:typeColor, fontWeight:600 }}>{b.session_time}</div>
                     </div>
@@ -1352,14 +1352,14 @@ function BillingPage({ players }) {
     const isAnnual = total >= 96
     if (isAnnual) d.setFullYear(d.getFullYear() + 1)
     else d.setMonth(d.getMonth() + 1)
-    return d.toLocaleDateString('es-MX', { year:'numeric', month:'long', day:'numeric' })
+    return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })
   }
 
   function cycleLabel(total) {
-    if (total >= 96) return 'Anual'
-    if (total >= 48) return '6 Meses'
-    if (total >= 24) return '12 Meses'
-    return 'Mensual'
+    if (total >= 96) return 'Annual'
+    if (total >= 48) return '6 Months'
+    if (total >= 24) return '12 Months'
+    return 'Monthly'
   }
 
   return (
@@ -1369,7 +1369,7 @@ function BillingPage({ players }) {
       <div className="section-bar" />
 
       {memberships.length === 0 ? (
-        <div style={{ textAlign:'center', padding:'48px 0', color:'var(--muted)', fontSize:14 }}>No hay planes activos.</div>
+        <div style={{ textAlign:'center', padding:'48px 0', color:'var(--muted)', fontSize:14 }}>No active plans.</div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
           {memberships.map((m, i) => (
@@ -1380,15 +1380,15 @@ function BillingPage({ players }) {
                   <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--white)' }}>{m.kid_name}</div>
                   <div style={{ fontSize:12, color:'var(--muted)', marginTop:3, fontFamily:'var(--font-display)', fontStyle:'italic', letterSpacing:'0.06em', textTransform:'uppercase' }}>{m.package_name} · {cycleLabel(m.sessions_total)}</div>
                 </div>
-                <div style={{ padding:'4px 12px', background:'rgba(34,197,110,0.1)', border:'1px solid rgba(34,197,110,0.25)', borderRadius:20, fontSize:11, fontFamily:'var(--font-display)', fontWeight:700, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase' }}>Activo</div>
+                <div style={{ padding:'4px 12px', background:'rgba(34,197,110,0.1)', border:'1px solid rgba(34,197,110,0.25)', borderRadius:20, fontSize:11, fontFamily:'var(--font-display)', fontWeight:700, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase' }}>Active</div>
               </div>
 
               {/* Stats row */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
                 {[
-                  { label:'Sesiones totales', value: m.sessions_total },
-                  { label:'Sesiones usadas',  value: m.sessions_used },
-                  { label:'Sesiones restantes', value: m.sessions_total - m.sessions_used },
+                  { label:'Total sessions',     value: m.sessions_total },
+                  { label:'Sessions used',      value: m.sessions_used },
+                  { label:'Sessions remaining', value: m.sessions_total - m.sessions_used },
                 ].map(s => (
                   <div key={s.label} style={{ background:'rgba(0,0,0,0.2)', borderRadius:10, padding:'12px 14px', textAlign:'center' }}>
                     <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:28, color:'var(--white)' }}>{s.value}</div>
@@ -1400,13 +1400,13 @@ function BillingPage({ players }) {
               {/* Payment info */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                 <div style={{ padding:'12px 16px', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
-                  <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.12em', fontFamily:'var(--font-display)', marginBottom:4 }}>Fecha de compra</div>
+                  <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.12em', fontFamily:'var(--font-display)', marginBottom:4 }}>Purchase date</div>
                   <div style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--offwhite)' }}>
-                    {m.purchased_at ? new Date(m.purchased_at).toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'}) : '—'}
+                    {m.purchased_at ? new Date(m.purchased_at).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : '—'}
                   </div>
                 </div>
                 <div style={{ padding:'12px 16px', background:'rgba(34,197,110,0.05)', border:'1px solid rgba(34,197,110,0.15)', borderRadius:10 }}>
-                  <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.12em', fontFamily:'var(--font-display)', marginBottom:4 }}>Próximo pago</div>
+                  <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.12em', fontFamily:'var(--font-display)', marginBottom:4 }}>Next payment</div>
                   <div style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--green2)' }}>{nextPayment(m.purchased_at, m.sessions_total)}</div>
                 </div>
               </div>
@@ -1414,7 +1414,7 @@ function BillingPage({ players }) {
               {/* Stripe reference */}
               {m.stripe_payment_id && (
                 <div style={{ marginTop:12, padding:'8px 14px', background:'rgba(0,0,0,0.2)', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.1em', fontFamily:'var(--font-display)' }}>Referencia de pago</span>
+                  <span style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.1em', fontFamily:'var(--font-display)' }}>Payment reference</span>
                   <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text2)' }}>{m.stripe_payment_id?.slice(0,24)}…</span>
                 </div>
               )}
@@ -1449,11 +1449,11 @@ function EventsPage() {
   }, [])
 
   const typeColor = { showcase:'#ff4466', camp:'#f39c12', clinic:'#4fa8ff', social:'#22C56E' }
-  const typeLabel = { showcase:'Showcase', camp:'Camp', clinic:'Clínica', social:'Social' }
+  const typeLabel = { showcase:'Showcase', camp:'Camp', clinic:'Clinic', social:'Social' }
 
   if (loading) return (
     <div className="animate-fade-up" style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
-      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Cargando eventos…</div>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18, color:'var(--muted)' }}>Loading events…</div>
     </div>
   )
 
@@ -1466,8 +1466,8 @@ function EventsPage() {
       {events.length === 0 ? (
         <div style={{ textAlign:'center', padding:'60px 0', color:'var(--muted)' }}>
           <div style={{ fontSize:48, marginBottom:16 }}>📅</div>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18 }}>No hay eventos próximos</div>
-          <div style={{ fontSize:13, marginTop:8 }}>Los coaches publicarán eventos próximamente.</div>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontSize:18 }}>No upcoming events</div>
+          <div style={{ fontSize:13, marginTop:8 }}>Coaches will publish events soon.</div>
         </div>
       ) : (
         <div className="events-grid">
@@ -1502,9 +1502,9 @@ function EventsPage() {
                 {/* Cupo */}
                 <div>
                   <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-                    <span style={{ color:'var(--muted)' }}>{ev.registered||0} registrados</span>
+                    <span style={{ color:'var(--muted)' }}>{ev.registered||0} registered</span>
                     <span style={{ color: spotsLeft<=5?'var(--amber)':'var(--green2)', fontWeight:600 }}>
-                      {spotsLeft > 0 ? `${spotsLeft} lugares disponibles` : 'Evento lleno'}
+                      {spotsLeft > 0 ? `${spotsLeft} spots available` : 'Event full'}
                     </span>
                   </div>
                   <div style={{ height:5, background:'var(--navy4)', borderRadius:5, overflow:'hidden' }}>
