@@ -122,6 +122,7 @@ async function migrate() {
           emailAddress: [member.email],
           firstName: member.name.split(' ')[0],
           lastName: member.name.split(' ').slice(1).join(' '),
+          username: member.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_') + '_' + Date.now().toString().slice(-4),
           password: 'Torque2026!',
         });
         console.log(`  ✓ Clerk user created: ${clerkUser.id}`);
