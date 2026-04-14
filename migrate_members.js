@@ -1,3 +1,4 @@
+// v2
 // ============================================================
 // TORQUE PERFORMANCE — MIGRATION SCRIPT
 // Creates users in Clerk + inserts memberships in Supabase
