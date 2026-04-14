@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Plus, LogOut, ChevronRight, Menu, X } from 'lucide-react'
+import { Plus, LogOut, ChevronRight, Menu, X, Pencil } from 'lucide-react'
 import { Card, Avatar, Btn, Modal, ProgressBar, Label } from '../../components/UI'
 import { useUser, useClerk } from "@clerk/clerk-react"
 import { supabase } from "../../supabaseClient"
@@ -560,6 +560,17 @@ export default function ParentPortal() {
     window.open(`${stripeUrl}?client_reference_id=${ref}`, '_blank')
   }
 
+  async function handleEditPlayerName(player, newName) {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    const { error } = await supabase.from('players').update({ kid_name: trimmed }).eq('id', player.id)
+    if (!error) {
+      setPlayers(prev => prev.map(p =>
+        p.id === player.id ? { ...p, kid_name: trimmed } : p
+      ))
+    }
+  }
+
   async function handleAddPlayer(e) {
     e.preventDefault(); setLoading(true)
     const { error } = await supabase.from('players').insert([{
@@ -654,7 +665,7 @@ export default function ParentPortal() {
   )
 
   const PAGE_MAP = {
-    home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} />,
+    home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} onEditSave={handleEditPlayerName} />,
     sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'', type:'Training' }); setShowBookModal(true) }} />,
     schedule: <SchedulePage bookings={bookings} />,
     billing:  <BillingPage players={players} />,
@@ -984,7 +995,18 @@ export default function ParentPortal() {
 }
 
 // ── PARENT HOME ───────────────────────────────────────────────────────────────
-function ParentHome({ players, onAdd, onBuy }) {
+function ParentHome({ players, onAdd, onBuy, onEditSave }) {
+  const [editModal, setEditModal] = useState({ open: false, player: null, name: '' })
+  const [editSaving, setEditSaving] = useState(false)
+
+  async function submitEdit(e) {
+    e.preventDefault()
+    setEditSaving(true)
+    await onEditSave(editModal.player, editModal.name)
+    setEditSaving(false)
+    setEditModal({ open: false, player: null, name: '' })
+  }
+
   return (
     <div>
       <div style={{ marginBottom:36 }} className="animate-fade-up">
@@ -1017,8 +1039,13 @@ function ParentHome({ players, onAdd, onBuy }) {
                 <div style={{ width:54, height:54, borderRadius:12, background:'linear-gradient(135deg, var(--navy4) 0%, var(--navy5) 100%)', border:'1px solid rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, color:'white', flexShrink:0, boxShadow:'0 4px 16px rgba(0,0,0,0.4)' }}>
                   {player.kid_name[0]}
                 </div>
-                <div>
-                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, letterSpacing:'0.05em', color:'var(--white)', lineHeight:1 }}>{player.kid_name}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, letterSpacing:'0.05em', color:'var(--white)', lineHeight:1 }}>{player.kid_name}</div>
+                    <button onClick={() => setEditModal({ open:true, player, name: player.kid_name })} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', padding:4, display:'flex', alignItems:'center', flexShrink:0 }} title="Edit name">
+                      <Pencil size={14} />
+                    </button>
+                  </div>
                   <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:5 }}>
                     <div style={{ width:6, height:6, borderRadius:'50%', background: m ? 'var(--green2)' : 'var(--muted2)', boxShadow: m ? '0 0 6px var(--green2)' : 'none' }} />
                     <div style={{ fontSize:11, color: m ? 'var(--green2)' : 'var(--muted)', fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>
@@ -1066,6 +1093,24 @@ function ParentHome({ players, onAdd, onBuy }) {
           <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'var(--muted2)', letterSpacing:'0.2em', textTransform:'uppercase', marginTop:10 }}>Add Player</div>
         </div>
       </div>
+
+      {/* Edit player name modal */}
+      <Modal open={editModal.open} onClose={() => setEditModal({ open:false, player:null, name:'' })} title="Edit Player Name" width={380}>
+        <form onSubmit={submitEdit} style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          <input
+            className="torque-input"
+            value={editModal.name}
+            onChange={e => setEditModal(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="Player name"
+            autoFocus
+            style={{ marginTop:0 }}
+          />
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+            <button type="button" className="btn-ghost" onClick={() => setEditModal({ open:false, player:null, name:'' })}>Cancel</button>
+            <button type="submit" className="btn-primary" disabled={editSaving}>{editSaving ? 'Saving…' : 'Save'}</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

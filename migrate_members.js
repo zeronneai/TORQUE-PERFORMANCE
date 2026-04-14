@@ -171,7 +171,18 @@ async function migrate() {
         });
 
       if (membershipError) throw new Error(`Membership error: ${membershipError.message}`);
-      console.log(`  ✓ Membership inserted — expires ${expiresAt.split('T')[0]}\n`);
+
+      const { error: playerError } = await supabase
+        .from('players')
+        .insert({
+          parent_id: clerkUser.id,
+          kid_name: member.sibling ? 'Hijo 2 (pendiente)' : 'Hijo 1 (pendiente)',
+          birthdate: null,
+          age: null,
+        });
+
+      if (playerError) throw new Error(`Player insert error: ${playerError.message}`);
+      console.log(`  ✓ Membership + player inserted — expires ${expiresAt.split('T')[0]}\n`);
 
       results.success.push(member.name);
 
