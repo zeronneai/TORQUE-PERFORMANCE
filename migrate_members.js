@@ -122,7 +122,7 @@ async function migrate() {
           emailAddress: [member.email],
           firstName: member.name.split(' ')[0],
           lastName: member.name.split(' ').slice(1).join(' '),
-          skipPasswordChecks: true,
+          password: 'Torque2026!',
         });
         console.log(`  ✓ Clerk user created: ${clerkUser.id}`);
       } else {
