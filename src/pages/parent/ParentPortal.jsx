@@ -563,12 +563,40 @@ export default function ParentPortal() {
   async function handleEditPlayerName(player, newName) {
     const trimmed = newName.trim()
     if (!trimmed) return
-    const { error } = await supabase.from('players').update({ kid_name: trimmed }).eq('id', player.id)
-    if (!error) {
-      setPlayers(prev => prev.map(p =>
-        p.id === player.id ? { ...p, kid_name: trimmed } : p
-      ))
+    const originalName = player.kid_name
+
+    // Use parent_id + original kid_name as identifiers — player.id may be 'local' from localStorage
+    const { error } = await supabase
+      .from('players')
+      .update({ kid_name: trimmed })
+      .eq('parent_id', user.id)
+      .eq('kid_name', originalName)
+
+    if (error) {
+      console.error('[Torque] Edit player name error:', error)
+      return
     }
+
+    // Keep player_memberships in sync so the membership match doesn't break
+    await supabase
+      .from('player_memberships')
+      .update({ kid_name: trimmed })
+      .eq('parent_id', user.id)
+      .eq('kid_name', originalName)
+
+    // Update local state
+    setPlayers(prev => prev.map(p =>
+      p.kid_name === originalName
+        ? { ...p, kid_name: trimmed, active_membership: p.active_membership ? { ...p.active_membership, kid_name: trimmed } : null }
+        : p
+    ))
+
+    // Update localStorage cache
+    try {
+      const key = `torque_players_${user.id}`
+      const cached = JSON.parse(localStorage.getItem(key) || '[]')
+      localStorage.setItem(key, JSON.stringify(cached.map(p => p.kid_name === originalName ? { ...p, kid_name: trimmed } : p)))
+    } catch {}
   }
 
   async function handleAddPlayer(e) {
