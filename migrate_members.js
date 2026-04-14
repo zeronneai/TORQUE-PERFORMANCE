@@ -158,7 +158,7 @@ async function migrate() {
         .from('player_memberships')
         .insert({
           parent_id: clerkUser.id,
-          kid_name: member.name, // Owner can update individual kid names later
+          kid_name: member.sibling ? 'Hijo 2 (pendiente)' : 'Hijo 1 (pendiente)',
           membership_id: membershipId,
           sessions_total: sessionsTotal,
           sessions_used: 0,
