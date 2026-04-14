@@ -4,7 +4,7 @@
 // Run once: node migrate_members.js
 // ============================================================
 
-import Clerk from '@clerk/clerk-sdk-node';
+import { createClerkClient } from '@clerk/clerk-sdk-node';
 import { createClient } from '@supabase/supabase-js';
 
 // ── CONFIG ──────────────────────────────────────────────────
@@ -12,7 +12,7 @@ const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const clerk = Clerk({ secretKey: CLERK_SECRET_KEY });
+const clerk = createClerkClient({ secretKey: CLERK_SECRET_KEY });
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 // ── MEMBERSHIP IDs FROM SUPABASE (memberships table) ────────
