@@ -162,7 +162,6 @@ async function migrate() {
           membership_id: membershipId,
           sessions_total: sessionsTotal,
           sessions_used: 0,
-          sessions_remaining: sessionsTotal,
           status: 'active',
           stripe_payment_id: 'migrated',
           purchased_at: purchasedAt,
