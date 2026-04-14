@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { Card, Badge, Avatar, PageHeader, ProgressBar } from '../../components/UI'
-import { useAdminData, PACK_INFO, parentName } from '../../hooks/useAdminData'
+import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAdminData'
 
 export default function Families() {
   const { players, memberships, profiles, loading } = useAdminData()
@@ -168,6 +168,11 @@ export default function Families() {
                                 max={m.sessions_total||1}
                                 color={remaining<=0?'var(--red)':remaining<=2?'var(--amber)':'var(--green)'}
                               />
+                              {m.expires_at && (
+                                <div style={{ fontSize:11, color:'var(--muted)', marginTop:5 }}>
+                                  Renews: {new Date(normDate(m.expires_at) + 'T00:00:00').toLocaleDateString('en-US', { month:'2-digit', day:'2-digit', year:'numeric' })}
+                                </div>
+                              )}
                             </>
                           ) : (
                             <div style={{ fontSize:12, color:'var(--muted)' }}>—</div>
