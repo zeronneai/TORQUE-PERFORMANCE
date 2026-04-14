@@ -176,8 +176,8 @@ async function migrate() {
       results.success.push(member.name);
 
     } catch (err) {
-      console.error(`  ✗ FAILED: ${member.name} — ${err.message}\n`);
-      results.failed.push({ name: member.name, error: err.message });
+      console.error(`  ✗ FAILED: ${member.name} — ${err.message} — ${JSON.stringify(err.errors || '')}\n`);
+      results.failed.push({ name: member.name, error: err.message, details: JSON.stringify(err.errors || err) });
     }
   }
 
