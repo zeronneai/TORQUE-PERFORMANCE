@@ -557,7 +557,7 @@ export default function ParentPortal() {
   const handleCheckout = (stripeUrl, priceId) => {
     if (!selectedPlayer) return
     const ref = encodeURIComponent(`${user.id}__${selectedPlayer.kid_name}__${priceId}`)
-    window.open(`${stripeUrl}?client_reference_id=${ref}`, '_blank')
+    window.open(`${stripeUrl}?prefilled_promo_code=PRUEBA100&client_reference_id=${ref}`, '_blank')
   }
 
   async function handleEditPlayerName(player, newName) {
