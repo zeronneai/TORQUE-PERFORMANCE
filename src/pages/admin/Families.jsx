@@ -1,12 +1,45 @@
 import React, { useState, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Search } from 'lucide-react'
-import { Card, Badge, Avatar, PageHeader, ProgressBar } from '../../components/UI'
+import { ChevronDown, ChevronRight, Search, UserPlus } from 'lucide-react'
+import { Card, Badge, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
 import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAdminData'
 
+const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', startDate: '' }
+
 export default function Families() {
-  const { players, memberships, profiles, loading } = useAdminData()
+  const { players, memberships, profiles, loading, refetch } = useAdminData()
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState({})
+  const [showAddMember, setShowAddMember] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+
+  async function handleAddMember(e) {
+    e.preventDefault()
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const res = await fetch('/api/add-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Unknown error')
+      setShowAddMember(false)
+      setForm(EMPTY_FORM)
+      await refetch()
+    } catch (err) {
+      setSaveError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const field = (key) => ({
+    value: form[key],
+    onChange: e => setForm(f => ({ ...f, [key]: e.target.value })),
+  })
 
   // Group players by parent_id and join with profile and membership
   const families = useMemo(() => {
@@ -55,11 +88,19 @@ export default function Families() {
         subtitle={`${families.length} families · ${totalActive} active players`}
       />
 
-      <div style={{ position:'relative', marginBottom:16 }}>
-        <Search size={14} style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', color:'var(--text3)' }} />
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search by parent name, player or email..."
-          style={{ paddingLeft:40 }} />
+      <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+        <div style={{ position:'relative', flex:1 }}>
+          <Search size={14} style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', color:'var(--text3)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search by parent name, player or email..."
+            style={{ paddingLeft:40, width:'100%' }} />
+        </div>
+        <button
+          onClick={() => { setShowAddMember(true); setSaveError(null) }}
+          style={{ display:'flex', alignItems:'center', gap:7, padding:'0 18px', height:42, background:'var(--accent)', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
+        >
+          <UserPlus size={15} /> Add Member
+        </button>
       </div>
 
       {filtered.length === 0 && (
@@ -187,6 +228,64 @@ export default function Families() {
           )
         })}
       </div>
+
+      {/* Add Member Modal */}
+      <Modal open={showAddMember} onClose={() => setShowAddMember(false)} title="Add New Member" width={480}>
+        <form onSubmit={handleAddMember} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div>
+              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Parent Name *</label>
+              <input required placeholder="Full name" {...field('parentName')} style={{ width:'100%', margin:0 }} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Email *</label>
+              <input required type="email" placeholder="email@example.com" {...field('email')} style={{ width:'100%', margin:0 }} />
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div>
+              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Phone</label>
+              <input placeholder="(915) 000-0000" {...field('phone')} style={{ width:'100%', margin:0 }} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Kid Name *</label>
+              <input required placeholder="Player full name" {...field('kidName')} style={{ width:'100%', margin:0 }} />
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div>
+              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Package *</label>
+              <select required value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value }))} style={{ width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }}>
+                <option value="A">Paquete A — 4 sessions/mo</option>
+                <option value="AA">Paquete AA — 8 sessions/mo</option>
+                <option value="AAA">Paquete AAA — 12 sessions/mo</option>
+                <option value="MLB">Paquete MLB — 20 sessions/mo</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Start Date *</label>
+              <input required type="date" {...field('startDate')} style={{ width:'100%', margin:0 }} />
+            </div>
+          </div>
+
+          {saveError && (
+            <div style={{ background:'rgba(255,50,50,0.1)', border:'1px solid rgba(255,80,80,0.3)', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#ff6b6b' }}>
+              {saveError}
+            </div>
+          )}
+
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:4 }}>
+            <button type="button" onClick={() => setShowAddMember(false)} style={{ padding:'10px 20px', background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', cursor:'pointer', fontSize:13 }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={saving} style={{ padding:'10px 22px', background:'var(--accent)', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+              {saving ? 'Creating…' : 'Create Member'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }
