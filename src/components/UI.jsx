@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 
 export function Card({ children, style = {}, onClick, highlight }) {
   return (
@@ -120,7 +121,7 @@ export function PageHeader({ title, subtitle, action, eyebrow }) {
 
 export function Modal({ open, onClose, title, children, width = 500 }) {
   if (!open) return null
-  return (
+  return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} className="fade-in" style={{
         background: 'var(--navy2)', border: '1px solid var(--border2)',
@@ -133,7 +134,8 @@ export function Modal({ open, onClose, title, children, width = 500 }) {
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
