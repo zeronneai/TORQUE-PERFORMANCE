@@ -97,7 +97,7 @@ export default function Families() {
         </div>
         <button
           onClick={() => { setShowAddMember(true); setSaveError(null) }}
-          style={{ display:'flex', alignItems:'center', gap:7, padding:'0 18px', height:42, background:'var(--accent)', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
+          style={{ display:'flex', alignItems:'center', gap:7, padding:'0 18px', height:42, background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
         >
           <UserPlus size={15} /> Add Member
         </button>
@@ -280,7 +280,7 @@ export default function Families() {
             <button type="button" onClick={() => setShowAddMember(false)} style={{ padding:'10px 20px', background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', cursor:'pointer', fontSize:13 }}>
               Cancel
             </button>
-            <button type="submit" disabled={saving} style={{ padding:'10px 22px', background:'var(--accent)', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+            <button type="submit" disabled={saving} style={{ padding:'10px 22px', background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
               {saving ? 'Creating…' : 'Create Member'}
             </button>
           </div>
