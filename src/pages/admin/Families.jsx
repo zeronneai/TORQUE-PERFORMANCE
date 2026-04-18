@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Search, UserPlus } from 'lucide-react'
 import { Card, Badge, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
 import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAdminData'
 
-const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', startDate: '' }
+const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', startDate: '' }
 
 export default function Families() {
   const { players, memberships, profiles, loading, refetch } = useAdminData()
@@ -265,9 +265,19 @@ export default function Families() {
               </select>
             </div>
             <div>
-              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Start Date *</label>
-              <input required type="date" {...field('startDate')} style={{ width:'100%', margin:0 }} />
+              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Plan Type *</label>
+              <select required value={form.planType} onChange={e => setForm(f => ({ ...f, planType: e.target.value }))} style={{ width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }}>
+                <option value="monthly">Month to Month</option>
+                <option value="m6">6 meses — 15% descuento</option>
+                <option value="m12">12 meses — 20% descuento</option>
+                <option value="annual">Anual pago único — 25% descuento</option>
+              </select>
             </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Start Date *</label>
+            <input required type="date" {...field('startDate')} style={{ width:'100%', margin:0 }} />
           </div>
 
           {saveError && (

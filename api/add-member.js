@@ -16,6 +16,17 @@ const MEMBERSHIP_IDS = {
 
 const SESSIONS_PER_PACKAGE = { 'A': 4, 'AA': 8, 'AAA': 12, 'MLB': 20 };
 
+function calcExpires(startDate, planType) {
+  const d = new Date(startDate);
+  d.setMonth(d.getMonth() + (planType === 'annual' ? 12 : 1));
+  return d.toISOString();
+}
+
+function calcSessions(pkg, planType) {
+  const base = SESSIONS_PER_PACKAGE[pkg] || 4;
+  return planType === 'annual' ? base * 12 : base;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -23,7 +34,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { parentName, email, phone, kidName, package: pkg, startDate } = req.body;
+  const { parentName, email, phone, kidName, package: pkg, startDate, planType = 'monthly' } = req.body;
   if (!parentName || !email || !kidName || !pkg || !startDate) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -56,29 +67,25 @@ export default async function handler(req, res) {
       .insert({ parent_id: clerkUser.id, kid_name: kidName, birthdate: null, age: null });
     if (playerError) throw new Error(`Player: ${playerError.message}`);
 
-    // 4. Insert membership (expires_at = startDate + 1 month)
-    const purchasedAt = new Date(startDate).toISOString();
-    const expiresDate = new Date(startDate);
-    expiresDate.setMonth(expiresDate.getMonth() + 1);
-
+    // 4. Insert membership
     const { error: membershipError } = await supabase
       .from('player_memberships')
       .insert({
         parent_id: clerkUser.id,
         kid_name: kidName,
         membership_id: MEMBERSHIP_IDS[pkg],
-        sessions_total: SESSIONS_PER_PACKAGE[pkg],
+        sessions_total: calcSessions(pkg, planType),
         sessions_used: 0,
         status: 'active',
         stripe_payment_id: 'manual',
         stripe_session_id: 'manual',
-        purchased_at: purchasedAt,
-        expires_at: expiresDate.toISOString(),
+        purchased_at: new Date(startDate).toISOString(),
+        expires_at: calcExpires(startDate, planType),
         package_name: pkg,
       });
     if (membershipError) throw new Error(`Membership: ${membershipError.message}`);
 
-    console.log(`[add-member] ✅ ${parentName} / ${kidName} — Package ${pkg}`);
+    console.log(`[add-member] ✅ ${parentName} / ${kidName} — Package ${pkg} / ${planType}`);
     return res.status(200).json({ ok: true, clerkId: clerkUser.id });
   } catch (err) {
     console.error('[add-member] Error:', err.message);

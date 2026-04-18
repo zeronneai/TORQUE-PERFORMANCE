@@ -40,7 +40,7 @@ function apiMiddleware(env) {
             req.on('end', () => { try { resolve(JSON.parse(raw)) } catch { reject(new Error('Invalid JSON')) } })
             req.on('error', reject)
           })
-          const { parentName, email, phone, kidName, package: pkg, startDate } = body
+          const { parentName, email, phone, kidName, package: pkg, startDate, planType = 'monthly' } = body
           if (!parentName || !email || !kidName || !pkg || !startDate) {
             res.writeHead(400); return res.end(JSON.stringify({ error: 'Missing required fields' }))
           }
@@ -50,6 +50,8 @@ function apiMiddleware(env) {
           const supabase = createClient(env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
           const MEMBERSHIP_IDS = { 'A': '93e92b42-7453-46c2-9660-12426eaa51a5', 'AA': 'be63127a-09a3-4320-bfd6-cf18c69b9def', 'AAA': 'd2dd367c-1d1c-490a-8cb3-aafc52690e93', 'MLB': '56f084fd-c4d1-4ed1-a7e3-ae3ed889c87e' }
           const SESSIONS = { 'A': 4, 'AA': 8, 'AAA': 12, 'MLB': 20 }
+          const sessionsTotal = planType === 'annual' ? (SESSIONS[pkg] || 4) * 12 : (SESSIONS[pkg] || 4)
+          const expiresDate = new Date(startDate); expiresDate.setMonth(expiresDate.getMonth() + (planType === 'annual' ? 12 : 1))
           let clerkUser
           const existing = await clerk.users.getUserList({ emailAddress: [email] })
           if (existing.length > 0) {
@@ -67,9 +69,7 @@ function apiMiddleware(env) {
           if (pErr) throw new Error(`Profile: ${pErr.message}`)
           const { error: plErr } = await supabase.from('players').insert({ parent_id: clerkUser.id, kid_name: kidName, birthdate: null, age: null })
           if (plErr) throw new Error(`Player: ${plErr.message}`)
-          const purchasedAt = new Date(startDate).toISOString()
-          const expiresDate = new Date(startDate); expiresDate.setMonth(expiresDate.getMonth() + 1)
-          const { error: mErr } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName, membership_id: MEMBERSHIP_IDS[pkg], sessions_total: SESSIONS[pkg], sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: purchasedAt, expires_at: expiresDate.toISOString(), package_name: pkg })
+          const { error: mErr } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName, membership_id: MEMBERSHIP_IDS[pkg], sessions_total: sessionsTotal, sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: new Date(startDate).toISOString(), expires_at: expiresDate.toISOString(), package_name: pkg })
           if (mErr) throw new Error(`Membership: ${mErr.message}`)
           console.log(`[add-member] ✅ ${parentName} / ${kidName} — Package ${pkg}`)
           res.writeHead(200); res.end(JSON.stringify({ ok: true, clerkId: clerkUser.id }))
