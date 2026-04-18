@@ -267,10 +267,10 @@ export default function Families() {
             <div>
               <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Plan Type *</label>
               <select required value={form.planType} onChange={e => setForm(f => ({ ...f, planType: e.target.value }))} style={{ width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }}>
-                <option value="monthly">Month to Month</option>
-                <option value="m6">6 meses — 15% descuento</option>
-                <option value="m12">12 meses — 20% descuento</option>
-                <option value="annual">Anual pago único — 25% descuento</option>
+                <option value="monthly">Month to Month (no discount)</option>
+                <option value="m6">6-Month Contract - 15% off (monthly payments)</option>
+                <option value="m12">12-Month Contract - 20% off (monthly payments)</option>
+                <option value="annual">Annual Lump Sum - 25% off (one-time payment)</option>
               </select>
             </div>
           </div>
