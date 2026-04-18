@@ -1,10 +1,11 @@
+// v2
 // ============================================================
 // TORQUE PERFORMANCE — MIGRATION SCRIPT
 // Creates users in Clerk + inserts memberships in Supabase
 // Run once: node migrate_members.js
 // ============================================================
 
-import Clerk from '@clerk/clerk-sdk-node';
+import { createClerkClient } from '@clerk/clerk-sdk-node';
 import { createClient } from '@supabase/supabase-js';
 
 // ── CONFIG ──────────────────────────────────────────────────
@@ -12,7 +13,7 @@ const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const clerk = Clerk({ secretKey: CLERK_SECRET_KEY });
+const clerk = createClerkClient({ secretKey: CLERK_SECRET_KEY });
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 // ── MEMBERSHIP IDs FROM SUPABASE (memberships table) ────────
@@ -125,7 +126,8 @@ async function migrate() {
           emailAddress: [member.email],
           firstName: member.name.split(' ')[0],
           lastName: member.name.split(' ').slice(1).join(' '),
-          skipPasswordRequirement: true,
+          username: member.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_') + '_' + Date.now().toString().slice(-4),
+          password: 'Torque2026!',
         });
         console.log(`  ✓ Clerk user created: ${clerkUser.id}`);
       } else {
@@ -160,11 +162,10 @@ async function migrate() {
         .from('player_memberships')
         .insert({
           parent_id: clerkUser.id,
-          kid_name: member.name, // Owner can update individual kid names later
+          kid_name: member.sibling ? 'Hijo 2 (pendiente)' : 'Hijo 1 (pendiente)',
           membership_id: membershipId,
           sessions_total: sessionsTotal,
           sessions_used: 0,
-          sessions_remaining: sessionsTotal,
           status: 'active',
           stripe_payment_id: 'migrated',
           purchased_at: purchasedAt,
@@ -174,13 +175,24 @@ async function migrate() {
         });
 
       if (membershipError) throw new Error(`Membership error: ${membershipError.message}`);
-      console.log(`  ✓ Membership inserted — expires ${expiresAt.split('T')[0]}\n`);
+
+      const { error: playerError } = await supabase
+        .from('players')
+        .insert({
+          parent_id: clerkUser.id,
+          kid_name: member.sibling ? 'Hijo 2 (pendiente)' : 'Hijo 1 (pendiente)',
+          birthdate: null,
+          age: null,
+        });
+
+      if (playerError) throw new Error(`Player insert error: ${playerError.message}`);
+      console.log(`  ✓ Membership + player inserted — expires ${expiresAt.split('T')[0]}\n`);
 
       results.success.push(member.name);
 
     } catch (err) {
-      console.error(`  ✗ FAILED: ${member.name} — ${err.message}\n`);
-      results.failed.push({ name: member.name, error: err.message });
+      console.error(`  ✗ FAILED: ${member.name} — ${err.message} — ${JSON.stringify(err.errors || '')}\n`);
+      results.failed.push({ name: member.name, error: err.message, details: JSON.stringify(err.errors || err) });
     }
   }
 
