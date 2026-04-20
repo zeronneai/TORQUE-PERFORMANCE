@@ -37,10 +37,10 @@ export const normDate = (d) => (d || '').split('T')[0]
 
 // Paquetes
 export const PACK_INFO = {
-  'PAQUETE A':   { sessions: 4,  price: 260, color: '#4fa8ff' },
-  'PAQUETE AA':  { sessions: 8,  price: 360, color: '#22C56E' },
-  'PAQUETE AAA': { sessions: 12, price: 440, color: '#f39c12' },
-  'PAQUETE MLB': { sessions: 20, price: 600, color: '#a78bfa' },
+  'A':   { sessions: 4,  price: 260, color: '#4fa8ff' },
+  'AA':  { sessions: 8,  price: 360, color: '#22C56E' },
+  'AAA': { sessions: 12, price: 440, color: '#f39c12' },
+  'MLB': { sessions: 20, price: 600, color: '#a78bfa' },
 }
 
 export const TYPE_COLORS = {
