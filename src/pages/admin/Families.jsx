@@ -3,31 +3,44 @@ import { ChevronDown, ChevronRight, Search, UserPlus } from 'lucide-react'
 import { Card, Badge, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
 import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAdminData'
 
-const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', startDate: '' }
+const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', kidName2: '', package2: 'A', planType2: 'monthly', startDate: '' }
+
+const PACKAGE_PRICES = { A: 260, AA: 360, AAA: 440, MLB: 600 }
+const SEL = { width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }
+const LBL = { fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }
 
 export default function Families() {
   const { players, memberships, profiles, loading, refetch } = useAdminData()
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState({})
   const [showAddMember, setShowAddMember] = useState(false)
+  const [showPlayer2, setShowPlayer2] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+
+  function closeAddModal() {
+    setShowAddMember(false)
+    setShowPlayer2(false)
+    setForm(EMPTY_FORM)
+    setSaveError(null)
+  }
 
   async function handleAddMember(e) {
     e.preventDefault()
     setSaving(true)
     setSaveError(null)
     try {
+      const payload = { ...form }
+      if (!showPlayer2) { payload.kidName2 = ''; payload.package2 = ''; payload.planType2 = '' }
       const res = await fetch('/api/add-member', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Unknown error')
-      setShowAddMember(false)
-      setForm(EMPTY_FORM)
+      closeAddModal()
       await refetch()
     } catch (err) {
       setSaveError(err.message)
@@ -96,7 +109,7 @@ export default function Families() {
             style={{ paddingLeft:40, width:'100%' }} />
         </div>
         <button
-          onClick={() => { setShowAddMember(true); setSaveError(null) }}
+          onClick={() => { setShowAddMember(true); setShowPlayer2(false); setSaveError(null) }}
           style={{ display:'flex', alignItems:'center', gap:7, padding:'0 18px', height:42, background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
         >
           <UserPlus size={15} /> Add Member
@@ -230,7 +243,7 @@ export default function Families() {
       </div>
 
       {/* Add Member Modal */}
-      <Modal open={showAddMember} onClose={() => setShowAddMember(false)} title="Add New Member" width={480}>
+      <Modal open={showAddMember} onClose={closeAddModal} title="Add New Member" width={480}>
         <form onSubmit={handleAddMember} style={{ display:'flex', flexDirection:'column', gap:14 }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
@@ -254,10 +267,11 @@ export default function Families() {
             </div>
           </div>
 
+          {/* ── Player 1 package/plan ── */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div>
-              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Package *</label>
-              <select required value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value }))} style={{ width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }}>
+              <label style={LBL}>Package *</label>
+              <select required value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value }))} style={SEL}>
                 <option value="A">Paquete A — 4 sessions/mo</option>
                 <option value="AA">Paquete AA — 8 sessions/mo</option>
                 <option value="AAA">Paquete AAA — 12 sessions/mo</option>
@@ -265,8 +279,8 @@ export default function Families() {
               </select>
             </div>
             <div>
-              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Plan Type *</label>
-              <select required value={form.planType} onChange={e => setForm(f => ({ ...f, planType: e.target.value }))} style={{ width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }}>
+              <label style={LBL}>Plan Type *</label>
+              <select required value={form.planType} onChange={e => setForm(f => ({ ...f, planType: e.target.value }))} style={SEL}>
                 <option value="monthly">Month to Month (no discount)</option>
                 <option value="m6">6-Month Contract - 15% off (monthly payments)</option>
                 <option value="m12">12-Month Contract - 20% off (monthly payments)</option>
@@ -275,8 +289,51 @@ export default function Families() {
             </div>
           </div>
 
+          {/* ── Second Player toggle ── */}
+          {!showPlayer2 ? (
+            <button type="button" onClick={() => setShowPlayer2(true)} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px dashed var(--border2)', borderRadius:8, color:'var(--text2)', padding:'9px 14px', fontSize:13, cursor:'pointer', width:'100%', justifyContent:'center' }}>
+              + Add Second Player (Sibling)
+            </button>
+          ) : (
+            <div style={{ border:'1px solid var(--border2)', borderRadius:10, padding:'16px 16px 12px', background:'rgba(255,255,255,0.02)' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'#4fa8ff' }}>Second Player — Sibling</span>
+                <button type="button" onClick={() => { setShowPlayer2(false); setForm(f => ({ ...f, kidName2:'', package2:'A', planType2:'monthly' })) }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, lineHeight:1 }}>✕</button>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                <div>
+                  <label style={LBL}>Kid Name 2 *</label>
+                  <input required={showPlayer2} placeholder="Player full name" value={form.kidName2} onChange={e => setForm(f => ({ ...f, kidName2: e.target.value }))} style={{ width:'100%', margin:0 }} />
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                  <div>
+                    <label style={LBL}>Package 2 *</label>
+                    <select value={form.package2} onChange={e => setForm(f => ({ ...f, package2: e.target.value }))} style={SEL}>
+                      <option value="A">Paquete A — 4 sessions/mo</option>
+                      <option value="AA">Paquete AA — 8 sessions/mo</option>
+                      <option value="AAA">Paquete AAA — 12 sessions/mo</option>
+                      <option value="MLB">Paquete MLB — 20 sessions/mo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={LBL}>Plan Type 2 *</label>
+                    <select value={form.planType2} onChange={e => setForm(f => ({ ...f, planType2: e.target.value }))} style={SEL}>
+                      <option value="monthly">Month to Month (no discount)</option>
+                      <option value="m6">6-Month Contract - 15% off</option>
+                      <option value="m12">12-Month Contract - 20% off</option>
+                      <option value="annual">Annual Lump Sum - 25% off</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ background:'rgba(79,168,255,0.08)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'#4fa8ff' }}>
+                  Sibling discount: 50% off — <strong>${((PACKAGE_PRICES[form.package2] || 0) * 0.5).toFixed(0)}/mo</strong> (base ${PACKAGE_PRICES[form.package2] || 0}/mo)
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
-            <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Start Date *</label>
+            <label style={LBL}>Start Date *</label>
             <input required type="date" {...field('startDate')} style={{ width:'100%', margin:0 }} />
           </div>
 
@@ -287,7 +344,7 @@ export default function Families() {
           )}
 
           <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:4 }}>
-            <button type="button" onClick={() => setShowAddMember(false)} style={{ padding:'10px 20px', background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', cursor:'pointer', fontSize:13 }}>
+            <button type="button" onClick={closeAddModal} style={{ padding:'10px 20px', background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', cursor:'pointer', fontSize:13 }}>
               Cancel
             </button>
             <button type="submit" disabled={saving} style={{ padding:'10px 22px', background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>

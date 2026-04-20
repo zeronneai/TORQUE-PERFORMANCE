@@ -34,7 +34,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { parentName, email, phone, kidName, package: pkg, startDate, planType = 'monthly' } = req.body;
+  const { parentName, email, phone, kidName, package: pkg, startDate, planType = 'monthly', kidName2, package2, planType2 = 'monthly' } = req.body;
   if (!parentName || !email || !kidName || !pkg || !startDate) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -85,7 +85,34 @@ export default async function handler(req, res) {
       });
     if (membershipError) throw new Error(`Membership: ${membershipError.message}`);
 
-    console.log(`[add-member] ✅ ${parentName} / ${kidName} — Package ${pkg} / ${planType}`);
+    // Optional second player (sibling)
+    if (kidName2) {
+      const pkg2 = package2 || pkg;
+      const { error: player2Error } = await supabase
+        .from('players')
+        .insert({ parent_id: clerkUser.id, kid_name: kidName2, birthdate: null, age: null });
+      if (player2Error) throw new Error(`Player 2: ${player2Error.message}`);
+
+      const { error: membership2Error } = await supabase
+        .from('player_memberships')
+        .insert({
+          parent_id: clerkUser.id,
+          kid_name: kidName2,
+          membership_id: MEMBERSHIP_IDS[pkg2],
+          sessions_total: calcSessions(pkg2, planType2),
+          sessions_used: 0,
+          status: 'active',
+          stripe_payment_id: 'manual',
+          stripe_session_id: 'manual',
+          purchased_at: new Date(startDate).toISOString(),
+          expires_at: calcExpires(startDate, planType2),
+          package_name: pkg2,
+          sibling_discount: true,
+        });
+      if (membership2Error) throw new Error(`Membership 2: ${membership2Error.message}`);
+    }
+
+    console.log(`[add-member] ✅ ${parentName} / ${kidName}${kidName2 ? ' + ' + kidName2 : ''} — Package ${pkg} / ${planType}`);
     return res.status(200).json({ ok: true, clerkId: clerkUser.id });
   } catch (err) {
     console.error('[add-member] Error:', err.message);
