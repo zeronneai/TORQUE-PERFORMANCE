@@ -3,6 +3,7 @@ import { Plus, LogOut, ChevronRight, Menu, X, Pencil } from 'lucide-react'
 import { Card, Avatar, Btn, Modal, ProgressBar, Label } from '../../components/UI'
 import { useUser, useClerk } from "@clerk/clerk-react"
 import { supabase } from "../../supabaseClient"
+import { API_BASE } from '../../lib/apiBase'
 
 // ── PAQUETES ──────────────────────────────────────────────────────────────────
 const PACKS = [
@@ -371,7 +372,7 @@ export default function ParentPortal() {
   async function verifyAndRecord(sessionId) {
     try {
       console.log('[Torque] Verificando pago:', sessionId)
-      const res = await fetch(`/api/verify-payment?session_id=${encodeURIComponent(sessionId)}`)
+      const res = await fetch(`${API_BASE}/api/verify-payment?session_id=${encodeURIComponent(sessionId)}`)
       const data = await res.json()
       console.log('[Torque] verify-payment response:', data)
       if (data.ok) {

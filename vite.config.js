@@ -171,6 +171,8 @@ function apiMiddleware(env) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
+    // Native (file://) needs relative paths; web uses absolute
+    base: mode === 'capacitor' ? './' : '/',
     plugins: [react(), apiMiddleware(env)],
   }
 })

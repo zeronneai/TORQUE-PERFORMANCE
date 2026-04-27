@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Search, UserPlus } from 'lucide-react'
 import { Card, Badge, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
 import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAdminData'
+import { API_BASE } from '../../lib/apiBase'
 
 const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', kidName2: '', package2: 'A', planType2: 'monthly', startDate: '' }
 
@@ -33,7 +34,7 @@ export default function Families() {
     try {
       const payload = { ...form }
       if (!showPlayer2) { payload.kidName2 = ''; payload.package2 = ''; payload.planType2 = '' }
-      const res = await fetch('/api/add-member', {
+      const res = await fetch(`${API_BASE}/api/add-member`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

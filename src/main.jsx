@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 import { ClerkProvider } from '@clerk/clerk-react';
-import { dark } from '@clerk/themes'; // <--- ESTA LÍNEA FALTA
+import { dark } from '@clerk/themes';
+import { Capacitor } from '@capacitor/core'
 
 // ... resto del código
 <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={{ baseTheme: dark }}>
@@ -25,8 +26,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 )
 
-// Register Service Worker for PWA
-if ('serviceWorker' in navigator) {
+// Service Worker: web only (Capacitor native uses bundled assets)
+if ('serviceWorker' in navigator && !Capacitor.isNativePlatform()) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
