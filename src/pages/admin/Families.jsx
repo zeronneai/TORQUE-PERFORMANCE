@@ -23,6 +23,9 @@ export default function Families() {
   const [editPlayer, setEditPlayer] = useState(null)
   const [editName, setEditName]     = useState('')
   const [editSaving, setEditSaving] = useState(false)
+  const [editParent, setEditParent]             = useState(null)
+  const [editParentName, setEditParentName]     = useState('')
+  const [editParentSaving, setEditParentSaving] = useState(false)
 
   async function handleEditSave() {
     if (!editPlayer || !editName.trim()) return
@@ -52,6 +55,27 @@ export default function Families() {
       alert('Error saving: ' + (err.message || JSON.stringify(err)))
     } finally {
       setEditSaving(false)
+    }
+  }
+
+  async function handleEditParentSave() {
+    if (!editParent || !editParentName.trim()) return
+    const trimmed = editParentName.trim()
+    setEditParentSaving(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: trimmed })
+        .eq('id', editParent.parent_id)
+      if (error) throw error
+      setEditParent(null)
+      setEditParentName('')
+      await refetch()
+    } catch (err) {
+      console.error('[Families] Edit parent name failed:', err)
+      alert('Error saving: ' + (err.message || JSON.stringify(err)))
+    } finally {
+      setEditParentSaving(false)
     }
   }
 
@@ -180,7 +204,16 @@ export default function Families() {
               >
                 <Avatar initials={initials} size={42} color="var(--navy4)" />
                 <div style={{ flex:1 }}>
-                  <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:800 }}>{pName}</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:800 }}>{pName}</div>
+                    <button
+                      onClick={e => { e.stopPropagation(); setEditParent({ parent_id: family.parent_id }); setEditParentName(family.profile?.full_name || pName) }}
+                      style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text3)', padding:'0 2px', display:'flex', alignItems:'center' }}
+                      title="Edit parent name"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  </div>
                   <div style={{ fontSize:13, color:'var(--text2)', marginTop:2 }}>
                     {pEmail}{pPhone ? ` · ${pPhone}` : ''}
                   </div>
@@ -286,6 +319,32 @@ export default function Families() {
           )
         })}
       </div>
+
+      {/* Edit Parent Modal */}
+      <Modal open={!!editParent} onClose={() => { setEditParent(null); setEditParentName('') }} title="Edit Parent Name" width={380}>
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          <div>
+            <label style={LBL}>Parent Name</label>
+            <input
+              value={editParentName}
+              onChange={e => setEditParentName(e.target.value)}
+              placeholder="Full name"
+              style={{ width:'100%', margin:0 }}
+              autoFocus
+            />
+          </div>
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+            <button type="button" onClick={() => { setEditParent(null); setEditParentName('') }}
+              style={{ padding:'10px 20px', background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', cursor:'pointer', fontSize:13 }}>
+              Cancel
+            </button>
+            <button onClick={handleEditParentSave} disabled={editParentSaving || !editParentName.trim()}
+              style={{ padding:'10px 22px', background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:(editParentSaving || !editParentName.trim()) ? 'not-allowed' : 'pointer', opacity:(editParentSaving || !editParentName.trim()) ? 0.7 : 1 }}>
+              {editParentSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Edit Player Modal */}
       <Modal open={!!editPlayer} onClose={() => { setEditPlayer(null); setEditName('') }} title="Edit Player Name" width={380}>
