@@ -222,8 +222,8 @@ export function Payments() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
         <StatCard label="Monthly Revenue"    value={`$${totalRevenue.toLocaleString()}`}  sub="active memberships" icon="💰" />
         <StatCard label="Active Memberships" value={memberships.length}                   sub="active players"     icon="✅" />
-        <StatCard label="Package A"          value={memberships.filter(m=>m.package_name==='PAQUETE A').length}   sub={`$260/mo`} icon="⚾" />
-        <StatCard label="Package MLB"        value={memberships.filter(m=>m.package_name==='PAQUETE MLB').length} sub={`$600/mo`} icon="🏆" />
+        <StatCard label="Package A"          value={memberships.filter(m=>m.package_name==='A').length}   sub={`$260/mo`} icon="⚾" />
+        <StatCard label="Package MLB"        value={memberships.filter(m=>m.package_name==='MLB').length} sub={`$600/mo`} icon="🏆" />
       </div>
 
       <Card style={{ padding:0, overflow:'hidden' }}>

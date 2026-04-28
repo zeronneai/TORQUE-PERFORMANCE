@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Search, UserPlus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search, UserPlus, Pencil } from 'lucide-react'
 import { Card, Badge, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
 import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAdminData'
 import { API_BASE } from '../../lib/apiBase'
+import { supabase } from '../../supabaseClient'
 
 const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', kidName2: '', package2: 'A', planType2: 'monthly', startDate: '' }
 
@@ -19,6 +20,30 @@ export default function Families() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const [editPlayer, setEditPlayer] = useState(null)
+  const [editName, setEditName]     = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+
+  async function handleEditSave() {
+    if (!editPlayer || !editName.trim()) return
+    const trimmed = editName.trim()
+    const original = editPlayer.kid_name
+    setEditSaving(true)
+    const { error } = await supabase
+      .from('players')
+      .update({ kid_name: trimmed })
+      .eq('id', editPlayer.id)
+    if (error) { console.error('[Families] Edit player error:', error); setEditSaving(false); return }
+    await supabase
+      .from('player_memberships')
+      .update({ kid_name: trimmed })
+      .eq('parent_id', editPlayer.parent_id)
+      .eq('kid_name', original)
+    setEditPlayer(null)
+    setEditName('')
+    setEditSaving(false)
+    await refetch()
+  }
 
   function closeAddModal() {
     setShowAddMember(false)
@@ -184,7 +209,16 @@ export default function Families() {
                         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                           <Avatar initials={initials} size={36} color={pkgColor} />
                           <div>
-                            <div style={{ fontSize:14, fontWeight:600 }}>{player.kid_name}</div>
+                            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                              <div style={{ fontSize:14, fontWeight:600 }}>{player.kid_name}</div>
+                              <button
+                                onClick={e => { e.stopPropagation(); setEditPlayer(player); setEditName(player.kid_name) }}
+                                style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text3)', padding:'0 2px', display:'flex', alignItems:'center' }}
+                                title="Edit player name"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            </div>
                             <div style={{ fontSize:12, color:'var(--text3)' }}>
                               {player.age ? `${player.age} yrs` : ''}
                               {player.birthdate ? ` · Born ${player.birthdate}` : ''}
@@ -242,6 +276,32 @@ export default function Families() {
           )
         })}
       </div>
+
+      {/* Edit Player Modal */}
+      <Modal open={!!editPlayer} onClose={() => { setEditPlayer(null); setEditName('') }} title="Edit Player Name" width={380}>
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          <div>
+            <label style={LBL}>Player Name</label>
+            <input
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              placeholder="Full name"
+              style={{ width:'100%', margin:0 }}
+              autoFocus
+            />
+          </div>
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+            <button type="button" onClick={() => { setEditPlayer(null); setEditName('') }}
+              style={{ padding:'10px 20px', background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', cursor:'pointer', fontSize:13 }}>
+              Cancel
+            </button>
+            <button onClick={handleEditSave} disabled={editSaving || !editName.trim()}
+              style={{ padding:'10px 22px', background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:(editSaving || !editName.trim()) ? 'not-allowed' : 'pointer', opacity:(editSaving || !editName.trim()) ? 0.7 : 1 }}>
+              {editSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Add Member Modal */}
       <Modal open={showAddMember} onClose={closeAddModal} title="Add New Member" width={480}>
