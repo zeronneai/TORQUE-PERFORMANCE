@@ -33,7 +33,8 @@ export default function Families() {
       const { error } = await supabase
         .from('players')
         .update({ kid_name: trimmed })
-        .eq('id', editPlayer.id)
+        .eq('parent_id', editPlayer.parent_id)
+        .eq('kid_name', original)
       if (error) throw error
 
       const { error: error2 } = await supabase
