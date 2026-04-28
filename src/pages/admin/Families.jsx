@@ -29,20 +29,29 @@ export default function Families() {
     const trimmed = editName.trim()
     const original = editPlayer.kid_name
     setEditSaving(true)
-    const { error } = await supabase
-      .from('players')
-      .update({ kid_name: trimmed })
-      .eq('id', editPlayer.id)
-    if (error) { console.error('[Families] Edit player error:', error); setEditSaving(false); return }
-    await supabase
-      .from('player_memberships')
-      .update({ kid_name: trimmed })
-      .eq('parent_id', editPlayer.parent_id)
-      .eq('kid_name', original)
-    setEditPlayer(null)
-    setEditName('')
-    setEditSaving(false)
-    await refetch()
+    try {
+      const { error } = await supabase
+        .from('players')
+        .update({ kid_name: trimmed })
+        .eq('id', editPlayer.id)
+      if (error) throw error
+
+      const { error: error2 } = await supabase
+        .from('player_memberships')
+        .update({ kid_name: trimmed })
+        .eq('parent_id', editPlayer.parent_id)
+        .eq('kid_name', original)
+      if (error2) throw error2
+
+      setEditPlayer(null)
+      setEditName('')
+      await refetch()
+    } catch (err) {
+      console.error('[Families] Edit player failed:', err)
+      alert('Error saving: ' + (err.message || JSON.stringify(err)))
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   function closeAddModal() {
