@@ -205,7 +205,7 @@ export default function Families() {
                 <Avatar initials={initials} size={42} color="var(--navy4)" />
                 <div style={{ flex:1 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                    <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:800 }}>{pName}</div>
+                    <div style={{ fontFamily:'var(--font-display)', fontSize:'clamp(14px, 4vw, 17px)', fontWeight:800 }}>{pName}</div>
                     <button
                       onClick={e => { e.stopPropagation(); setEditParent({ parent_id: family.parent_id }); setEditParentName(family.profile?.full_name || pName) }}
                       style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text3)', padding:'0 2px', display:'flex', alignItems:'center' }}
@@ -245,7 +245,7 @@ export default function Families() {
                       <div key={player.id} style={{
                         padding:'16px 24px',
                         borderBottom: idx < family.players.length - 1 ? '1px solid var(--border)' : 'none',
-                        display:'grid', gridTemplateColumns:'1.4fr 1fr 1.4fr',
+                        display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))',
                         gap:20, alignItems:'center',
                       }}>
                         {/* Player info */}
@@ -375,7 +375,7 @@ export default function Families() {
       {/* Add Member Modal */}
       <Modal open={showAddMember} onClose={closeAddModal} title="Add New Member" width={480}>
         <form onSubmit={handleAddMember} style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
             <div>
               <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Parent Name *</label>
               <input required placeholder="Full name" {...field('parentName')} style={{ width:'100%', margin:0 }} />
@@ -386,7 +386,7 @@ export default function Families() {
             </div>
           </div>
 
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
             <div>
               <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Phone</label>
               <input placeholder="(915) 000-0000" {...field('phone')} style={{ width:'100%', margin:0 }} />
@@ -398,7 +398,7 @@ export default function Families() {
           </div>
 
           {/* ── Player 1 package/plan ── */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
             <div>
               <label style={LBL}>Package *</label>
               <select required value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value }))} style={SEL}>
@@ -435,7 +435,7 @@ export default function Families() {
                   <label style={LBL}>Kid Name 2 *</label>
                   <input required={showPlayer2} placeholder="Player full name" value={form.kidName2} onChange={e => setForm(f => ({ ...f, kidName2: e.target.value }))} style={{ width:'100%', margin:0 }} />
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
                   <div>
                     <label style={LBL}>Package 2 *</label>
                     <select value={form.package2} onChange={e => setForm(f => ({ ...f, package2: e.target.value }))} style={SEL}>

@@ -32,7 +32,7 @@ export default function Attendance() {
     <div className="fade-in">
       <PageHeader eyebrow="Academy" title="Attendance" subtitle="Mark and review session attendance" />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
         {/* Left: Slot selector */}
         <div>
           <div style={{ marginBottom: 14 }}>
@@ -91,7 +91,7 @@ export default function Attendance() {
               <Card>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
                   <div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800 }}>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(15px, 4vw, 20px)', fontWeight: 800 }}>
                       {selectedSlot.day} — {selectedSlot.time}
                     </div>
                     <div style={{ display: 'flex', gap: 10, marginTop: 6, alignItems: 'center' }}>
@@ -101,7 +101,7 @@ export default function Attendance() {
                   </div>
                   {att && (
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--green)' }}>{att.attended.length}</div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(18px, 5vw, 24px)', fontWeight: 800, color: 'var(--green)' }}>{att.attended.length}</div>
                       <div style={{ fontSize: 12, color: 'var(--text3)' }}>attended</div>
                     </div>
                   )}
