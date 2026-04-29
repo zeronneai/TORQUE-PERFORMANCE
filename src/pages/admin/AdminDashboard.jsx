@@ -77,7 +77,7 @@ export default function AdminDashboard() {
       <PageHeader eyebrow="Torque Performance" title="Command Center" subtitle="Academy operations overview" />
 
       {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:14, marginBottom:24 }}>
         <StatCard label="Active Players"    value={memberships.length}              sub="active memberships"      icon="⚾" />
         <StatCard label="Today's Sessions"  value={todayBookings.length}            sub="confirmed for today"     icon="📅" />
         <StatCard label="Monthly Revenue"   value={`$${monthlyRevenue.toLocaleString()}`} sub="active memberships" icon="💰" />
@@ -85,7 +85,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Charts */}
-      <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr', gap:14, marginBottom:24 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:14, marginBottom:24 }}>
         <Card>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
             <div>
@@ -158,7 +158,7 @@ export default function AdminDashboard() {
         {playersWithMembership.length === 0 ? (
           <div style={{ textAlign:'center', padding:24, color:'var(--muted)', fontSize:13 }}>No players with active membership</div>
         ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 24px' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(240px, 1fr))', gap:'8px 16px' }}>
             {playersWithMembership.map(player => {
               const m = player.membership
               const remaining = (m.sessions_total || 0) - (m.sessions_used || 0)

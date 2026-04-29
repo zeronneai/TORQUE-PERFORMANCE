@@ -62,7 +62,7 @@ export function Schedule() {
     <div className="fade-in">
       <PageHeader eyebrow="Academy" title="Schedule" subtitle="All scheduled sessions" />
 
-      <div style={{ display:'grid', gridTemplateColumns:'1.2fr 0.8fr', gap:20, alignItems:'start' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:20, alignItems:'start' }}>
 
         {/* ── CALENDAR ── */}
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
@@ -219,7 +219,7 @@ export function Payments() {
       <PageHeader eyebrow="Finance" title="Payments" subtitle="Billing summary and active memberships" />
 
       {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:24 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:14, marginBottom:24 }}>
         <StatCard label="Monthly Revenue"    value={`$${totalRevenue.toLocaleString()}`}  sub="active memberships" icon="💰" />
         <StatCard label="Active Memberships" value={memberships.length}                   sub="active players"     icon="✅" />
         <StatCard label="Package A"          value={memberships.filter(m=>m.package_name==='A').length}   sub={`$260/mo`} icon="⚾" />
@@ -237,7 +237,8 @@ export function Payments() {
             <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>No active memberships</div>
           </div>
         ) : (
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <div style={{ overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
+          <table style={{ width:'100%', minWidth:560, borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr>
                 {['Player','Parent','Package','Sessions','Remaining','Price'].map(h => (
@@ -288,6 +289,7 @@ export function Payments() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>
@@ -339,7 +341,7 @@ export function Events() {
           <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>No events yet. Create the first one.</div>
         </div>
       ) : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:16 }}>
           {events.map(ev => {
             const pct = ((ev.registered||0) / (ev.spots||1)) * 100
             const spotsLeft = (ev.spots||0) - (ev.registered||0)
@@ -371,7 +373,7 @@ export function Events() {
       <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Create New Event">
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
           <div><Label>Title *</Label><input value={form.title} onChange={e => setForm(p=>({...p,title:e.target.value}))} placeholder="Spring Showcase 2026" /></div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:12 }}>
             <div><Label>Date *</Label><input type="date" value={form.date} onChange={e => setForm(p=>({...p,date:e.target.value}))} /></div>
             <div><Label>Time</Label><input type="time" value={form.time} onChange={e => setForm(p=>({...p,time:e.target.value}))} /></div>
             <div><Label>Type</Label>
