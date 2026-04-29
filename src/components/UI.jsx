@@ -67,7 +67,7 @@ export function StatCard({ label, value, sub, trend, icon }) {
         <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase', fontFamily: 'var(--font-display)' }}>{label}</div>
         {icon && <span style={{ fontSize: 18 }}>{icon}</span>}
       </div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, color: 'var(--text)', letterSpacing: '-1px', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 800, color: 'var(--text)', letterSpacing: '-1px', lineHeight: 1 }}>{value}</div>
       {(sub || trend !== undefined) && (
         <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6 }}>
           {trend !== undefined && <span style={{ color: trend >= 0 ? 'var(--green)' : '#ff4466', fontWeight: 600 }}>{trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%</span>}
@@ -88,7 +88,7 @@ export function Btn({ children, variant = 'primary', onClick, style = {}, size =
     gold:    { background: 'var(--gold-soft)', color: 'var(--gold)', border: '1px solid rgba(212,160,23,0.3)' },
     white:   { background: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.2)' },
   }
-  const s = { sm: { padding: '6px 14px', fontSize: 12 }, md: { padding: '9px 18px', fontSize: 13 }, lg: { padding: '12px 24px', fontSize: 15 } }
+  const s = { sm: { padding: '6px 14px', fontSize: 12 }, md: { padding: '9px 18px', fontSize: 13, minHeight: 44 }, lg: { padding: '12px 24px', fontSize: 15, minHeight: 44 } }
   return (
     <button onClick={onClick} disabled={disabled} style={{
       borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer',
@@ -108,10 +108,10 @@ export function Btn({ children, variant = 'primary', onClick, style = {}, size =
 
 export function PageHeader({ title, subtitle, action, eyebrow }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
       <div>
         {eyebrow && <div style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', color: 'var(--text2)', textTransform: 'uppercase', marginBottom: 4 }}>{eyebrow}</div>}
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.5px', lineHeight: 1.1 }}>{title}</h1>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.5px', lineHeight: 1.1 }}>{title}</h1>
         {subtitle && <p style={{ color: 'var(--text2)', fontSize: 14, marginTop: 4 }}>{subtitle}</p>}
       </div>
       {action}
@@ -125,8 +125,8 @@ export function Modal({ open, onClose, title, children, width = 500 }) {
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} className="fade-in" style={{
         background: 'var(--navy2)', border: '1px solid var(--border2)',
-        borderRadius: 'var(--radius-lg)', padding: 28,
-        width: '100%', maxWidth: width, maxHeight: '90vh', overflowY: 'auto',
+        borderRadius: 'var(--radius-lg)', padding: 'clamp(16px, 4vw, 28px)',
+        width: '100%', maxWidth: `min(${width}px, 95vw)`, maxHeight: '90vh', overflowY: 'auto', overflowX: 'hidden',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, letterSpacing: '-0.3px' }}>{title}</h2>
