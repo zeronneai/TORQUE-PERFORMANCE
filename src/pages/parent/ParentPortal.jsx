@@ -580,6 +580,10 @@ export default function ParentPortal() {
   const handleWaiverSubmit = async () => {
     if (!waiverData || !waiverForm.signedName.trim() || !waiverForm.agreed) return
     setWaiverSaving(true)
+    const stripeUrl = waiverData.stripeUrl
+    const priceId   = waiverData.priceId
+    const ref       = encodeURIComponent(`${user.id}__${selectedPlayer.kid_name}__${priceId}`)
+    const fullUrl   = `${stripeUrl}?prefilled_promo_code=PRUEBA100&client_reference_id=${ref}`
     try {
       const { error } = await supabase.from('waivers').insert({
         parent_id:        user.id,
@@ -596,7 +600,7 @@ export default function ParentPortal() {
       })
       if (error) throw error
       setWaiverData(null)
-      handleCheckout(waiverData.stripeUrl, waiverData.priceId)
+      window.location.href = fullUrl
     } catch (err) {
       console.error('[Waiver] Submit failed:', err)
       alert('Error saving waiver: ' + (err.message || JSON.stringify(err)))
