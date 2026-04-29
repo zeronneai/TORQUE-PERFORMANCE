@@ -662,7 +662,7 @@ export default function ParentPortal() {
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--navy)', flexDirection:'column', gap:20 }}>
       <style>{GLOBAL_CSS}</style>
-      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:56, letterSpacing:'0.1em', color:'var(--white)' }}>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(36px, 10vw, 56px)', letterSpacing:'0.1em', color:'var(--white)' }}>
         TORQUE
       </div>
       <div style={{ width:48, height:3, background:'var(--navy4)', borderRadius:2, overflow:'hidden' }}>
@@ -678,13 +678,13 @@ export default function ParentPortal() {
       <style>{GLOBAL_CSS}</style>
       <div style={{ width:'100%', maxWidth:460 }} className="animate-fade-up">
         <div style={{ textAlign:'center', marginBottom:36 }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:60, letterSpacing:'0.1em', lineHeight:1 }}>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(36px, 12vw, 60px)', letterSpacing:'0.1em', lineHeight:1 }}>
             TORQUE
           </div>
           <div style={{ fontSize:11, color:'var(--muted)', letterSpacing:'0.3em', marginTop:6, textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Performance Training</div>
         </div>
 
-        <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:36, position:'relative', overflow:'hidden' }}>
+        <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:'clamp(20px, 5vw, 36px)', position:'relative', overflow:'hidden' }}>
           {/* Top accent */}
           <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg, rgba(255,255,255,0.35), transparent)' }} />
 
@@ -730,7 +730,7 @@ export default function ParentPortal() {
               <Label>First Player Name</Label>
               <input className="torque-input" required onChange={e => setOnboardingData({...onboardingData, kidName: e.target.value})} />
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))', gap:12 }}>
               <input className="torque-input" required type="number" placeholder="Age" style={{ marginTop:0 }} onChange={e => setOnboardingData({...onboardingData, kidAge: e.target.value})} />
               <input className="torque-input" required type="date" style={{ marginTop:0 }} onChange={e => setOnboardingData({...onboardingData, kidBirthdate: e.target.value})} />
             </div>
@@ -896,12 +896,12 @@ export default function ParentPortal() {
 
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, paddingLeft:8 }}>
                   <div>
-                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:28, letterSpacing:'0.06em', color:'var(--white)', lineHeight:1 }}>{pack.name}</div>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(18px, 4vw, 28px)', letterSpacing:'0.06em', color:'var(--white)', lineHeight:1 }}>{pack.name}</div>
                     <div style={{ fontSize:12, color:'rgba(255,255,255,0.55)', fontWeight:600, marginTop:3, letterSpacing:'0.05em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{pack.tag}</div>
                     <div style={{ fontSize:11, color:'var(--muted)', marginTop:2, fontFamily:'var(--font-mono)' }}>{pack.sessions} sessions / month</div>
                   </div>
                   <div style={{ textAlign:'right' }}>
-                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:36, color:'var(--white)', letterSpacing:'0.02em', lineHeight:1 }}>${pack.price}</div>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(22px, 5vw, 36px)', color:'var(--white)', letterSpacing:'0.02em', lineHeight:1 }}>${pack.price}</div>
                     <div style={{ fontSize:9, color:'var(--muted)', letterSpacing:'0.2em', textTransform:'uppercase', marginTop:2 }}>base / month</div>
                   </div>
                 </div>
@@ -941,7 +941,7 @@ export default function ParentPortal() {
           <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
 
             {/* Pre-filled info strip */}
-            <div style={{ padding:'12px 16px', background:'rgba(255,255,255,0.04)', borderRadius:8, border:'1px solid rgba(255,255,255,0.08)', marginBottom:20, display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 24px', fontSize:12 }}>
+            <div style={{ padding:'12px 16px', background:'rgba(255,255,255,0.04)', borderRadius:8, border:'1px solid rgba(255,255,255,0.08)', marginBottom:20, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'8px 16px', fontSize:12 }}>
               <div><span style={{ color:'var(--muted)' }}>Participant: </span><span style={{ fontWeight:600 }}>{selectedPlayer?.kid_name}</span></div>
               <div><span style={{ color:'var(--muted)' }}>Package: </span><span style={{ fontWeight:600 }}>{waiverData.pack.name}</span></div>
               <div><span style={{ color:'var(--muted)' }}>Parent/Guardian: </span><span style={{ fontWeight:600 }}>{user?.fullName}</span></div>
@@ -985,7 +985,7 @@ export default function ParentPortal() {
             </div>
 
             {/* Fields the parent fills in */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:12, marginBottom:16 }}>
               <div>
                 <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.08em' }}>Participant Date of Birth</label>
                 <input type="date" value={waiverForm.dob} onChange={e => setWaiverForm(f => ({ ...f, dob: e.target.value }))}
@@ -1031,7 +1031,7 @@ export default function ParentPortal() {
             <Label>Player Name</Label>
             <input className="torque-input" required value={newPlayerData.name} onChange={e => setNewPlayerData({...newPlayerData, name: e.target.value})} />
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))', gap:12 }}>
             <input className="torque-input" required type="number" placeholder="Age" style={{ marginTop:0 }} onChange={e => setNewPlayerData({...newPlayerData, age: e.target.value})} />
             <input className="torque-input" required type="date" style={{ marginTop:0 }} onChange={e => setNewPlayerData({...newPlayerData, birthdate: e.target.value})} />
           </div>
