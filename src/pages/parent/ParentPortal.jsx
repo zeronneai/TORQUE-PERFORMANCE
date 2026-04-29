@@ -332,6 +332,9 @@ export default function ParentPortal() {
   const [players, setPlayers] = useState([])
   const [showAddPlayer, setShowAddPlayer] = useState(false)
   const [showBuyPack, setShowBuyPack] = useState(false)
+  const [waiverData, setWaiverData]     = useState(null)
+  const [waiverForm, setWaiverForm]     = useState({ dob: '', phone: '', signedName: '', agreed: false })
+  const [waiverSaving, setWaiverSaving] = useState(false)
   const [showSupport, setShowSupport] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState(null)
@@ -559,6 +562,47 @@ export default function ParentPortal() {
     if (!selectedPlayer) return
     const ref = encodeURIComponent(`${user.id}__${selectedPlayer.kid_name}__${priceId}`)
     window.open(`${stripeUrl}?prefilled_promo_code=PRUEBA100&client_reference_id=${ref}`, '_blank')
+  }
+
+  const BILLING_LABELS = {
+    stand: 'Month-to-Month',
+    m6: '6-Month',
+    m12: '12-Month',
+    annual: 'Annual (Lump Sum)',
+  }
+
+  const openWaiver = (pack, billingType, stripeUrl, priceId, price) => {
+    if (!selectedPlayer) return
+    setWaiverForm({ dob: '', phone: '', signedName: '', agreed: false })
+    setWaiverData({ pack, billingType, billingLabel: BILLING_LABELS[billingType], stripeUrl, priceId, price })
+  }
+
+  const handleWaiverSubmit = async () => {
+    if (!waiverData || !waiverForm.signedName.trim() || !waiverForm.agreed) return
+    setWaiverSaving(true)
+    try {
+      const { error } = await supabase.from('waivers').insert({
+        parent_id:        user.id,
+        kid_name:         selectedPlayer.kid_name,
+        parent_name:      user.fullName,
+        participant_dob:  waiverForm.dob,
+        phone:            waiverForm.phone,
+        email:            user.primaryEmailAddress?.emailAddress,
+        package_name:     waiverData.pack.name,
+        billing_type:     waiverData.billingType,
+        signed_name:      waiverForm.signedName.trim(),
+        contract_version: waiverData.billingLabel,
+        agreed_at:        new Date().toISOString(),
+      })
+      if (error) throw error
+      setWaiverData(null)
+      handleCheckout(waiverData.stripeUrl, waiverData.priceId)
+    } catch (err) {
+      console.error('[Waiver] Submit failed:', err)
+      alert('Error saving waiver: ' + (err.message || JSON.stringify(err)))
+    } finally {
+      setWaiverSaving(false)
+    }
   }
 
   async function handleEditPlayerName(player, newName) {
@@ -860,22 +904,22 @@ export default function ParentPortal() {
 
                 {/* ── CAMBIO 2 y 3: botones ahora pasan pack.prices.X como segundo argumento ── */}
                 <div className="pack-options-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, paddingLeft:8 }}>
-                  <button onClick={() => handleCheckout(pack.links.stand, pack.prices.stand)} className="pack-option">
+                  <button onClick={() => openWaiver(pack, 'stand', pack.links.stand, pack.prices.stand, pack.price)} className="pack-option">
                     <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>STANDARD</span>
                     <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22 }}>${pack.price}</span>
                     <span style={{ fontSize:9, color:'var(--muted2)', fontFamily:'var(--font-mono)' }}>no commit</span>
                   </button>
-                  <button onClick={() => handleCheckout(pack.links.m6, pack.prices.m6)} className="pack-option">
+                  <button onClick={() => openWaiver(pack, 'm6', pack.links.m6, pack.prices.m6, p6)} className="pack-option">
                     <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'rgba(255,255,255,0.6)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>6 MONTHS</span>
                     <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22 }}>${p6}</span>
                     <span style={{ fontSize:9, color:'rgba(255,255,255,0.5)', fontFamily:'var(--font-mono)' }}>–10% /mo</span>
                   </button>
-                  <button onClick={() => handleCheckout(pack.links.m12, pack.prices.m12)} className="pack-option">
+                  <button onClick={() => openWaiver(pack, 'm12', pack.links.m12, pack.prices.m12, p12)} className="pack-option">
                     <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'rgba(255,255,255,0.6)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>12 MONTHS</span>
                     <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22 }}>${p12}</span>
                     <span style={{ fontSize:9, color:'rgba(255,255,255,0.5)', fontFamily:'var(--font-mono)' }}>–15% /mo</span>
                   </button>
-                  <button onClick={() => handleCheckout(pack.links.annual, pack.prices.annual)} className="pack-option annual">
+                  <button onClick={() => openWaiver(pack, 'annual', pack.links.annual, pack.prices.annual, pAn)} className="pack-option annual">
                     <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'var(--green2)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>ANNUAL</span>
                     <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--green2)' }}>${pAn}</span>
                     <span style={{ fontSize:9, color:'var(--green2)', fontFamily:'var(--font-mono)' }}>best value</span>
@@ -885,6 +929,95 @@ export default function ParentPortal() {
             )
           })}
         </div>
+      </Modal>
+
+      {/* ── MODAL: WAIVER / CONTRACT ── */}
+      <Modal open={!!waiverData} onClose={() => !waiverSaving && setWaiverData(null)} title="Training Agreement & Waiver" width={680}>
+        {waiverData && (
+          <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+
+            {/* Pre-filled info strip */}
+            <div style={{ padding:'12px 16px', background:'rgba(255,255,255,0.04)', borderRadius:8, border:'1px solid rgba(255,255,255,0.08)', marginBottom:20, display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 24px', fontSize:12 }}>
+              <div><span style={{ color:'var(--muted)' }}>Participant: </span><span style={{ fontWeight:600 }}>{selectedPlayer?.kid_name}</span></div>
+              <div><span style={{ color:'var(--muted)' }}>Package: </span><span style={{ fontWeight:600 }}>{waiverData.pack.name}</span></div>
+              <div><span style={{ color:'var(--muted)' }}>Parent/Guardian: </span><span style={{ fontWeight:600 }}>{user?.fullName}</span></div>
+              <div><span style={{ color:'var(--muted)' }}>Billing: </span><span style={{ fontWeight:600 }}>{waiverData.billingLabel}</span></div>
+              <div><span style={{ color:'var(--muted)' }}>Email: </span><span style={{ fontWeight:600 }}>{user?.primaryEmailAddress?.emailAddress}</span></div>
+              <div><span style={{ color:'var(--muted)' }}>Date: </span><span style={{ fontWeight:600 }}>{new Date().toLocaleDateString('en-US')}</span></div>
+            </div>
+
+            {/* Contract text scroll box */}
+            <div style={{ maxHeight:280, overflowY:'auto', padding:'16px', background:'rgba(0,0,0,0.3)', borderRadius:8, border:'1px solid var(--border)', fontSize:11.5, lineHeight:1.7, color:'var(--text2)', marginBottom:20 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'var(--white)', marginBottom:12, textAlign:'center' }}>
+                TORQUE PERFORMANCE LLC — TRAINING SERVICES CONTRACT<br/>
+                <span style={{ fontSize:11, fontWeight:400, color:'var(--muted)' }}>({waiverData.billingLabel} Agreement)</span>
+              </div>
+
+              <p>This Training Services Contract ("Agreement") is entered into by and between Torque Performance LLC ("Torque") and the undersigned parent/guardian or adult participant ("Client").</p>
+
+              {waiverData.billingType === 'stand' && (
+                <p><b>TERM:</b> This Agreement is effective upon signing and continues on a month-to-month basis until terminated. Client must provide written notice at least 30 days in advance to cancel. One additional billing cycle will be charged after notice is received.</p>
+              )}
+              {waiverData.billingType === 'm6' && (
+                <p><b>TERM:</b> This Agreement is for a six (6) month commitment, billed monthly. Early cancellation requires written notice at least 30 days in advance AND payment of one (1) additional monthly billing cycle following notice. No refunds for services rendered or unused sessions.</p>
+              )}
+              {waiverData.billingType === 'm12' && (
+                <p><b>TERM:</b> This Agreement is for a twelve (12) month commitment, billed monthly. Early termination requires payment of the remaining balance OR a two (2) month cancellation fee, whichever is less. No refunds for services rendered or unused sessions.</p>
+              )}
+              {waiverData.billingType === 'annual' && (
+                <p><b>TERM:</b> This Agreement is for a twelve (12) month term, paid in full at enrollment. All payments are NON-REFUNDABLE under any circumstances. No prorated refunds, credits, or partial reimbursements will be issued for any reason.</p>
+              )}
+
+              <p><b>PAYMENT:</b> All fees are due in advance. Sessions must be used within the billing period and do not roll over. Missed sessions are forfeited and non-refundable. Rescheduling requires a minimum of 12-hour notice.</p>
+              <p><b>CHARGEBACK PROTECTION:</b> Client agrees not to dispute or initiate chargebacks for valid charges. Any chargeback will result in immediate termination of services and Client agrees to reimburse Torque for all associated fees.</p>
+              <p><b>ASSUMPTION OF RISK:</b> Client acknowledges that participation involves inherent risks including being struck by baseballs, bats, or training equipment; use of pitching machines, weights, and training devices; physical exertion, collisions, and facility-related hazards. Client voluntarily assumes all risks, whether known or unknown.</p>
+              <p><b>RELEASE OF LIABILITY:</b> To the fullest extent permitted by Texas law, Client releases and holds harmless Torque Performance LLC, its owners, members, managers, employees, coaches, and affiliates from any and all claims arising from negligence related to participation or use of facilities.</p>
+              <p><b>INDEMNIFICATION:</b> Client agrees to indemnify and hold harmless Torque from any claims, damages, liabilities, or expenses (including attorney fees) arising out of participation or breach of this Agreement.</p>
+              <p><b>MINOR RESPONSIBILITY:</b> If the participant is a minor, the parent/guardian assumes full responsibility for the minor's participation, behavior, and any injuries or damages caused.</p>
+              <p><b>MEDICAL AUTHORIZATION:</b> Client certifies participant is physically capable of participation and authorizes emergency medical treatment if necessary. Client accepts full financial responsibility for all medical expenses. Torque does not provide medical insurance.</p>
+              <p><b>MEDIA RELEASE:</b> Client grants permission for Torque to use photographs and/or video for marketing and promotional purposes without compensation.</p>
+              <p><b>NON-TRANSFERABILITY:</b> Memberships are non-transferable and may not be shared or used by any other individual.</p>
+              <p><b>GOVERNING LAW:</b> This Agreement shall be governed by the laws of the State of Texas.</p>
+            </div>
+
+            {/* Fields the parent fills in */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+              <div>
+                <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.08em' }}>Participant Date of Birth</label>
+                <input type="date" value={waiverForm.dob} onChange={e => setWaiverForm(f => ({ ...f, dob: e.target.value }))}
+                  style={{ width:'100%', margin:0 }} />
+              </div>
+              <div>
+                <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.08em' }}>Phone Number</label>
+                <input type="tel" value={waiverForm.phone} onChange={e => setWaiverForm(f => ({ ...f, phone: e.target.value }))}
+                  placeholder="(915) 000-0000" style={{ width:'100%', margin:0 }} />
+              </div>
+            </div>
+
+            {/* Signature */}
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.08em' }}>Electronic Signature — Type your full name</label>
+              <input value={waiverForm.signedName} onChange={e => setWaiverForm(f => ({ ...f, signedName: e.target.value }))}
+                placeholder="Full legal name" style={{ width:'100%', margin:0, fontFamily:'cursive', fontSize:16 }} />
+            </div>
+
+            {/* Agree checkbox */}
+            <label style={{ display:'flex', alignItems:'flex-start', gap:10, cursor:'pointer', marginBottom:20, fontSize:12, color:'var(--text2)', lineHeight:1.5 }}>
+              <input type="checkbox" checked={waiverForm.agreed} onChange={e => setWaiverForm(f => ({ ...f, agreed: e.target.checked }))}
+                style={{ marginTop:2, flexShrink:0, width:16, height:16 }} />
+              I have read and fully understand this Agreement and Waiver. I voluntarily agree to all terms and acknowledge I am giving up substantial legal rights by signing.
+            </label>
+
+            {/* Submit */}
+            <button
+              onClick={handleWaiverSubmit}
+              disabled={waiverSaving || !waiverForm.signedName.trim() || !waiverForm.agreed}
+              style={{ width:'100%', padding:'14px', background:(!waiverForm.signedName.trim() || !waiverForm.agreed) ? 'rgba(255,255,255,0.1)' : '#4fa8ff', border:'none', borderRadius:10, color:'#fff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:16, letterSpacing:'0.05em', cursor:(!waiverForm.signedName.trim() || !waiverForm.agreed) ? 'not-allowed' : 'pointer', transition:'background 0.2s' }}>
+              {waiverSaving ? 'Saving…' : '✦ Sign & Proceed to Payment'}
+            </button>
+
+          </div>
+        )}
       </Modal>
 
       {/* ── MODAL: ADD PLAYER ── */}
