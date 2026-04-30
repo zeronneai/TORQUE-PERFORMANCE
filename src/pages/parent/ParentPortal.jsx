@@ -742,7 +742,7 @@ export default function ParentPortal() {
   )
 
   const PAGE_MAP = {
-    home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} onEditSave={handleEditPlayerName} />,
+    home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} onEditSave={handleEditPlayerName} parentId={user?.id} />,
     sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'', type:'Training' }); setShowBookModal(true) }} />,
     schedule: <SchedulePage bookings={bookings} />,
     billing:  <BillingPage players={players} />,
@@ -1161,9 +1161,19 @@ export default function ParentPortal() {
 }
 
 // ── PARENT HOME ───────────────────────────────────────────────────────────────
-function ParentHome({ players, onAdd, onBuy, onEditSave }) {
+function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
   const [editModal, setEditModal] = useState({ open: false, player: null, name: '' })
   const [editSaving, setEditSaving] = useState(false)
+  const [attendanceModal, setAttendanceModal] = useState({ open: false, kidName: null, checkins: [], loading: false })
+
+  async function loadCheckins(kidName) {
+    setAttendanceModal({ open: true, kidName, checkins: [], loading: true })
+    const { data } = await supabase
+      .from('checkins').select('*')
+      .eq('parent_id', parentId).eq('kid_name', kidName)
+      .order('checked_in_at', { ascending: false }).limit(10)
+    setAttendanceModal(prev => ({ ...prev, checkins: data || [], loading: false }))
+  }
 
   async function submitEdit(e) {
     e.preventDefault()
@@ -1244,11 +1254,24 @@ function ParentHome({ players, onAdd, onBuy, onEditSave }) {
                 )}
               </div>
 
-              {m && (
-                <button className="btn-ghost" onClick={() => onBuy(player)} style={{ width:'100%', marginTop:14, justifyContent:'center', display:'flex', padding:'10px 16px' }}>
-                  Upgrade Plan
+              <div style={{ display:'flex', flexDirection:'column', gap:8, marginTop:14 }}>
+                <button
+                  onClick={() => { window.location.href = '/checkin?player=' + encodeURIComponent(player.kid_name) }}
+                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px 16px', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:8, color:'var(--white)', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:13, letterSpacing:'0.08em', textTransform:'uppercase', cursor:'pointer' }}
+                >
+                  ⚾ Registrar Entrada
                 </button>
-              )}
+                <div style={{ display:'flex', gap:8 }}>
+                  <button className="btn-ghost" onClick={() => loadCheckins(player.kid_name)} style={{ flex:1, justifyContent:'center', display:'flex', padding:'8px 10px', fontSize:12 }}>
+                    Ver Asistencias
+                  </button>
+                  {m && (
+                    <button className="btn-ghost" onClick={() => onBuy(player)} style={{ flex:1, justifyContent:'center', display:'flex', padding:'8px 10px', fontSize:12 }}>
+                      Upgrade
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )
         })}
@@ -1259,6 +1282,36 @@ function ParentHome({ players, onAdd, onBuy, onEditSave }) {
           <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'var(--muted2)', letterSpacing:'0.2em', textTransform:'uppercase', marginTop:10 }}>Add Player</div>
         </div>
       </div>
+
+      {/* Attendance modal */}
+      <Modal open={attendanceModal.open} onClose={() => setAttendanceModal({ open:false, kidName:null, checkins:[], loading:false })} title={`Asistencias · ${attendanceModal.kidName || ''}`} width={460}>
+        {attendanceModal.loading ? (
+          <div style={{ textAlign:'center', padding:32, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Cargando…</div>
+        ) : attendanceModal.checkins.length === 0 ? (
+          <div style={{ textAlign:'center', padding:32, color:'var(--muted)', fontSize:14 }}>No hay asistencias registradas.</div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {attendanceModal.checkins.map((c, i) => {
+              const dt = new Date(c.checked_in_at)
+              const date = dt.toLocaleDateString('es-MX', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
+              const time = dt.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' })
+              const rem = c.sessions_remaining_after
+              return (
+                <div key={c.id || i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--white)', textTransform:'capitalize' }}>{date}</div>
+                    <div style={{ fontSize:12, color:'var(--muted)', fontFamily:'var(--font-mono)', marginTop:2 }}>{time}</div>
+                  </div>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:24, color: rem <= 2 ? '#E8A020' : 'var(--green2)', lineHeight:1 }}>{rem}</div>
+                    <div style={{ fontSize:10, color:'var(--muted)', letterSpacing:'0.1em', textTransform:'uppercase', marginTop:2 }}>sesiones restantes</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Modal>
 
       {/* Edit player name modal */}
       <Modal open={editModal.open} onClose={() => setEditModal({ open:false, player:null, name:'' })} title="Edit Player Name" width={380}>

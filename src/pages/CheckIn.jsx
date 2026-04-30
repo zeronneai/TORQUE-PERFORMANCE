@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useUser, UserButton } from '@clerk/clerk-react'
 import { CheckCircle, AlertCircle, Clock, ChevronRight } from 'lucide-react'
 import { supabase } from '../supabaseClient'
@@ -34,13 +34,21 @@ export default function CheckIn() {
   const [result, setResult]     = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
 
+  const urlPlayer = useMemo(() => new URLSearchParams(window.location.search).get('player'), [])
+
   useEffect(() => {
     if (!user?.id) return
     supabase.from('players').select('*').eq('parent_id', user.id).then(({ data, error }) => {
-      if (!error) setPlayers(data || [])
+      if (!error) {
+        const list = data || []
+        setPlayers(list)
+        if (urlPlayer && list.some(p => p.kid_name === urlPlayer)) {
+          setSelected(urlPlayer)
+        }
+      }
       setLoading(false)
     })
-  }, [user?.id])
+  }, [user?.id, urlPlayer])
 
   async function handleConfirm() {
     if (!selected || checking) return
