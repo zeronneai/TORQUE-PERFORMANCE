@@ -80,25 +80,55 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Unknown price ID' });
     }
 
-    const { error } = await supabase
+    const { data: existing, error: fetchError } = await supabase
       .from('player_memberships')
-      .insert({
-        parent_id: parentId,
-        kid_name: kidName,
-        package_name: packageInfo.name,
-        sessions_total: packageInfo.sessions,
-        sessions_used: 0,
-        stripe_payment_id: session.payment_intent,
-        stripe_session_id: session.id,
-        status: 'active',
-      });
+      .select('id, sessions_total, sessions_used')
+      .eq('parent_id', parentId)
+      .eq('kid_name', kidName)
+      .maybeSingle();
 
-    if (error) {
-      console.error('Supabase error:', error);
-      return res.status(500).json({ error: 'DB insert failed' });
+    if (fetchError) {
+      console.error('Supabase fetch error:', fetchError);
+      return res.status(500).json({ error: 'DB fetch failed' });
     }
 
-    console.log(`✅ Membresía creada con éxito`);
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from('player_memberships')
+        .update({
+          sessions_total: existing.sessions_total + packageInfo.sessions,
+          package_name: packageInfo.name,
+          stripe_payment_id: session.payment_intent,
+          stripe_session_id: session.id,
+          status: 'active',
+        })
+        .eq('id', existing.id);
+
+      if (updateError) {
+        console.error('Supabase update error:', updateError);
+        return res.status(500).json({ error: 'DB update failed' });
+      }
+      console.log(`✅ Membresía actualizada — ${packageInfo.sessions} sesiones añadidas a ${kidName}`);
+    } else {
+      const { error: insertError } = await supabase
+        .from('player_memberships')
+        .insert({
+          parent_id: parentId,
+          kid_name: kidName,
+          package_name: packageInfo.name,
+          sessions_total: packageInfo.sessions,
+          sessions_used: 0,
+          stripe_payment_id: session.payment_intent,
+          stripe_session_id: session.id,
+          status: 'active',
+        });
+
+      if (insertError) {
+        console.error('Supabase insert error:', insertError);
+        return res.status(500).json({ error: 'DB insert failed' });
+      }
+      console.log(`✅ Membresía creada con éxito — ${kidName}`);
+    }
   }
 
   res.status(200).json({ received: true });
