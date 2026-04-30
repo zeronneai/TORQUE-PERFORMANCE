@@ -13,21 +13,24 @@ import { AppProvider, useApp } from './context/AppContext'
 import AdminSidebar from './components/AdminSidebar'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Families from './pages/admin/Families'
+import EntranceQR from './pages/admin/EntranceQR'
 import { Schedule, Payments, Events } from './pages/admin/AdminPages'
 import ParentPortal from './pages/parent/ParentPortal'
+import CheckIn from './pages/CheckIn'
 
 // ── CONFIGURACIÓN DE PÁGINAS ADMIN ──────────────────────────────────────────
 const ADMIN_PAGES = {
-  dashboard: AdminDashboard,
-  families:  Families,
-  schedule:  Schedule,
-  payments:  Payments,
-  events:    Events,
+  dashboard:    AdminDashboard,
+  families:     Families,
+  schedule:     Schedule,
+  payments:     Payments,
+  events:       Events,
+  'entrance-qr': EntranceQR,
 }
 
 // ── VISTA ADMIN ──────────────────────────────────────────────────────────────
-function AdminShell() {
-  const [page, setPage] = useState('dashboard')
+function AdminShell({ initialPage = 'dashboard' }) {
+  const [page, setPage] = useState(initialPage)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const Page = ADMIN_PAGES[page] || AdminDashboard
 
@@ -65,15 +68,18 @@ function AdminShell() {
 // ── LÓGICA DE CONTROL DE ACCESO (ADMIN VS PARENT) ──────────────────────────
 function MainContent() {
   const { user } = useUser();
-  
-  // Leemos el "role" desde los metadatos de Clerk
-  const role = user?.publicMetadata?.role; 
+  const role = user?.publicMetadata?.role;
+  const path = window.location.pathname;
 
-  if (role === 'admin') {
-    return <AdminShell />;
+  if (path === '/checkin') {
+    return <CheckIn />;
   }
 
-  // Si no es admin, asumimos que es Parent y usamos el UserID de Clerk como FamilyID
+  if (role === 'admin') {
+    const initialPage = path === '/admin/entrance-qr' ? 'entrance-qr' : 'dashboard';
+    return <AdminShell initialPage={initialPage} />;
+  }
+
   return <ParentPortal familyId={user?.id} paymentSuccess={new URLSearchParams(window.location.search).get('payment') === 'success'} />;
 }
 
