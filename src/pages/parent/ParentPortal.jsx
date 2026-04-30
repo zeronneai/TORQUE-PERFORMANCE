@@ -4,6 +4,7 @@ import { Card, Avatar, Btn, Modal, ProgressBar, Label } from '../../components/U
 import { useUser, useClerk } from "@clerk/clerk-react"
 import { supabase } from "../../supabaseClient"
 import { API_BASE } from '../../lib/apiBase'
+import QRCheckinModal from '../../components/QRCheckinModal'
 
 // ── PAQUETES ──────────────────────────────────────────────────────────────────
 const PACKS = [
@@ -1165,6 +1166,7 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
   const [editModal, setEditModal] = useState({ open: false, player: null, name: '' })
   const [editSaving, setEditSaving] = useState(false)
   const [attendanceModal, setAttendanceModal] = useState({ open: false, kidName: null, checkins: [], loading: false })
+  const [qrModal, setQrModal] = useState({ open: false, player: null })
 
   async function loadCheckins(kidName) {
     setAttendanceModal({ open: true, kidName, checkins: [], loading: true })
@@ -1256,10 +1258,10 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
 
               <div style={{ display:'flex', flexDirection:'column', gap:8, marginTop:14 }}>
                 <button
-                  onClick={() => { window.location.href = '/checkin?player=' + encodeURIComponent(player.kid_name) }}
+                  onClick={() => setQrModal({ open: true, player })}
                   style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px 16px', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:8, color:'var(--white)', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:13, letterSpacing:'0.08em', textTransform:'uppercase', cursor:'pointer' }}
                 >
-                  ⚾ Registrar Entrada
+                  📷 Escanear QR
                 </button>
                 <div style={{ display:'flex', gap:8 }}>
                   <button className="btn-ghost" onClick={() => loadCheckins(player.kid_name)} style={{ flex:1, justifyContent:'center', display:'flex', padding:'8px 10px', fontSize:12 }}>
@@ -1282,6 +1284,14 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
           <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'var(--muted2)', letterSpacing:'0.2em', textTransform:'uppercase', marginTop:10 }}>Add Player</div>
         </div>
       </div>
+
+      {/* QR Check-in modal */}
+      <QRCheckinModal
+        open={qrModal.open}
+        onClose={() => setQrModal({ open: false, player: null })}
+        player={qrModal.player}
+        parentId={parentId}
+      />
 
       {/* Attendance modal */}
       <Modal open={attendanceModal.open} onClose={() => setAttendanceModal({ open:false, kidName:null, checkins:[], loading:false })} title={`Asistencias · ${attendanceModal.kidName || ''}`} width={460}>
