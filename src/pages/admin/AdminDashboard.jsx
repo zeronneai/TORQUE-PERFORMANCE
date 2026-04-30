@@ -37,15 +37,20 @@ export default function AdminDashboard() {
 
     const channel = supabase.channel('admin-checkins')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'checkins' }, (payload) => {
+        console.log('[Realtime] checkins INSERT received:', payload)
         const c = payload.new
         const cDate = new Date(c.checked_in_at).toISOString().split('T')[0]
         if (cDate === today) {
           setTodayCheckins(prev => [c, ...prev])
           setToast({ kidName: c.kid_name, remaining: c.sessions_remaining_after })
           setTimeout(() => setToast(null), 4000)
+        } else {
+          console.log('[Realtime] checkin received but date mismatch — cDate:', cDate, 'today:', today)
         }
       })
-      .subscribe()
+      .subscribe((status, err) => {
+        console.log('[Realtime] admin-checkins subscription status:', status, err || '')
+      })
 
     return () => { supabase.removeChannel(channel) }
   }, [today])
@@ -88,9 +93,21 @@ export default function AdminDashboard() {
       }
 
       const remainingAfter = remaining - 1
-      await supabase.from('checkins').insert({ parent_id: pid, kid_name: kidName, membership_id: membership.id, sessions_remaining_after: remainingAfter })
+      const now = new Date().toISOString()
+      const { data: inserted, error: insertErr } = await supabase
+        .from('checkins')
+        .insert({ parent_id: pid, kid_name: kidName, membership_id: membership.id, sessions_remaining_after: remainingAfter })
+        .select()
+        .single()
+      if (insertErr) throw insertErr
+
       await supabase.from('player_memberships').update({ sessions_used: membership.sessions_used + 1 }).eq('id', membership.id)
-      // Realtime adds the new row to todayCheckins automatically
+
+      // Add to list directly — Realtime may also fire, deduplicate by id
+      const newRow = inserted || { id: crypto.randomUUID(), parent_id: pid, kid_name: kidName, membership_id: membership.id, sessions_remaining_after: remainingAfter, checked_in_at: now }
+      setTodayCheckins(prev => prev.some(r => r.id === newRow.id) ? prev : [newRow, ...prev])
+      setToast({ kidName, remaining: remainingAfter })
+      setTimeout(() => setToast(null), 4000)
     } catch (err) {
       console.error('Manual checkin error:', err)
     } finally {
