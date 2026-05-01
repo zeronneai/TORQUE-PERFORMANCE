@@ -51,6 +51,13 @@ const STRIPE_LINKS = {
   },
 }
 
+const PRICE_TABLE = {
+  A:   { monthly: 260, m6: 234, m12: 221, annual: 2496 },
+  AA:  { monthly: 360, m6: 324, m12: 306, annual: 3456 },
+  AAA: { monthly: 440, m6: 396, m12: 374, annual: 4224 },
+  MLB: { monthly: 600, m6: 540, m12: 510, annual: 5760 },
+}
+
 function buildStripeLink(pkg, planType, clerkId, kidName) {
   const info = STRIPE_LINKS[pkg]?.[planType]
   if (!info) return null
@@ -127,10 +134,10 @@ function apiMiddleware(env) {
           }
           // 4b. Manual flow — insert memberships immediately
           if (!startDate) { res.writeHead(400); return res.end(JSON.stringify({ error: 'Start date required for manual payment' })) }
-          const { error: mErr } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName, membership_id: MEMBERSHIP_IDS[pkg], sessions_total: calcSessions(pkg, planType), sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: new Date(startDate).toISOString(), expires_at: calcExpires(startDate, planType), package_name: pkg })
+          const { error: mErr } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName, membership_id: MEMBERSHIP_IDS[pkg], sessions_total: calcSessions(pkg, planType), sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: new Date(startDate).toISOString(), expires_at: calcExpires(startDate, planType), package_name: pkg, monthly_price: PRICE_TABLE[pkg]?.[planType] ?? null })
           if (mErr) throw new Error(`Membership: ${mErr.message}`)
           if (kidName2) {
-            const { error: m2Err } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName2, membership_id: MEMBERSHIP_IDS[pkg2], sessions_total: calcSessions(pkg2, planType2), sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: new Date(startDate).toISOString(), expires_at: calcExpires(startDate, planType2), package_name: pkg2, sibling_discount: true })
+            const { error: m2Err } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName2, membership_id: MEMBERSHIP_IDS[pkg2], sessions_total: calcSessions(pkg2, planType2), sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: new Date(startDate).toISOString(), expires_at: calcExpires(startDate, planType2), package_name: pkg2, sibling_discount: true, monthly_price: PRICE_TABLE[pkg2]?.[planType2] != null ? Math.round(PRICE_TABLE[pkg2][planType2] * 0.5) : null })
             if (m2Err) throw new Error(`Membership 2: ${m2Err.message}`)
           }
           console.log(`[add-member] ✅ Manual — ${parentName} / ${kidName}${kidName2 ? ' + ' + kidName2 : ''} — Package ${pkg} / ${planType}`)

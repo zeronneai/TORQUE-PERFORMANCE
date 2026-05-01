@@ -16,6 +16,13 @@ const MEMBERSHIP_IDS = {
 
 const SESSIONS_PER_PACKAGE = { 'A': 4, 'AA': 8, 'AAA': 12, 'MLB': 20 };
 
+const PRICE_TABLE = {
+  A:   { monthly: 260, m6: 234, m12: 221, annual: 2496 },
+  AA:  { monthly: 360, m6: 324, m12: 306, annual: 3456 },
+  AAA: { monthly: 440, m6: 396, m12: 374, annual: 4224 },
+  MLB: { monthly: 600, m6: 540, m12: 510, annual: 5760 },
+};
+
 // Stripe Payment Links + matching price IDs (needed for client_reference_id)
 const STRIPE_LINKS = {
   A: {
@@ -138,6 +145,7 @@ export default async function handler(req, res) {
         purchased_at: new Date(startDate).toISOString(),
         expires_at: calcExpires(startDate, planType),
         package_name: pkg,
+        monthly_price: PRICE_TABLE[pkg]?.[planType] ?? null,
       });
     if (membershipError) throw new Error(`Membership: ${membershipError.message}`);
 
@@ -157,6 +165,7 @@ export default async function handler(req, res) {
           expires_at: calcExpires(startDate, planType2),
           package_name: pkg2,
           sibling_discount: true,
+          monthly_price: PRICE_TABLE[pkg2]?.[planType2] != null ? Math.round(PRICE_TABLE[pkg2][planType2] * 0.5) : null,
         });
       if (membership2Error) throw new Error(`Membership 2: ${membership2Error.message}`);
     }

@@ -7,7 +7,12 @@ import { supabase } from '../../supabaseClient'
 
 const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', kidName2: '', package2: 'A', planType2: 'monthly', startDate: '', paymentMethod: 'manual' }
 
-const PACKAGE_PRICES = { A: 260, AA: 360, AAA: 440, MLB: 600 }
+const PRICE_TABLE = {
+  A:   { monthly: 260, m6: 234, m12: 221, annual: 2496 },
+  AA:  { monthly: 360, m6: 324, m12: 306, annual: 3456 },
+  AAA: { monthly: 440, m6: 396, m12: 374, annual: 4224 },
+  MLB: { monthly: 600, m6: 540, m12: 510, annual: 5760 },
+}
 const SEL = { width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }
 const LBL = { fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }
 
@@ -287,9 +292,27 @@ export default function Families() {
                           {m ? (
                             <>
                               <div style={{ fontSize:13, fontWeight:600, color:pkgColor }}>{m.package_name || '—'}</div>
-                              <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
-                                ${PACK_INFO[m.package_name]?.price?.toLocaleString() || '—'}/mo
-                              </div>
+                              {(() => {
+                                const base = PRICE_TABLE[m.package_name]?.monthly
+                                const paid = m.monthly_price
+                                if (!base) return <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>—</div>
+                                if (!paid) return <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>${base.toLocaleString()}/mo</div>
+                                const isAnnual = paid > base * 3
+                                const isDiscounted = !isAnnual && paid < base
+                                if (isAnnual) return (
+                                  <div style={{ marginTop:2 }}>
+                                    <div style={{ fontSize:11, color:'var(--muted)', textDecoration:'line-through' }}>${base.toLocaleString()}/mo</div>
+                                    <div style={{ fontSize:11, fontWeight:700, color:'var(--green2)' }}>Pago único: ${paid.toLocaleString()}</div>
+                                  </div>
+                                )
+                                if (isDiscounted) return (
+                                  <div style={{ marginTop:2 }}>
+                                    <div style={{ fontSize:11, color:'var(--muted)', textDecoration:'line-through' }}>${base.toLocaleString()}/mo</div>
+                                    <div style={{ fontSize:11, fontWeight:700, color:'var(--green2)' }}>${paid.toLocaleString()}/mo</div>
+                                  </div>
+                                )
+                                return <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>${paid.toLocaleString()}/mo</div>
+                              })()}
                             </>
                           ) : (
                             <div style={{ fontSize:12, color:'var(--muted)' }}>No active membership</div>
@@ -462,12 +485,29 @@ export default function Families() {
                 <label style={LBL}>Plan Type *</label>
                 <select required value={form.planType} onChange={e => setForm(f => ({ ...f, planType: e.target.value }))} style={SEL}>
                   <option value="monthly">Month to Month (no discount)</option>
-                  <option value="m6">6-Month Contract - 15% off (monthly payments)</option>
-                  <option value="m12">12-Month Contract - 20% off (monthly payments)</option>
-                  <option value="annual">Annual Lump Sum - 25% off (one-time payment)</option>
+                  <option value="m6">6-Month Contract — 10% off</option>
+                  <option value="m12">12-Month Contract — 15% off</option>
+                  <option value="annual">Annual Lump Sum — 20% off (one payment)</option>
                 </select>
               </div>
             </div>
+
+            {/* Price preview — player 1 */}
+            {form.package && form.planType && (() => {
+              const price = PRICE_TABLE[form.package]?.[form.planType]
+              const base = PRICE_TABLE[form.package]?.monthly
+              if (!price || !base) return null
+              const isAnnual = form.planType === 'annual'
+              const isDiscounted = form.planType !== 'monthly'
+              return (
+                <div style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(34,197,110,0.06)', border:'1px solid rgba(34,197,110,0.15)', borderRadius:8, padding:'10px 14px', fontSize:13 }}>
+                  {isDiscounted && <span style={{ color:'var(--text3)', textDecoration:'line-through', fontSize:12 }}>${base.toLocaleString()}/mo</span>}
+                  <strong style={{ color:'#22C56E' }}>
+                    {isAnnual ? `Pago único: $${price.toLocaleString()}` : `$${price.toLocaleString()}/mo`}
+                  </strong>
+                </div>
+              )
+            })()}
 
             {/* ── Second Player toggle ── */}
             {!showPlayer2 ? (
@@ -499,14 +539,27 @@ export default function Families() {
                       <label style={LBL}>Plan Type 2 *</label>
                       <select value={form.planType2} onChange={e => setForm(f => ({ ...f, planType2: e.target.value }))} style={SEL}>
                         <option value="monthly">Month to Month (no discount)</option>
-                        <option value="m6">6-Month Contract - 15% off</option>
-                        <option value="m12">12-Month Contract - 20% off</option>
-                        <option value="annual">Annual Lump Sum - 25% off</option>
+                        <option value="m6">6-Month Contract — 10% off</option>
+                        <option value="m12">12-Month Contract — 15% off</option>
+                        <option value="annual">Annual Lump Sum — 20% off</option>
                       </select>
                     </div>
                   </div>
                   <div style={{ background:'rgba(79,168,255,0.08)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'#4fa8ff' }}>
-                    Sibling discount: 50% off — <strong>${((PACKAGE_PRICES[form.package2] || 0) * 0.5).toFixed(0)}/mo</strong> (base ${PACKAGE_PRICES[form.package2] || 0}/mo)
+                    {(() => {
+                      const discBase = PRICE_TABLE[form.package2]?.[form.planType2] || 0
+                      const sibPrice = Math.round(discBase * 0.5)
+                      const monthlyBase = PRICE_TABLE[form.package2]?.monthly || 0
+                      const isAnnual = form.planType2 === 'annual'
+                      const fmt = (n) => n.toLocaleString()
+                      return (
+                        <>
+                          Sibling discount: 50% off —{' '}
+                          <strong>${isAnnual ? `Pago único: $${fmt(sibPrice)}` : `${fmt(sibPrice)}/mo`}</strong>
+                          {' '}(<span style={{ textDecoration:'line-through' }}>${isAnnual ? fmt(discBase) : `${fmt(discBase)}/mo`}</span> · base ${fmt(monthlyBase)}/mo)
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>
