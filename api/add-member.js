@@ -16,15 +16,50 @@ const MEMBERSHIP_IDS = {
 
 const SESSIONS_PER_PACKAGE = { 'A': 4, 'AA': 8, 'AAA': 12, 'MLB': 20 };
 
+// Stripe Payment Links + matching price IDs (needed for client_reference_id)
+const STRIPE_LINKS = {
+  A: {
+    monthly: { link: 'https://buy.stripe.com/test_dRmbJ04Jtgweb8A61YfrW00', price: 'price_1TLqDdAPTWbxe0YytEOlF7ZH' },
+    m6:      { link: 'https://buy.stripe.com/test_4gM14mdfZ3Js4KcaiefrW01', price: 'price_1TLqDmAPTWbxe0YyqbHEcuFr' },
+    m12:     { link: 'https://buy.stripe.com/test_7sY00i2Bl7ZI0tW8a6frW02', price: 'price_1TLqDmAPTWbxe0YysigUumPn' },
+    annual:  { link: 'https://buy.stripe.com/test_cNifZgb7Reo6ccE9eafrW04', price: 'price_1TLqDlAPTWbxe0YyljY5WD6Y' },
+  },
+  AA: {
+    monthly: { link: 'https://buy.stripe.com/test_28EaEW4Jt7ZIa4w1LIfrW05', price: 'price_1TLqDgAPTWbxe0Yy7yaP3VX3' },
+    m6:      { link: 'https://buy.stripe.com/test_6oUaEW2Bl5RA90scqmfrW06', price: 'price_1TLqDkAPTWbxe0YyZu4hFrI3' },
+    m12:     { link: 'https://buy.stripe.com/test_fZu9ASdfZ93MdgI4XUfrW07', price: 'price_1TLqDjAPTWbxe0YyTsqaUdt5' },
+    annual:  { link: 'https://buy.stripe.com/test_4gM9ASa3N93Mb8A0HEfrW08', price: 'price_1TLqDkAPTWbxe0YykcsrB50f' },
+  },
+  AAA: {
+    monthly: { link: 'https://buy.stripe.com/test_bJeaEW2Bl5RA6SkduqfrW09', price: 'price_1TLqDhAPTWbxe0YyXXJQZrh7' },
+    m6:      { link: 'https://buy.stripe.com/test_aFa7sKb7Rgwe4Kc762frW0a', price: 'price_1TLqDkAPTWbxe0YydXEB3YqT' },
+    m12:     { link: 'https://buy.stripe.com/test_cNi8wOa3N3JsccEeyufrW0b', price: 'price_1TLqDjAPTWbxe0YyuyUujCu4' },
+    annual:  { link: 'https://buy.stripe.com/test_7sYfZg4JtbbUccE0HEfrW0c', price: 'price_1TLqDkAPTWbxe0Yy8UHtMvEJ' },
+  },
+  MLB: {
+    monthly: { link: 'https://buy.stripe.com/test_4gM3cu5Nx1Bk3G8eyufrW0d', price: 'price_1TLqDdAPTWbxe0YydO64XMLw' },
+    m6:      { link: 'https://buy.stripe.com/test_14A9ASb7R4Nw0tW762frW0e', price: 'price_1TLqDlAPTWbxe0YyEIZi7YR5' },
+    m12:     { link: 'https://buy.stripe.com/test_dRm00i1xhcfY7Wo0HEfrW0f', price: 'price_1TLqDjAPTWbxe0YyVQxRaHFs' },
+    annual:  { link: 'https://buy.stripe.com/test_fZu8wO1xh1Bk7Wo2PMfrW0g', price: 'price_1TLqDjAPTWbxe0Yy6fRLwlFM' },
+  },
+};
+
+function calcSessions(pkg, planType) {
+  const base = SESSIONS_PER_PACKAGE[pkg] || 4;
+  return planType === 'annual' ? base * 12 : base;
+}
+
 function calcExpires(startDate, planType) {
   const d = new Date(startDate);
   d.setMonth(d.getMonth() + (planType === 'annual' ? 12 : 1));
   return d.toISOString();
 }
 
-function calcSessions(pkg, planType) {
-  const base = SESSIONS_PER_PACKAGE[pkg] || 4;
-  return planType === 'annual' ? base * 12 : base;
+function buildStripeLink(pkg, planType, clerkId, kidName) {
+  const info = STRIPE_LINKS[pkg]?.[planType];
+  if (!info) return null;
+  const ref = encodeURIComponent(`${clerkId}__${kidName}__${info.price}`);
+  return `${info.link}?client_reference_id=${ref}`;
 }
 
 export default async function handler(req, res) {
@@ -34,7 +69,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { parentName, email, phone, kidName, package: pkg, startDate, planType = 'monthly', kidName2, package2, planType2 = 'monthly' } = req.body;
+  const {
+    parentName, email, phone, kidName, package: pkg, startDate,
+    planType = 'monthly', kidName2, package2, planType2 = 'monthly',
+    paymentMethod = 'manual',
+  } = req.body;
+
   if (!parentName || !email || !kidName || !pkg || !startDate) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -61,13 +101,29 @@ export default async function handler(req, res) {
       .upsert({ id: clerkUser.id, full_name: parentName, phone, email, role: 'parent' }, { onConflict: 'id' });
     if (profileError) throw new Error(`Profile: ${profileError.message}`);
 
-    // 3. Insert player
+    // 3. Insert player(s)
     const { error: playerError } = await supabase
       .from('players')
       .insert({ parent_id: clerkUser.id, kid_name: kidName, birthdate: null, age: null });
     if (playerError) throw new Error(`Player: ${playerError.message}`);
 
-    // 4. Insert membership
+    const pkg2 = package2 || pkg;
+    if (kidName2) {
+      const { error: player2Error } = await supabase
+        .from('players')
+        .insert({ parent_id: clerkUser.id, kid_name: kidName2, birthdate: null, age: null });
+      if (player2Error) throw new Error(`Player 2: ${player2Error.message}`);
+    }
+
+    // 4a. STRIPE flow — return payment links, do not create memberships yet
+    if (paymentMethod === 'stripe') {
+      const stripeLink  = buildStripeLink(pkg,  planType,  clerkUser.id, kidName);
+      const stripeLink2 = kidName2 ? buildStripeLink(pkg2, planType2, clerkUser.id, kidName2) : null;
+      console.log(`[add-member] ✅ Stripe — ${parentName} / ${kidName}${kidName2 ? ' + ' + kidName2 : ''}`);
+      return res.status(200).json({ ok: true, clerkId: clerkUser.id, stripeLink, stripeLink2 });
+    }
+
+    // 4b. MANUAL flow — insert memberships immediately
     const { error: membershipError } = await supabase
       .from('player_memberships')
       .insert({
@@ -85,14 +141,7 @@ export default async function handler(req, res) {
       });
     if (membershipError) throw new Error(`Membership: ${membershipError.message}`);
 
-    // Optional second player (sibling)
     if (kidName2) {
-      const pkg2 = package2 || pkg;
-      const { error: player2Error } = await supabase
-        .from('players')
-        .insert({ parent_id: clerkUser.id, kid_name: kidName2, birthdate: null, age: null });
-      if (player2Error) throw new Error(`Player 2: ${player2Error.message}`);
-
       const { error: membership2Error } = await supabase
         .from('player_memberships')
         .insert({
@@ -112,7 +161,7 @@ export default async function handler(req, res) {
       if (membership2Error) throw new Error(`Membership 2: ${membership2Error.message}`);
     }
 
-    console.log(`[add-member] ✅ ${parentName} / ${kidName}${kidName2 ? ' + ' + kidName2 : ''} — Package ${pkg} / ${planType}`);
+    console.log(`[add-member] ✅ Manual — ${parentName} / ${kidName}${kidName2 ? ' + ' + kidName2 : ''} — Package ${pkg} / ${planType}`);
     return res.status(200).json({ ok: true, clerkId: clerkUser.id });
   } catch (err) {
     console.error('[add-member] Error:', err.message);

@@ -5,7 +5,7 @@ import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAd
 import { API_BASE } from '../../lib/apiBase'
 import { supabase } from '../../supabaseClient'
 
-const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', kidName2: '', package2: 'A', planType2: 'monthly', startDate: '' }
+const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', kidName2: '', package2: 'A', planType2: 'monthly', startDate: '', paymentMethod: 'manual' }
 
 const PACKAGE_PRICES = { A: 260, AA: 360, AAA: 440, MLB: 600 }
 const SEL = { width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }
@@ -20,6 +20,7 @@ export default function Families() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
+  const [stripeResult, setStripeResult] = useState(null)
   const [editPlayer, setEditPlayer] = useState(null)
   const [editName, setEditName]     = useState('')
   const [editSaving, setEditSaving] = useState(false)
@@ -84,6 +85,7 @@ export default function Families() {
     setShowPlayer2(false)
     setForm(EMPTY_FORM)
     setSaveError(null)
+    setStripeResult(null)
   }
 
   async function handleAddMember(e) {
@@ -100,8 +102,18 @@ export default function Families() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Unknown error')
-      closeAddModal()
-      await refetch()
+      if (form.paymentMethod === 'stripe' && data.stripeLink) {
+        setStripeResult({
+          parentName: form.parentName,
+          kidName: form.kidName,
+          stripeLink: data.stripeLink,
+          kidName2: showPlayer2 ? form.kidName2 : null,
+          stripeLink2: data.stripeLink2 || null,
+        })
+      } else {
+        closeAddModal()
+        await refetch()
+      }
     } catch (err) {
       setSaveError(err.message)
     } finally {
@@ -373,115 +385,185 @@ export default function Families() {
       </Modal>
 
       {/* Add Member Modal */}
-      <Modal open={showAddMember} onClose={closeAddModal} title="Add New Member" width={480}>
-        <form onSubmit={handleAddMember} style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
-            <div>
-              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Parent Name *</label>
-              <input required placeholder="Full name" {...field('parentName')} style={{ width:'100%', margin:0 }} />
+      <Modal open={showAddMember} onClose={closeAddModal} title={stripeResult ? 'Payment Links Ready' : 'Add New Member'} width={480}>
+        {stripeResult ? (
+          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+            <div style={{ background:'rgba(34,197,110,0.08)', border:'1px solid rgba(34,197,110,0.2)', borderRadius:10, padding:'14px 16px', fontSize:13, color:'#22C56E' }}>
+              ✅ Account created for <strong>{stripeResult.parentName}</strong>. Share the payment link(s) below.
             </div>
             <div>
-              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Email *</label>
-              <input required type="email" placeholder="email@example.com" {...field('email')} style={{ width:'100%', margin:0 }} />
-            </div>
-          </div>
-
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
-            <div>
-              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Phone</label>
-              <input placeholder="(915) 000-0000" {...field('phone')} style={{ width:'100%', margin:0 }} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Kid Name *</label>
-              <input required placeholder="Player full name" {...field('kidName')} style={{ width:'100%', margin:0 }} />
-            </div>
-          </div>
-
-          {/* ── Player 1 package/plan ── */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
-            <div>
-              <label style={LBL}>Package *</label>
-              <select required value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value }))} style={SEL}>
-                <option value="A">Paquete A — 4 sessions/mo</option>
-                <option value="AA">Paquete AA — 8 sessions/mo</option>
-                <option value="AAA">Paquete AAA — 12 sessions/mo</option>
-                <option value="MLB">Paquete MLB — 20 sessions/mo</option>
-              </select>
-            </div>
-            <div>
-              <label style={LBL}>Plan Type *</label>
-              <select required value={form.planType} onChange={e => setForm(f => ({ ...f, planType: e.target.value }))} style={SEL}>
-                <option value="monthly">Month to Month (no discount)</option>
-                <option value="m6">6-Month Contract - 15% off (monthly payments)</option>
-                <option value="m12">12-Month Contract - 20% off (monthly payments)</option>
-                <option value="annual">Annual Lump Sum - 25% off (one-time payment)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* ── Second Player toggle ── */}
-          {!showPlayer2 ? (
-            <button type="button" onClick={() => setShowPlayer2(true)} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px dashed var(--border2)', borderRadius:8, color:'var(--text2)', padding:'9px 14px', fontSize:13, cursor:'pointer', width:'100%', justifyContent:'center' }}>
-              + Add Second Player (Sibling)
-            </button>
-          ) : (
-            <div style={{ border:'1px solid var(--border2)', borderRadius:10, padding:'16px 16px 12px', background:'rgba(255,255,255,0.02)' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'#4fa8ff' }}>Second Player — Sibling</span>
-                <button type="button" onClick={() => { setShowPlayer2(false); setForm(f => ({ ...f, kidName2:'', package2:'A', planType2:'monthly' })) }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, lineHeight:1 }}>✕</button>
-              </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                <div>
-                  <label style={LBL}>Kid Name 2 *</label>
-                  <input required={showPlayer2} placeholder="Player full name" value={form.kidName2} onChange={e => setForm(f => ({ ...f, kidName2: e.target.value }))} style={{ width:'100%', margin:0 }} />
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
-                  <div>
-                    <label style={LBL}>Package 2 *</label>
-                    <select value={form.package2} onChange={e => setForm(f => ({ ...f, package2: e.target.value }))} style={SEL}>
-                      <option value="A">Paquete A — 4 sessions/mo</option>
-                      <option value="AA">Paquete AA — 8 sessions/mo</option>
-                      <option value="AAA">Paquete AAA — 12 sessions/mo</option>
-                      <option value="MLB">Paquete MLB — 20 sessions/mo</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={LBL}>Plan Type 2 *</label>
-                    <select value={form.planType2} onChange={e => setForm(f => ({ ...f, planType2: e.target.value }))} style={SEL}>
-                      <option value="monthly">Month to Month (no discount)</option>
-                      <option value="m6">6-Month Contract - 15% off</option>
-                      <option value="m12">12-Month Contract - 20% off</option>
-                      <option value="annual">Annual Lump Sum - 25% off</option>
-                    </select>
-                  </div>
-                </div>
-                <div style={{ background:'rgba(79,168,255,0.08)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'#4fa8ff' }}>
-                  Sibling discount: 50% off — <strong>${((PACKAGE_PRICES[form.package2] || 0) * 0.5).toFixed(0)}/mo</strong> (base ${PACKAGE_PRICES[form.package2] || 0}/mo)
-                </div>
+              <label style={LBL}>Payment Link — {stripeResult.kidName}</label>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <input readOnly value={stripeResult.stripeLink} style={{ width:'100%', margin:0, fontSize:11, color:'#4fa8ff' }} />
+                <button type="button" onClick={() => navigator.clipboard.writeText(stripeResult.stripeLink)}
+                  style={{ padding:'10px 14px', background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+                  Copy
+                </button>
               </div>
             </div>
-          )}
-
-          <div>
-            <label style={LBL}>Start Date *</label>
-            <input required type="date" {...field('startDate')} style={{ width:'100%', margin:0 }} />
-          </div>
-
-          {saveError && (
-            <div style={{ background:'rgba(255,50,50,0.1)', border:'1px solid rgba(255,80,80,0.3)', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#ff6b6b' }}>
-              {saveError}
+            {stripeResult.stripeLink2 && (
+              <div>
+                <label style={LBL}>Payment Link — {stripeResult.kidName2}</label>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <input readOnly value={stripeResult.stripeLink2} style={{ width:'100%', margin:0, fontSize:11, color:'#4fa8ff' }} />
+                  <button type="button" onClick={() => navigator.clipboard.writeText(stripeResult.stripeLink2)}
+                    style={{ padding:'10px 14px', background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+                    Copy
+                  </button>
+                </div>
+              </div>
+            )}
+            <div style={{ background:'rgba(255,255,255,0.04)', borderRadius:8, padding:'10px 14px', fontSize:12, color:'var(--text3)' }}>
+              Sessions will be assigned automatically when the parent completes payment via Stripe.
             </div>
-          )}
-
-          <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:4 }}>
-            <button type="button" onClick={closeAddModal} style={{ padding:'10px 20px', background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', cursor:'pointer', fontSize:13 }}>
-              Cancel
-            </button>
-            <button type="submit" disabled={saving} style={{ padding:'10px 22px', background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-              {saving ? 'Creating…' : 'Create Member'}
-            </button>
+            <div style={{ display:'flex', justifyContent:'flex-end' }}>
+              <button type="button" onClick={async () => { await refetch(); closeAddModal() }}
+                style={{ padding:'10px 22px', background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer' }}>
+                Done
+              </button>
+            </div>
           </div>
-        </form>
+        ) : (
+          <form onSubmit={handleAddMember} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
+              <div>
+                <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Parent Name *</label>
+                <input required placeholder="Full name" {...field('parentName')} style={{ width:'100%', margin:0 }} />
+              </div>
+              <div>
+                <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Email *</label>
+                <input required type="email" placeholder="email@example.com" {...field('email')} style={{ width:'100%', margin:0 }} />
+              </div>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
+              <div>
+                <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Phone</label>
+                <input placeholder="(915) 000-0000" {...field('phone')} style={{ width:'100%', margin:0 }} />
+              </div>
+              <div>
+                <label style={{ fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }}>Kid Name *</label>
+                <input required placeholder="Player full name" {...field('kidName')} style={{ width:'100%', margin:0 }} />
+              </div>
+            </div>
+
+            {/* ── Player 1 package/plan ── */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
+              <div>
+                <label style={LBL}>Package *</label>
+                <select required value={form.package} onChange={e => setForm(f => ({ ...f, package: e.target.value }))} style={SEL}>
+                  <option value="A">Paquete A — 4 sessions/mo</option>
+                  <option value="AA">Paquete AA — 8 sessions/mo</option>
+                  <option value="AAA">Paquete AAA — 12 sessions/mo</option>
+                  <option value="MLB">Paquete MLB — 20 sessions/mo</option>
+                </select>
+              </div>
+              <div>
+                <label style={LBL}>Plan Type *</label>
+                <select required value={form.planType} onChange={e => setForm(f => ({ ...f, planType: e.target.value }))} style={SEL}>
+                  <option value="monthly">Month to Month (no discount)</option>
+                  <option value="m6">6-Month Contract - 15% off (monthly payments)</option>
+                  <option value="m12">12-Month Contract - 20% off (monthly payments)</option>
+                  <option value="annual">Annual Lump Sum - 25% off (one-time payment)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* ── Second Player toggle ── */}
+            {!showPlayer2 ? (
+              <button type="button" onClick={() => setShowPlayer2(true)} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'1px dashed var(--border2)', borderRadius:8, color:'var(--text2)', padding:'9px 14px', fontSize:13, cursor:'pointer', width:'100%', justifyContent:'center' }}>
+                + Add Second Player (Sibling)
+              </button>
+            ) : (
+              <div style={{ border:'1px solid var(--border2)', borderRadius:10, padding:'16px 16px 12px', background:'rgba(255,255,255,0.02)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                  <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'#4fa8ff' }}>Second Player — Sibling</span>
+                  <button type="button" onClick={() => { setShowPlayer2(false); setForm(f => ({ ...f, kidName2:'', package2:'A', planType2:'monthly' })) }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, lineHeight:1 }}>✕</button>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  <div>
+                    <label style={LBL}>Kid Name 2 *</label>
+                    <input required={showPlayer2} placeholder="Player full name" value={form.kidName2} onChange={e => setForm(f => ({ ...f, kidName2: e.target.value }))} style={{ width:'100%', margin:0 }} />
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
+                    <div>
+                      <label style={LBL}>Package 2 *</label>
+                      <select value={form.package2} onChange={e => setForm(f => ({ ...f, package2: e.target.value }))} style={SEL}>
+                        <option value="A">Paquete A — 4 sessions/mo</option>
+                        <option value="AA">Paquete AA — 8 sessions/mo</option>
+                        <option value="AAA">Paquete AAA — 12 sessions/mo</option>
+                        <option value="MLB">Paquete MLB — 20 sessions/mo</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={LBL}>Plan Type 2 *</label>
+                      <select value={form.planType2} onChange={e => setForm(f => ({ ...f, planType2: e.target.value }))} style={SEL}>
+                        <option value="monthly">Month to Month (no discount)</option>
+                        <option value="m6">6-Month Contract - 15% off</option>
+                        <option value="m12">12-Month Contract - 20% off</option>
+                        <option value="annual">Annual Lump Sum - 25% off</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ background:'rgba(79,168,255,0.08)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'#4fa8ff' }}>
+                    Sibling discount: 50% off — <strong>${((PACKAGE_PRICES[form.package2] || 0) * 0.5).toFixed(0)}/mo</strong> (base ${PACKAGE_PRICES[form.package2] || 0}/mo)
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Payment Method ── */}
+            <div>
+              <label style={LBL}>Payment Method *</label>
+              <div style={{ display:'flex', gap:8 }}>
+                {['manual', 'stripe'].map(method => (
+                  <button
+                    key={method}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, paymentMethod: method }))}
+                    style={{
+                      flex:1, padding:'10px 0',
+                      border:`2px solid ${form.paymentMethod === method ? '#4fa8ff' : 'var(--border2)'}`,
+                      borderRadius:8,
+                      background: form.paymentMethod === method ? 'rgba(79,168,255,0.12)' : 'transparent',
+                      color: form.paymentMethod === method ? '#4fa8ff' : 'var(--text2)',
+                      fontWeight:700, fontSize:13, cursor:'pointer',
+                    }}
+                  >
+                    {method === 'manual' ? '💵 Manual' : '💳 Stripe Link'}
+                  </button>
+                ))}
+              </div>
+              {form.paymentMethod === 'stripe' && (
+                <div style={{ marginTop:8, background:'rgba(79,168,255,0.06)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'rgba(255,255,255,0.55)' }}>
+                  Creates the account & player, returns a payment link to share. Sessions assigned automatically when payment is confirmed.
+                </div>
+              )}
+            </div>
+
+            {form.paymentMethod === 'manual' && (
+              <div>
+                <label style={LBL}>Start Date *</label>
+                <input required type="date" {...field('startDate')} style={{ width:'100%', margin:0 }} />
+              </div>
+            )}
+
+            {saveError && (
+              <div style={{ background:'rgba(255,50,50,0.1)', border:'1px solid rgba(255,80,80,0.3)', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#ff6b6b' }}>
+                {saveError}
+              </div>
+            )}
+
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginTop:4 }}>
+              <button type="button" onClick={closeAddModal} style={{ padding:'10px 20px', background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', cursor:'pointer', fontSize:13 }}>
+                Cancel
+              </button>
+              <button type="submit" disabled={saving} style={{ padding:'10px 22px', background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                {saving ? 'Creating…' : form.paymentMethod === 'stripe' ? 'Create & Get Link' : 'Create Member'}
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   )
