@@ -560,9 +560,9 @@ export default function Families() {
                   <div style={{ background:'rgba(79,168,255,0.08)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'#4fa8ff' }}>
                     {(() => {
                       const isSpecial = form.specialPriceEnabled && form.specialPrice
-                      const discBase = isSpecial ? parseFloat(form.specialPrice) : (PRICE_TABLE[form.package2]?.[form.planType2] || 0)
-                      const sibPrice = Math.round(discBase * 0.5)
                       const monthlyBase = PRICE_TABLE[form.package2]?.monthly || 0
+                      const discBase = isSpecial ? parseFloat(form.specialPrice) : monthlyBase
+                      const sibPrice = Math.round(discBase * 0.5)
                       const isAnnual = !isSpecial && form.planType2 === 'annual'
                       const fmt = (n) => n.toLocaleString()
                       return (
