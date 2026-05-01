@@ -88,10 +88,9 @@ function apiMiddleware(env) {
           const supabase = createClient(env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
           const MEMBERSHIP_IDS = { 'A': '93e92b42-7453-46c2-9660-12426eaa51a5', 'AA': 'be63127a-09a3-4320-bfd6-cf18c69b9def', 'AAA': 'd2dd367c-1d1c-490a-8cb3-aafc52690e93', 'MLB': '56f084fd-c4d1-4ed1-a7e3-ae3ed889c87e' }
           const SESSIONS = { 'A': 4, 'AA': 8, 'AAA': 12, 'MLB': 20 }
-          const calcSessions = (p, pt, sibling = false) => {
+          const calcSessions = (p, pt) => {
             const base = SESSIONS[p] || 4
-            const total = pt === 'annual' ? base * 12 : base
-            return sibling ? Math.floor(total * 0.5) : total
+            return pt === 'annual' ? base * 12 : base
           }
           const calcExpires = (sd, pt) => { const d = new Date(sd); d.setMonth(d.getMonth() + (pt === 'annual' ? 12 : 1)); return d.toISOString() }
           // 1. Create or find Clerk user
@@ -131,7 +130,7 @@ function apiMiddleware(env) {
           const { error: mErr } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName, membership_id: MEMBERSHIP_IDS[pkg], sessions_total: calcSessions(pkg, planType), sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: new Date(startDate).toISOString(), expires_at: calcExpires(startDate, planType), package_name: pkg })
           if (mErr) throw new Error(`Membership: ${mErr.message}`)
           if (kidName2) {
-            const { error: m2Err } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName2, membership_id: MEMBERSHIP_IDS[pkg2], sessions_total: calcSessions(pkg2, planType2, true), sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: new Date(startDate).toISOString(), expires_at: calcExpires(startDate, planType2), package_name: pkg2, sibling_discount: true })
+            const { error: m2Err } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName2, membership_id: MEMBERSHIP_IDS[pkg2], sessions_total: calcSessions(pkg2, planType2), sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: new Date(startDate).toISOString(), expires_at: calcExpires(startDate, planType2), package_name: pkg2, sibling_discount: true })
             if (m2Err) throw new Error(`Membership 2: ${m2Err.message}`)
           }
           console.log(`[add-member] ✅ Manual — ${parentName} / ${kidName}${kidName2 ? ' + ' + kidName2 : ''} — Package ${pkg} / ${planType}`)

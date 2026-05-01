@@ -44,10 +44,9 @@ const STRIPE_LINKS = {
   },
 };
 
-function calcSessions(pkg, planType, sibling = false) {
+function calcSessions(pkg, planType) {
   const base = SESSIONS_PER_PACKAGE[pkg] || 4;
-  const total = planType === 'annual' ? base * 12 : base;
-  return sibling ? Math.floor(total * 0.5) : total;
+  return planType === 'annual' ? base * 12 : base;
 }
 
 function calcExpires(startDate, planType) {
@@ -149,7 +148,7 @@ export default async function handler(req, res) {
           parent_id: clerkUser.id,
           kid_name: kidName2,
           membership_id: MEMBERSHIP_IDS[pkg2],
-          sessions_total: calcSessions(pkg2, planType2, true), // 50% sessions for sibling
+          sessions_total: calcSessions(pkg2, planType2),
           sessions_used: 0,
           status: 'active',
           stripe_payment_id: 'manual',
