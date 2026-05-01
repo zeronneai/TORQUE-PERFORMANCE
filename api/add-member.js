@@ -79,7 +79,7 @@ export default async function handler(req, res) {
   const {
     parentName, email, phone, kidName, package: pkg, startDate,
     planType = 'monthly', kidName2, package2, planType2 = 'monthly',
-    paymentMethod = 'manual',
+    paymentMethod = 'manual', specialPrice,
   } = req.body;
 
   if (!parentName || !email || !kidName || !pkg || !startDate) {
@@ -131,6 +131,9 @@ export default async function handler(req, res) {
     }
 
     // 4b. MANUAL flow — insert memberships immediately
+    const sp = specialPrice ? Math.round(parseFloat(specialPrice)) : null;
+    const effectivePrice1 = sp ?? (PRICE_TABLE[pkg]?.[planType] ?? null);
+    const effectivePrice2 = sp != null ? Math.round(sp * 0.5) : (PRICE_TABLE[pkg2]?.[planType2] != null ? Math.round(PRICE_TABLE[pkg2][planType2] * 0.5) : null);
     const { error: membershipError } = await supabase
       .from('player_memberships')
       .insert({
@@ -145,7 +148,7 @@ export default async function handler(req, res) {
         purchased_at: new Date(startDate).toISOString(),
         expires_at: calcExpires(startDate, planType),
         package_name: pkg,
-        monthly_price: PRICE_TABLE[pkg]?.[planType] ?? null,
+        monthly_price: effectivePrice1,
       });
     if (membershipError) throw new Error(`Membership: ${membershipError.message}`);
 
@@ -165,7 +168,7 @@ export default async function handler(req, res) {
           expires_at: calcExpires(startDate, planType2),
           package_name: pkg2,
           sibling_discount: true,
-          monthly_price: PRICE_TABLE[pkg2]?.[planType2] != null ? Math.round(PRICE_TABLE[pkg2][planType2] * 0.5) : null,
+          monthly_price: effectivePrice2,
         });
       if (membership2Error) throw new Error(`Membership 2: ${membership2Error.message}`);
     }

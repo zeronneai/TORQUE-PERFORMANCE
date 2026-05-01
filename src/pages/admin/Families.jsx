@@ -5,7 +5,7 @@ import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAd
 import { API_BASE } from '../../lib/apiBase'
 import { supabase } from '../../supabaseClient'
 
-const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', kidName2: '', package2: 'A', planType2: 'monthly', startDate: '', paymentMethod: 'manual' }
+const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', kidName2: '', package2: 'A', planType2: 'monthly', startDate: '', paymentMethod: 'manual', specialPriceEnabled: false, specialPrice: '' }
 
 const PRICE_TABLE = {
   A:   { monthly: 260, m6: 234, m12: 221, annual: 2496 },
@@ -494,17 +494,29 @@ export default function Families() {
 
             {/* Price preview — player 1 */}
             {form.package && form.planType && (() => {
-              const price = PRICE_TABLE[form.package]?.[form.planType]
+              const isSpecial = form.specialPriceEnabled && form.specialPrice
+              const specialVal = isSpecial ? parseFloat(form.specialPrice) : null
+              const price = isSpecial ? specialVal : PRICE_TABLE[form.package]?.[form.planType]
               const base = PRICE_TABLE[form.package]?.monthly
               if (!price || !base) return null
-              const isAnnual = form.planType === 'annual'
-              const isDiscounted = form.planType !== 'monthly'
+              const isAnnual = !isSpecial && form.planType === 'annual'
+              const isDiscounted = !isSpecial && form.planType !== 'monthly'
               return (
-                <div style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(34,197,110,0.06)', border:'1px solid rgba(34,197,110,0.15)', borderRadius:8, padding:'10px 14px', fontSize:13 }}>
-                  {isDiscounted && <span style={{ color:'var(--text3)', textDecoration:'line-through', fontSize:12 }}>${base.toLocaleString()}/mo</span>}
-                  <strong style={{ color:'#22C56E' }}>
-                    {isAnnual ? `Pago único: $${price.toLocaleString()}` : `$${price.toLocaleString()}/mo`}
-                  </strong>
+                <div style={{ display:'flex', alignItems:'center', gap:10, background: isSpecial ? 'rgba(243,156,18,0.07)' : 'rgba(34,197,110,0.06)', border:`1px solid ${isSpecial ? 'rgba(243,156,18,0.3)' : 'rgba(34,197,110,0.15)'}`, borderRadius:8, padding:'10px 14px', fontSize:13 }}>
+                  {isSpecial ? (
+                    <>
+                      <span style={{ background:'#f39c12', color:'#000', fontWeight:800, fontSize:10, padding:'2px 7px', borderRadius:4, letterSpacing:'0.08em', whiteSpace:'nowrap' }}>PRECIO ESPECIAL ⭐</span>
+                      <span style={{ color:'var(--text3)', textDecoration:'line-through', fontSize:12 }}>${base.toLocaleString()}/mo</span>
+                      <strong style={{ color:'#f39c12' }}>${price.toLocaleString()}/mo</strong>
+                    </>
+                  ) : (
+                    <>
+                      {isDiscounted && <span style={{ color:'var(--text3)', textDecoration:'line-through', fontSize:12 }}>${base.toLocaleString()}/mo</span>}
+                      <strong style={{ color:'#22C56E' }}>
+                        {isAnnual ? `Pago único: $${price.toLocaleString()}` : `$${price.toLocaleString()}/mo`}
+                      </strong>
+                    </>
+                  )}
                 </div>
               )
             })()}
@@ -547,16 +559,18 @@ export default function Families() {
                   </div>
                   <div style={{ background:'rgba(79,168,255,0.08)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'#4fa8ff' }}>
                     {(() => {
-                      const discBase = PRICE_TABLE[form.package2]?.[form.planType2] || 0
+                      const isSpecial = form.specialPriceEnabled && form.specialPrice
+                      const discBase = isSpecial ? parseFloat(form.specialPrice) : (PRICE_TABLE[form.package2]?.[form.planType2] || 0)
                       const sibPrice = Math.round(discBase * 0.5)
                       const monthlyBase = PRICE_TABLE[form.package2]?.monthly || 0
-                      const isAnnual = form.planType2 === 'annual'
+                      const isAnnual = !isSpecial && form.planType2 === 'annual'
                       const fmt = (n) => n.toLocaleString()
                       return (
                         <>
                           Sibling discount: 50% off —{' '}
                           <strong>${isAnnual ? `Pago único: $${fmt(sibPrice)}` : `${fmt(sibPrice)}/mo`}</strong>
                           {' '}(<span style={{ textDecoration:'line-through' }}>${isAnnual ? fmt(discBase) : `${fmt(discBase)}/mo`}</span> · base ${fmt(monthlyBase)}/mo)
+                          {isSpecial && <span style={{ marginLeft:6, background:'#f39c12', color:'#000', fontWeight:800, fontSize:9, padding:'1px 5px', borderRadius:3 }}>PRECIO ESPECIAL</span>}
                         </>
                       )
                     })()}
@@ -600,6 +614,35 @@ export default function Families() {
                 <input required type="date" {...field('startDate')} style={{ width:'100%', margin:0 }} />
               </div>
             )}
+
+            {/* ── Special Discount ── */}
+            <div style={{ borderTop:'1px solid var(--border)', paddingTop:14 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none' }}>
+                <input
+                  type="checkbox"
+                  checked={form.specialPriceEnabled}
+                  onChange={e => setForm(f => ({ ...f, specialPriceEnabled: e.target.checked, specialPrice: '' }))}
+                  style={{ accentColor:'#ff3355', width:16, height:16, cursor:'pointer', flexShrink:0 }}
+                />
+                <span style={{ fontSize:13, fontWeight:600, color:'var(--white)' }}>Precio especial / Cliente anterior</span>
+              </label>
+              {form.specialPriceEnabled && (
+                <div style={{ marginTop:10 }}>
+                  <label style={LBL}>Precio mensual especial ($)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Ej. 200"
+                    value={form.specialPrice}
+                    onChange={e => setForm(f => ({ ...f, specialPrice: e.target.value }))}
+                    style={{ width:'100%', margin:0, border:'2px solid #f39c12', borderRadius:8, background:'rgba(243,156,18,0.06)', color:'var(--white)' }}
+                  />
+                  <div style={{ marginTop:5, fontSize:11, color:'rgba(255,255,255,0.4)' }}>
+                    Este precio reemplaza el precio del paquete seleccionado
+                  </div>
+                </div>
+              )}
+            </div>
 
             {saveError && (
               <div style={{ background:'rgba(255,50,50,0.1)', border:'1px solid rgba(255,80,80,0.3)', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#ff6b6b' }}>
