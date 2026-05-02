@@ -559,18 +559,15 @@ export default function Families() {
                   </div>
                   <div style={{ background:'rgba(79,168,255,0.08)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'#4fa8ff' }}>
                     {(() => {
-                      const isSpecial = form.specialPriceEnabled && form.specialPrice
                       const monthlyBase = PRICE_TABLE[form.package2]?.monthly || 0
-                      const discBase = isSpecial ? parseFloat(form.specialPrice) : monthlyBase
-                      const sibPrice = Math.round(discBase * 0.5)
-                      const isAnnual = !isSpecial && form.planType2 === 'annual'
+                      const sibPrice = Math.round(monthlyBase * 0.5)
+                      const isAnnual = form.planType2 === 'annual'
                       const fmt = (n) => n.toLocaleString()
                       return (
                         <>
-                          Sibling discount: 50% off —{' '}
+                          Sibling discount: 50% off base —{' '}
                           <strong>${isAnnual ? `Pago único: $${fmt(sibPrice)}` : `${fmt(sibPrice)}/mo`}</strong>
-                          {' '}(<span style={{ textDecoration:'line-through' }}>${isAnnual ? fmt(discBase) : `${fmt(discBase)}/mo`}</span> · base ${fmt(monthlyBase)}/mo)
-                          {isSpecial && <span style={{ marginLeft:6, background:'#f39c12', color:'#000', fontWeight:800, fontSize:9, padding:'1px 5px', borderRadius:3 }}>PRECIO ESPECIAL</span>}
+                          {' '}(<span style={{ textDecoration:'line-through' }}>${fmt(monthlyBase)}/mo</span>)
                         </>
                       )
                     })()}

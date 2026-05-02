@@ -133,7 +133,7 @@ export default async function handler(req, res) {
     // 4b. MANUAL flow — insert memberships immediately
     const sp = specialPrice ? Math.round(parseFloat(specialPrice)) : null;
     const effectivePrice1 = sp ?? (PRICE_TABLE[pkg]?.[planType] ?? null);
-    const effectivePrice2 = sp != null ? Math.round(sp * 0.5) : (PRICE_TABLE[pkg2]?.monthly != null ? Math.round(PRICE_TABLE[pkg2].monthly * 0.5) : null);
+    const effectivePrice2 = PRICE_TABLE[pkg2]?.monthly != null ? Math.round(PRICE_TABLE[pkg2].monthly * 0.5) : null;
     const { error: membershipError } = await supabase
       .from('player_memberships')
       .insert({

@@ -136,7 +136,7 @@ function apiMiddleware(env) {
           if (!startDate) { res.writeHead(400); return res.end(JSON.stringify({ error: 'Start date required for manual payment' })) }
           const sp = specialPrice ? Math.round(parseFloat(specialPrice)) : null
           const effectivePrice1 = sp ?? (PRICE_TABLE[pkg]?.[planType] ?? null)
-          const effectivePrice2 = sp != null ? Math.round(sp * 0.5) : (PRICE_TABLE[pkg2]?.monthly != null ? Math.round(PRICE_TABLE[pkg2].monthly * 0.5) : null)
+          const effectivePrice2 = PRICE_TABLE[pkg2]?.monthly != null ? Math.round(PRICE_TABLE[pkg2].monthly * 0.5) : null
           const { error: mErr } = await supabase.from('player_memberships').insert({ parent_id: clerkUser.id, kid_name: kidName, membership_id: MEMBERSHIP_IDS[pkg], sessions_total: calcSessions(pkg, planType), sessions_used: 0, status: 'active', stripe_payment_id: 'manual', stripe_session_id: 'manual', purchased_at: new Date(startDate).toISOString(), expires_at: calcExpires(startDate, planType), package_name: pkg, monthly_price: effectivePrice1 })
           if (mErr) throw new Error(`Membership: ${mErr.message}`)
           if (kidName2) {
