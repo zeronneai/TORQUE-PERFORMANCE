@@ -30,6 +30,10 @@ const NAV_ITEMS = [
   { id: 'events',   label: 'Events'    },
 ]
 
+const WEEKDAY_TIMES  = ['4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM']
+const SATURDAY_TIMES = ['11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM']
+const MAX_CAPACITY = 16
+
 // ── GLOBAL CSS ────────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;1,700;1,800;1,900&family=Barlow:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -346,8 +350,30 @@ export default function ParentPortal() {
   const [bookings, setBookings] = useState([])
   const [showBookModal, setShowBookModal] = useState(false)
   const [bookingPlayer, setBookingPlayer] = useState(null)
-  const [bookingForm, setBookingForm] = useState({ date: '', time: '', type: 'Training' })
+  const [bookingForm, setBookingForm] = useState({ date: '', time: '' })
   const [bookingLoading, setBookingLoading] = useState(false)
+  const [slotCounts, setSlotCounts] = useState({})
+
+  useEffect(() => {
+    if (!bookingForm.date) return
+    fetchSlotCounts(bookingForm.date)
+    // Reset time if incompatible with newly selected day
+    if (bookingForm.time) {
+      const dow = new Date(bookingForm.date + 'T12:00:00').getDay()
+      const validTimes = dow === 6 ? SATURDAY_TIMES : WEEKDAY_TIMES
+      if (!validTimes.includes(bookingForm.time)) setBookingForm(f => ({ ...f, time: '' }))
+    }
+  }, [bookingForm.date])
+
+  async function fetchSlotCounts(date) {
+    const { data } = await supabase.from('bookings')
+      .select('session_time')
+      .eq('session_date', date)
+      .eq('status', 'confirmed')
+    const counts = {}
+    ;(data || []).forEach(b => { counts[b.session_time] = (counts[b.session_time] || 0) + 1 })
+    setSlotCounts(counts)
+  }
 
   useEffect(() => {
     if (user) {
@@ -462,6 +488,18 @@ export default function ParentPortal() {
     if (!bookingPlayer || !bookingForm.date || !bookingForm.time) return
     setBookingLoading(true)
     try {
+      // 0. Capacity check
+      const { count: slotCount } = await supabase.from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_date', bookingForm.date)
+        .eq('session_time', bookingForm.time)
+        .eq('status', 'confirmed')
+      if ((slotCount || 0) >= MAX_CAPACITY) {
+        alert('Esta sesión está llena (máximo 16 jugadores). Por favor elige otro horario.')
+        setBookingLoading(false)
+        return
+      }
+
       // 1. Insertar booking
       const { error: bookErr } = await supabase.from('bookings').insert([{
         parent_id:    user.id,
@@ -470,7 +508,6 @@ export default function ParentPortal() {
                         ? bookingPlayer.active_membership.id : null,
         session_date: bookingForm.date,
         session_time: bookingForm.time,
-        session_type: bookingForm.type,
         status:       'confirmed'
       }])
       if (bookErr) {
@@ -495,7 +532,6 @@ export default function ParentPortal() {
         kid_name:     bookingPlayer.kid_name,
         session_date: bookingForm.date,
         session_time: bookingForm.time,
-        session_type: bookingForm.type,
         status:       'confirmed'
       }
       setBookings(prev => [...prev, newBooking])
@@ -508,7 +544,7 @@ export default function ParentPortal() {
 
       // 4. Cerrar modal
       setShowBookModal(false)
-      setBookingForm({ date: '', time: '', type: 'Training' })
+      setBookingForm({ date: '', time: '' })
 
       // 5. Sync en background (sin bloquear UI)
       quietRefresh()
@@ -744,7 +780,7 @@ export default function ParentPortal() {
 
   const PAGE_MAP = {
     home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} onEditSave={handleEditPlayerName} parentId={user?.id} />,
-    sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'', type:'Training' }); setShowBookModal(true) }} />,
+    sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} />,
     schedule: <SchedulePage bookings={bookings} />,
     billing:  <BillingPage players={players} />,
     events:   <EventsPage />,
@@ -1046,13 +1082,15 @@ export default function ParentPortal() {
           const m = bookingPlayer.active_membership
           const remaining = m ? m.sessions_total - m.sessions_used : 0
           // Available days: Mon=1, Wed=3, Fri=5, Sat=6
-          const AVAILABLE_DAYS = [1, 3, 5, 6]
-          const TIMES = ['9:00 AM', '11:00 AM', '2:00 PM', '4:00 PM']
-          const TYPES = ['Speed & Agility', 'Fielding / Defense', 'Batting', 'General Training']
-          // Build next 21 days that match available days
+          // Mon–Fri (1–5) + Sat (6); Sun (0) closed
+          const AVAILABLE_DAYS = [1, 2, 3, 4, 5, 6]
+          // Times depend on day of week
+          const selectedDow = bookingForm.date ? new Date(bookingForm.date + 'T12:00:00').getDay() : null
+          const TIMES = selectedDow === 6 ? SATURDAY_TIMES : WEEKDAY_TIMES
+          // Build next 14 days that match available days
           const availableDates = []
           const today = new Date(); today.setHours(0,0,0,0)
-          for (let i = 1; availableDates.length < 12; i++) {
+          for (let i = 1; availableDates.length < 14; i++) {
             const d = new Date(today); d.setDate(today.getDate() + i)
             if (AVAILABLE_DAYS.includes(d.getDay())) {
               availableDates.push(d.toISOString().split('T')[0])
@@ -1086,26 +1124,22 @@ export default function ParentPortal() {
                     </div>
                   </div>
                   <div>
-                    <Label>Time Slot</Label>
+                    <Label>Time Slot {!bookingForm.date && <span style={{ fontWeight:400, color:'var(--muted)', fontSize:11 }}>(select a date first)</span>}</Label>
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6, marginTop:8 }}>
-                      {TIMES.map(t => (
-                        <button key={t} onClick={() => setBookingForm(f => ({...f, time:t}))}
-                          className={`slot-btn${bookingForm.time === t ? ' selected' : ''}`}>
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Session Type</Label>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginTop:8 }}>
-                      {TYPES.map(tp => (
-                        <button key={tp} onClick={() => setBookingForm(f => ({...f, type:tp}))}
-                          className={`slot-btn${bookingForm.type === tp ? ' selected' : ''}`}
-                          style={{ fontSize:12 }}>
-                          {tp}
-                        </button>
-                      ))}
+                      {TIMES.map(t => {
+                        const count = slotCounts[t] || 0
+                        const isFull = count >= MAX_CAPACITY
+                        return (
+                          <button key={t}
+                            onClick={() => !isFull && setBookingForm(f => ({...f, time:t}))}
+                            disabled={isFull}
+                            className={`slot-btn${bookingForm.time === t ? ' selected' : ''}`}
+                            style={isFull ? { opacity:0.5, cursor:'not-allowed', position:'relative' } : {}}>
+                            {t}
+                            {isFull && <div style={{ fontSize:9, color:'#ff5555', fontWeight:700, letterSpacing:'0.05em' }}>FULL</div>}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                   <button onClick={handleBookSession} disabled={!bookingForm.date || !bookingForm.time || bookingLoading}
@@ -1424,7 +1458,6 @@ function SessionsPage({ players, bookings, onBook }) {
                           <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)' }}>
                             {new Date(b.session_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · {b.session_time}
                           </span>
-                          <span style={{ marginLeft:'auto', fontSize:11, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
                         </div>
                       ))}
                     </div>
@@ -1474,12 +1507,6 @@ function SchedulePage({ bookings }) {
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-  const TYPE_COLORS = {
-    'Speed & Agility':    '#4fa8ff',
-    'Fielding / Defense': '#22C56E',
-    'Batting':            '#f39c12',
-    'General Training':   '#a78bfa',
-  }
 
   return (
     <div className="animate-fade-up">
@@ -1533,12 +1560,10 @@ function SchedulePage({ bookings }) {
                     color: isSelected ? 'var(--green2)' : hasB ? 'var(--green2)' : isToday ? 'var(--white)' : 'var(--text2)' }}>
                     {day}
                   </span>
-                  {/* Colored dots per booking type — single row, no wrap */}
+                  {/* Booking count dot */}
                   {hasB && (
-                    <div style={{ display:'flex', gap:2, marginTop:2, flexWrap:'nowrap', justifyContent:'center', overflow:'hidden' }}>
-                      {dayBks.slice(0,3).map((b,bi) => (
-                        <div key={bi} style={{ width:4, height:4, borderRadius:'50%', flexShrink:0, background: TYPE_COLORS[b.session_type] || 'var(--green2)' }} />
-                      ))}
+                    <div style={{ display:'flex', gap:2, marginTop:2, justifyContent:'center' }}>
+                      <div style={{ width:4, height:4, borderRadius:'50%', background:'var(--green2)' }} />
                     </div>
                   )}
                 </div>
@@ -1554,25 +1579,15 @@ function SchedulePage({ bookings }) {
               </div>
               {bookingsByDate[selectedDay].map((b,i) => (
                 <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderTop: i>0 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                  <div style={{ width:8, height:8, borderRadius:'50%', background: TYPE_COLORS[b.session_type] || 'var(--green2)', flexShrink:0 }} />
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
                   <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)', fontWeight:600 }}>{b.session_time}</span>
                   <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
                   <span style={{ fontSize:12, color:'var(--offwhite)' }}>{b.kid_name}</span>
-                  <span style={{ marginLeft:'auto', fontSize:11, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Legend */}
-          <div style={{ marginTop:14, display:'flex', flexWrap:'wrap', gap:12 }}>
-            {Object.entries(TYPE_COLORS).map(([type, color]) => (
-              <div key={type} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:'var(--muted)' }}>
-                <div style={{ width:7, height:7, borderRadius:'50%', background:color }} />
-                {type}
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* ── UPCOMING LIST ── */}
@@ -1584,8 +1599,6 @@ function SchedulePage({ bookings }) {
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {upcoming.map(b => {
                 const iso = normDate(b.session_date)
-                const typeColor = TYPE_COLORS[b.session_type] || 'var(--green2)'
-                const isNext = iso === upcoming[0] ? normDate(upcoming[0].session_date) : null
                 return (
                   <div key={b.id}
                     onClick={() => { setSelectedDay(iso); setViewDate(new Date(iso+'T12:00:00')) }}
@@ -1596,11 +1609,10 @@ function SchedulePage({ bookings }) {
                       <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--white)' }}>
                         {new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
                       </div>
-                      <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:typeColor, fontWeight:600 }}>{b.session_time}</div>
+                      <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--green2)', fontWeight:600 }}>{b.session_time}</div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:5 }}>
-                      <div style={{ width:6, height:6, borderRadius:'50%', background:typeColor, flexShrink:0 }} />
-                      <span style={{ fontSize:11, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
+                      <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
                       <span style={{ marginLeft:'auto', fontSize:11, color:'var(--text2)' }}>{b.kid_name}</span>
                     </div>
                   </div>

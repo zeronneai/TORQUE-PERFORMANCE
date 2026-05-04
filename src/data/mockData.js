@@ -48,10 +48,7 @@ export const PACKAGES = [
 ]
 
 // ── SESSION TYPES ────────────────────────────────────────────────────────────
-export const SESSION_TYPES = [
-  { id: 'speed', name: 'Speed & Agility', color: '#c8102e', icon: '⚡' },
-  { id: 'fielding', name: 'Fielding / Defense', color: '#4fa8ff', icon: '🧤' },
-]
+export const SESSION_TYPES = []
 
 // ── COACHES ──────────────────────────────────────────────────────────────────
 export const COACHES = [
@@ -61,17 +58,17 @@ export const COACHES = [
 ]
 
 // ── SCHEDULE SLOTS (recurring weekly) ───────────────────────────────────────
+// Mon–Fri: 4–7 PM (4 slots/day, 90 min each); Sat: 11 AM–3 PM (5 slots); Sun: closed
 export const SLOTS = [
-  { id: 's1', day: 'Monday', time: '09:00', type: 'speed', coach: 'c1', capacity: 10 },
-  { id: 's2', day: 'Monday', time: '11:00', type: 'fielding', coach: 'c2', capacity: 10 },
-  { id: 's3', day: 'Wednesday', time: '09:00', type: 'speed', coach: 'c1', capacity: 10 },
-  { id: 's4', day: 'Wednesday', time: '11:00', type: 'fielding', coach: 'c2', capacity: 10 },
-  { id: 's5', day: 'Wednesday', time: '17:00', type: 'speed', coach: 'c3', capacity: 12 },
-  { id: 's6', day: 'Friday', time: '09:00', type: 'fielding', coach: 'c2', capacity: 10 },
-  { id: 's7', day: 'Friday', time: '17:00', type: 'speed', coach: 'c3', capacity: 12 },
-  { id: 's8', day: 'Saturday', time: '08:00', type: 'speed', coach: 'c1', capacity: 15 },
-  { id: 's9', day: 'Saturday', time: '10:00', type: 'fielding', coach: 'c3', capacity: 15 },
-  { id: 's10', day: 'Saturday', time: '12:00', type: 'speed', coach: 'c2', capacity: 12 },
+  { id: 's-mf-1600', day: 'Weekday', time: '16:00', capacity: 16 },
+  { id: 's-mf-1700', day: 'Weekday', time: '17:00', capacity: 16 },
+  { id: 's-mf-1800', day: 'Weekday', time: '18:00', capacity: 16 },
+  { id: 's-mf-1900', day: 'Weekday', time: '19:00', capacity: 16 },
+  { id: 's-sat-1100', day: 'Saturday', time: '11:00', capacity: 16 },
+  { id: 's-sat-1200', day: 'Saturday', time: '12:00', capacity: 16 },
+  { id: 's-sat-1300', day: 'Saturday', time: '13:00', capacity: 16 },
+  { id: 's-sat-1400', day: 'Saturday', time: '14:00', capacity: 16 },
+  { id: 's-sat-1500', day: 'Saturday', time: '15:00', capacity: 16 },
 ]
 
 // ── FAMILIES & PLAYERS ───────────────────────────────────────────────────────
