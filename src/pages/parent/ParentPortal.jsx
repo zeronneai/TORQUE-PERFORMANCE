@@ -9,7 +9,7 @@ import QRCheckinModal from '../../components/QRCheckinModal'
 // ── PAQUETES ──────────────────────────────────────────────────────────────────
 const PACKS = [
   { id: 'a',   name: 'PAQUETE A',   sessions: 4,  price: 260, tag: 'Basic Training',
-    links: { stand: 'https://buy.stripe.com/4gMeVccke1Ig5nLgcSfAc0g', m6: 'https://buy.stripe.com/aFa8wOesm9aI3fD5yefAc0e', m12: 'https://buy.stripe.com/14A7sKdoi0EcaI55yefAc0d', annual: 'https://buy.stripe.com/6oU00i6ZU1Igg2p6CifAc0b' },
+    links: { stand: 'https://buy.stripe.com/aFa00i6ZU9aI03r4uafAc0f', m6: 'https://buy.stripe.com/aFa8wOesm9aI3fD5yefAc0e', m12: 'https://buy.stripe.com/14A7sKdoi0EcaI55yefAc0d', annual: 'https://buy.stripe.com/6oU00i6ZU1Igg2p6CifAc0b' },
     prices: { stand: 'price_1TLqDdAPTWbxe0YytEOlF7ZH', m6: 'price_1TLqDmAPTWbxe0YyqbHEcuFr', m12: 'price_1TLqDmAPTWbxe0YysigUumPn', annual: 'price_1TLqDlAPTWbxe0YyljY5WD6Y' }},
   { id: 'aa',  name: 'PAQUETE AA',  sessions: 8,  price: 360, tag: 'Advanced Growth',
     links: { stand: 'https://buy.stripe.com/00weVc2JEev2dUh8KqfAc09', m6: 'https://buy.stripe.com/dRmdR8cke9aIeYl2m2fAc08', m12: 'https://buy.stripe.com/bJe14m4RM5Yw7vTgcSfAc04', annual: 'https://buy.stripe.com/aFafZg6ZU9aIbM90dUfAc07' },
