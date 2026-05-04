@@ -9,16 +9,16 @@ import QRCheckinModal from '../../components/QRCheckinModal'
 // ── PAQUETES ──────────────────────────────────────────────────────────────────
 const PACKS = [
   { id: 'a',   name: 'PAQUETE A',   sessions: 4,  price: 260, tag: 'Basic Training',
-    links: { stand: 'https://buy.stripe.com/test_dRmbJ04Jtgweb8A61YfrW00', m6: 'https://buy.stripe.com/test_4gM14mdfZ3Js4KcaiefrW01', m12: 'https://buy.stripe.com/test_7sY00i2Bl7ZI0tW8a6frW02', annual: 'https://buy.stripe.com/test_cNifZgb7Reo6ccE9eafrW04' },
+    links: { stand: 'https://buy.stripe.com/aFa00i6ZU9aI03r4uafAc0f', m6: 'https://buy.stripe.com/aFa8wOesm9aI3fD5yefAc0e', m12: 'https://buy.stripe.com/14A7sKdoi0EcaI55yefAc0d', annual: 'https://buy.stripe.com/6oU00i6ZU1Igg2p6CifAc0b' },
     prices: { stand: 'price_1TLqDdAPTWbxe0YytEOlF7ZH', m6: 'price_1TLqDmAPTWbxe0YyqbHEcuFr', m12: 'price_1TLqDmAPTWbxe0YysigUumPn', annual: 'price_1TLqDlAPTWbxe0YyljY5WD6Y' }},
   { id: 'aa',  name: 'PAQUETE AA',  sessions: 8,  price: 360, tag: 'Advanced Growth',
-    links: { stand: 'https://buy.stripe.com/test_28EaEW4Jt7ZIa4w1LIfrW05', m6: 'https://buy.stripe.com/test_6oUaEW2Bl5RA90scqmfrW06', m12: 'https://buy.stripe.com/test_fZu9ASdfZ93MdgI4XUfrW07', annual: 'https://buy.stripe.com/test_4gM9ASa3N93Mb8A0HEfrW08' },
+    links: { stand: 'https://buy.stripe.com/00weVc2JEev2dUh8KqfAc09', m6: 'https://buy.stripe.com/dRmdR8cke9aIeYl2m2fAc08', m12: 'https://buy.stripe.com/bJe14m4RM5Yw7vTgcSfAc04', annual: 'https://buy.stripe.com/aFafZg6ZU9aIbM90dUfAc07' },
     prices: { stand: 'price_1TLqDgAPTWbxe0Yy7yaP3VX3', m6: 'price_1TLqDkAPTWbxe0YyZu4hFrI3', m12: 'price_1TLqDjAPTWbxe0YyTsqaUdt5', annual: 'price_1TLqDkAPTWbxe0YykcsrB50f' }},
   { id: 'aaa', name: 'PAQUETE AAA', sessions: 12, price: 440, tag: 'Elite Prospect',
-    links: { stand: 'https://buy.stripe.com/test_bJeaEW2Bl5RA6SkduqfrW09', m6: 'https://buy.stripe.com/test_aFa7sKb7Rgwe4Kc762frW0a', m12: 'https://buy.stripe.com/test_cNi8wOa3N3JsccEeyufrW0b', annual: 'https://buy.stripe.com/test_7sYfZg4JtbbUccE0HEfrW0c' },
+    links: { stand: 'https://buy.stripe.com/4gMaEWfwq1Ig2bze4KfAc01', m6: 'https://buy.stripe.com/8x28wO3NI3Qo5nL6CifAc0c', m12: 'https://buy.stripe.com/4gMaEW2JEbiQdUh5yefAc03', annual: 'https://buy.stripe.com/eVq5kC5VQ86E7vTd0GfAc06' },
     prices: { stand: 'price_1TLqDhAPTWbxe0YyXXJQZrh7', m6: 'price_1TLqDkAPTWbxe0YydXEB3YqT', m12: 'price_1TLqDjAPTWbxe0YyuyUujCu4', annual: 'price_1TLqDkAPTWbxe0Yy8UHtMvEJ' }},
   { id: 'mlb', name: 'PAQUETE MLB', sessions: 20, price: 600, tag: 'Unlimited Access',
-    links: { stand: 'https://buy.stripe.com/test_4gM3cu5Nx1Bk3G8eyufrW0d', m6: 'https://buy.stripe.com/test_14A9ASb7R4Nw0tW762frW0e', m12: 'https://buy.stripe.com/test_dRm00i1xhcfY7Wo0HEfrW0f', annual: 'https://buy.stripe.com/test_fZu8wO1xh1Bk7Wo2PMfrW0g' },
+    links: { stand: 'https://buy.stripe.com/9B6dR8ac62MkdUhaSyfAc02', m6: 'https://buy.stripe.com/dRmfZgckegDacQd8KqfAc0a', m12: 'https://buy.stripe.com/14A6oG4RM5Yw9E1bWCfAc05', annual: 'https://buy.stripe.com/dRm9ASgAu3QoeYle4KfAc00' },
     prices: { stand: 'price_1TLqDdAPTWbxe0YydO64XMLw', m6: 'price_1TLqDlAPTWbxe0YyEIZi7YR5', m12: 'price_1TLqDjAPTWbxe0YyVQxRaHFs', annual: 'price_1TLqDjAPTWbxe0Yy6fRLwlFM' }},
 ]
 

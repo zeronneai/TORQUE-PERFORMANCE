@@ -26,28 +26,28 @@ const PRICE_TABLE = {
 // Stripe Payment Links + matching price IDs (needed for client_reference_id)
 const STRIPE_LINKS = {
   A: {
-    monthly: { link: 'https://buy.stripe.com/test_dRmbJ04Jtgweb8A61YfrW00', price: 'price_1TLqDdAPTWbxe0YytEOlF7ZH' },
-    m6:      { link: 'https://buy.stripe.com/test_4gM14mdfZ3Js4KcaiefrW01', price: 'price_1TLqDmAPTWbxe0YyqbHEcuFr' },
-    m12:     { link: 'https://buy.stripe.com/test_7sY00i2Bl7ZI0tW8a6frW02', price: 'price_1TLqDmAPTWbxe0YysigUumPn' },
-    annual:  { link: 'https://buy.stripe.com/test_cNifZgb7Reo6ccE9eafrW04', price: 'price_1TLqDlAPTWbxe0YyljY5WD6Y' },
+    monthly: { link: 'https://buy.stripe.com/aFa00i6ZU9aI03r4uafAc0f', price: 'price_1TLqDdAPTWbxe0YytEOlF7ZH' },
+    m6:      { link: 'https://buy.stripe.com/aFa8wOesm9aI3fD5yefAc0e', price: 'price_1TLqDmAPTWbxe0YyqbHEcuFr' },
+    m12:     { link: 'https://buy.stripe.com/14A7sKdoi0EcaI55yefAc0d', price: 'price_1TLqDmAPTWbxe0YysigUumPn' },
+    annual:  { link: 'https://buy.stripe.com/6oU00i6ZU1Igg2p6CifAc0b', price: 'price_1TLqDlAPTWbxe0YyljY5WD6Y' },
   },
   AA: {
-    monthly: { link: 'https://buy.stripe.com/test_28EaEW4Jt7ZIa4w1LIfrW05', price: 'price_1TLqDgAPTWbxe0Yy7yaP3VX3' },
-    m6:      { link: 'https://buy.stripe.com/test_6oUaEW2Bl5RA90scqmfrW06', price: 'price_1TLqDkAPTWbxe0YyZu4hFrI3' },
-    m12:     { link: 'https://buy.stripe.com/test_fZu9ASdfZ93MdgI4XUfrW07', price: 'price_1TLqDjAPTWbxe0YyTsqaUdt5' },
-    annual:  { link: 'https://buy.stripe.com/test_4gM9ASa3N93Mb8A0HEfrW08', price: 'price_1TLqDkAPTWbxe0YykcsrB50f' },
+    monthly: { link: 'https://buy.stripe.com/00weVc2JEev2dUh8KqfAc09', price: 'price_1TLqDgAPTWbxe0Yy7yaP3VX3' },
+    m6:      { link: 'https://buy.stripe.com/dRmdR8cke9aIeYl2m2fAc08', price: 'price_1TLqDkAPTWbxe0YyZu4hFrI3' },
+    m12:     { link: 'https://buy.stripe.com/bJe14m4RM5Yw7vTgcSfAc04', price: 'price_1TLqDjAPTWbxe0YyTsqaUdt5' },
+    annual:  { link: 'https://buy.stripe.com/aFafZg6ZU9aIbM90dUfAc07', price: 'price_1TLqDkAPTWbxe0YykcsrB50f' },
   },
   AAA: {
-    monthly: { link: 'https://buy.stripe.com/test_bJeaEW2Bl5RA6SkduqfrW09', price: 'price_1TLqDhAPTWbxe0YyXXJQZrh7' },
-    m6:      { link: 'https://buy.stripe.com/test_aFa7sKb7Rgwe4Kc762frW0a', price: 'price_1TLqDkAPTWbxe0YydXEB3YqT' },
-    m12:     { link: 'https://buy.stripe.com/test_cNi8wOa3N3JsccEeyufrW0b', price: 'price_1TLqDjAPTWbxe0YyuyUujCu4' },
-    annual:  { link: 'https://buy.stripe.com/test_7sYfZg4JtbbUccE0HEfrW0c', price: 'price_1TLqDkAPTWbxe0Yy8UHtMvEJ' },
+    monthly: { link: 'https://buy.stripe.com/4gMaEWfwq1Ig2bze4KfAc01', price: 'price_1TLqDhAPTWbxe0YyXXJQZrh7' },
+    m6:      { link: 'https://buy.stripe.com/8x28wO3NI3Qo5nL6CifAc0c', price: 'price_1TLqDkAPTWbxe0YydXEB3YqT' },
+    m12:     { link: 'https://buy.stripe.com/4gMaEW2JEbiQdUh5yefAc03', price: 'price_1TLqDjAPTWbxe0YyuyUujCu4' },
+    annual:  { link: 'https://buy.stripe.com/eVq5kC5VQ86E7vTd0GfAc06', price: 'price_1TLqDkAPTWbxe0Yy8UHtMvEJ' },
   },
   MLB: {
-    monthly: { link: 'https://buy.stripe.com/test_4gM3cu5Nx1Bk3G8eyufrW0d', price: 'price_1TLqDdAPTWbxe0YydO64XMLw' },
-    m6:      { link: 'https://buy.stripe.com/test_14A9ASb7R4Nw0tW762frW0e', price: 'price_1TLqDlAPTWbxe0YyEIZi7YR5' },
-    m12:     { link: 'https://buy.stripe.com/test_dRm00i1xhcfY7Wo0HEfrW0f', price: 'price_1TLqDjAPTWbxe0YyVQxRaHFs' },
-    annual:  { link: 'https://buy.stripe.com/test_fZu8wO1xh1Bk7Wo2PMfrW0g', price: 'price_1TLqDjAPTWbxe0Yy6fRLwlFM' },
+    monthly: { link: 'https://buy.stripe.com/9B6dR8ac62MkdUhaSyfAc02', price: 'price_1TLqDdAPTWbxe0YydO64XMLw' },
+    m6:      { link: 'https://buy.stripe.com/dRmfZgckegDacQd8KqfAc0a', price: 'price_1TLqDlAPTWbxe0YyEIZi7YR5' },
+    m12:     { link: 'https://buy.stripe.com/14A6oG4RM5Yw9E1bWCfAc05', price: 'price_1TLqDjAPTWbxe0YyVQxRaHFs' },
+    annual:  { link: 'https://buy.stripe.com/dRm9ASgAu3QoeYle4KfAc00', price: 'price_1TLqDjAPTWbxe0Yy6fRLwlFM' },
   },
 };
 
