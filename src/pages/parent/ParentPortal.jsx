@@ -459,12 +459,12 @@ export default function ParentPortal() {
 
       const [kidsRes, membershipsRes, bksRes] = await Promise.all([
         withTimeout(supabase.from('players').select('*').eq('parent_id', user.id)),
-        withTimeout(supabase.from('player_memberships').select('*').eq('parent_id', user.id).eq('status', 'active')),
+        withTimeout(supabase.from('player_memberships').select('*').eq('parent_id', user.id)),
         withTimeout(supabase.from('bookings').select('*').eq('parent_id', user.id).order('session_date', { ascending: true })),
       ])
 
       const kids = kidsRes.data
-      const allMemberships = membershipsRes.data
+      const allMemberships = (membershipsRes.data || []).filter(m => m.status?.toLowerCase() === 'active')
       const bks = bksRes.data
 
       const playersKey = `torque_players_${user.id}`
@@ -577,9 +577,10 @@ export default function ParentPortal() {
         })()
         if (kids && kids.length > 0) localStorage.setItem(playersKey, JSON.stringify(kids))
 
-        const { data: allMemberships } = await supabase
+        const { data: rawMemberships } = await supabase
           .from('player_memberships').select('*')
-          .eq('parent_id', user.id).eq('status', 'active')
+          .eq('parent_id', user.id)
+        const allMemberships = (rawMemberships || []).filter(m => m.status?.toLowerCase() === 'active')
 
         setPlayers((effectiveKids || []).map(kid => ({
           ...kid,
