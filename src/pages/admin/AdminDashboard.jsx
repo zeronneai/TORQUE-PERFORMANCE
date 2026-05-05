@@ -22,6 +22,8 @@ export default function AdminDashboard() {
   const [todayCheckins, setTodayCheckins] = useState([])
   const [toast, setToast] = useState(null)
   const [manualCheckinLoading, setManualCheckinLoading] = useState({})
+  const [renewalModal, setRenewalModal] = useState(null) // { player, membership }
+  const [renewalLoading, setRenewalLoading] = useState(false)
 
   useEffect(() => {
     const todayStart = today + 'T00:00:00.000Z'
@@ -112,6 +114,44 @@ export default function AdminDashboard() {
       console.error('Manual checkin error:', err)
     } finally {
       setManualCheckinLoading(p => ({ ...p, [player.id]: false }))
+    }
+  }
+
+  const SESSIONS_BY_PACKAGE = {
+    'A': 4, 'Paquete A': 4, 'AA': 8, 'Paquete AA': 8,
+    'AAA': 12, 'Paquete AAA': 12, 'MLB': 20, 'Paquete MLB': 20,
+  }
+
+  async function handleManualRenewal(isAnnual) {
+    if (!renewalModal) return
+    const { player, membership } = renewalModal
+    setRenewalLoading(true)
+    try {
+      const sessions = SESSIONS_BY_PACKAGE[membership.package_name] || membership.sessions_total
+      const expiresAt = new Date()
+      expiresAt.setMonth(expiresAt.getMonth() + (isAnnual ? 12 : 1))
+
+      const { error } = await supabase
+        .from('player_memberships')
+        .update({
+          sessions_total: sessions,
+          sessions_used:  0,
+          expires_at:     expiresAt.toISOString(),
+          purchased_at:   new Date().toISOString(),
+          status:         'active',
+        })
+        .eq('id', membership.id)
+
+      if (error) throw error
+      setToast({ kidName: player.kid_name, remaining: sessions })
+      setTimeout(() => setToast(null), 4000)
+      setRenewalModal(null)
+    } catch (err) {
+      console.error('Renewal error:', err)
+      setToast({ error: `Error al renovar: ${err.message}` })
+      setTimeout(() => setToast(null), 4000)
+    } finally {
+      setRenewalLoading(false)
     }
   }
 
@@ -344,29 +384,85 @@ export default function AdminDashboard() {
                     <ProgressBar value={m.sessions_used||0} max={m.sessions_total||1}
                       color={remaining<=0?'var(--red)':remaining<=2?'var(--amber)':'var(--green)'} />
                   </div>
-                  <button
-                    onClick={() => handleManualCheckin(player)}
-                    disabled={isLoading || remaining <= 0}
-                    title="Manual check-in"
-                    style={{
-                      padding:'5px 10px', flexShrink:0,
-                      background: remaining <= 0 ? 'rgba(255,255,255,0.03)' : 'rgba(79,168,255,0.1)',
-                      border: `1px solid ${remaining <= 0 ? 'var(--border)' : 'rgba(79,168,255,0.25)'}`,
-                      borderRadius:6, color: remaining <= 0 ? 'var(--text3)' : '#4fa8ff',
-                      fontSize:10, fontFamily:'var(--font-display)', fontWeight:700,
-                      cursor: (isLoading || remaining <= 0) ? 'not-allowed' : 'pointer',
-                      letterSpacing:'0.06em', textTransform:'uppercase',
-                      opacity: isLoading ? 0.5 : 1,
-                    }}
-                  >
-                    {isLoading ? '…' : <><Check size={10} style={{ display:'inline', marginRight:3 }} />In</>}
-                  </button>
+                  <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                    <button
+                      onClick={() => handleManualCheckin(player)}
+                      disabled={isLoading || remaining <= 0}
+                      title="Manual check-in"
+                      style={{
+                        padding:'5px 10px',
+                        background: remaining <= 0 ? 'rgba(255,255,255,0.03)' : 'rgba(79,168,255,0.1)',
+                        border: `1px solid ${remaining <= 0 ? 'var(--border)' : 'rgba(79,168,255,0.25)'}`,
+                        borderRadius:6, color: remaining <= 0 ? 'var(--text3)' : '#4fa8ff',
+                        fontSize:10, fontFamily:'var(--font-display)', fontWeight:700,
+                        cursor: (isLoading || remaining <= 0) ? 'not-allowed' : 'pointer',
+                        letterSpacing:'0.06em', textTransform:'uppercase',
+                        opacity: isLoading ? 0.5 : 1,
+                      }}
+                    >
+                      {isLoading ? '…' : <><Check size={10} style={{ display:'inline', marginRight:3 }} />In</>}
+                    </button>
+                    <button
+                      onClick={() => setRenewalModal({ player, membership: m })}
+                      title="Renovar manualmente"
+                      style={{
+                        padding:'5px 10px',
+                        background:'rgba(243,156,18,0.1)',
+                        border:'1px solid rgba(243,156,18,0.3)',
+                        borderRadius:6, color:'#f39c12',
+                        fontSize:10, fontFamily:'var(--font-display)', fontWeight:700,
+                        cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase',
+                      }}
+                    >
+                      ↺
+                    </button>
+                  </div>
                 </div>
               )
             })}
           </div>
         )}
       </Card>
+
+      {/* Renewal modal */}
+      {renewalModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:28, width:'100%', maxWidth:380 }}>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:17, marginBottom:4 }}>
+              Renovar manualmente
+            </div>
+            <div style={{ fontSize:13, color:'var(--text2)', marginBottom:4 }}>
+              <strong>{renewalModal.player.kid_name}</strong> · {renewalModal.membership.package_name}
+            </div>
+            <div style={{ fontSize:12, color:'var(--muted)', marginBottom:20 }}>
+              Sessions: {SESSIONS_BY_PACKAGE[renewalModal.membership.package_name] || renewalModal.membership.sessions_total} · sessions_used se reinicia a 0
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <button
+                onClick={() => handleManualRenewal(false)}
+                disabled={renewalLoading}
+                style={{ padding:'12px 0', background:'rgba(34,197,110,0.1)', border:'1px solid rgba(34,197,110,0.3)', borderRadius:8, color:'var(--green2)', fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, cursor:'pointer', letterSpacing:'0.05em', textTransform:'uppercase' }}
+              >
+                {renewalLoading ? 'Renovando…' : '↺ Renovar 1 mes (expires_at +30 días)'}
+              </button>
+              <button
+                onClick={() => handleManualRenewal(true)}
+                disabled={renewalLoading}
+                style={{ padding:'12px 0', background:'rgba(243,156,18,0.08)', border:'1px solid rgba(243,156,18,0.3)', borderRadius:8, color:'#f39c12', fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, cursor:'pointer', letterSpacing:'0.05em', textTransform:'uppercase' }}
+              >
+                {renewalLoading ? 'Renovando…' : '↺ Renovar anual (expires_at +12 meses)'}
+              </button>
+              <button
+                onClick={() => setRenewalModal(null)}
+                disabled={renewalLoading}
+                style={{ padding:'10px 0', background:'transparent', border:'1px solid var(--border)', borderRadius:8, color:'var(--text3)', fontFamily:'var(--font-display)', fontWeight:600, fontSize:12, cursor:'pointer' }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast notification */}
       {toast && (

@@ -905,6 +905,29 @@ export default function ParentPortal() {
               </div>
             </div>
           )}
+
+          {/* Expired membership banner */}
+          {players.some(p => {
+            const m = p.active_membership
+            if (!m) return false
+            const expired = m.expires_at && new Date(m.expires_at) < new Date()
+            const noSessions = (m.sessions_total || 0) === 0
+            return expired || noSessions
+          }) && (
+            <div style={{ marginBottom:24, padding:'16px 20px', borderRadius:10, background:'rgba(255,68,102,0.07)', border:'1px solid rgba(255,68,102,0.25)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <div style={{ fontSize:22, flexShrink:0 }}>⚠️</div>
+                <div>
+                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'#ff4466', letterSpacing:'0.06em', textTransform:'uppercase' }}>Tu membresía ha vencido</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>Renueva tu plan para continuar accediendo a tus sesiones.</div>
+                </div>
+              </div>
+              <button onClick={() => navigateTo('billing')} className="btn-primary" style={{ fontSize:12, padding:'8px 18px', flexShrink:0 }}>
+                Renovar plan
+              </button>
+            </div>
+          )}
+
           {PAGE_MAP[page]}
         </main>
       </div>
