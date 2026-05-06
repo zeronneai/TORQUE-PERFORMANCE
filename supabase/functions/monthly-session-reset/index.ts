@@ -1,7 +1,12 @@
 // Supabase Edge Function — monthly-session-reset
 // Schedule: cron "5 0 * * *" (00:05 AM every day)
-// Resets sessions for annual-plan members whose purchased_at day-of-month matches today.
-// Example: purchased_at = 2026-03-15 → sessions reset every month on the 15th.
+//
+// Task A — Monthly reset: resets sessions for annual-plan members whose
+//           purchased_at day-of-month matches today.
+//           Example: purchased_at = 2026-03-15 → sessions reset every month on the 15th.
+//
+// Task B — Expiry zeroing: sets sessions_total = 0 / sessions_used = 0 for any
+//           active membership whose expires_at is already in the past.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -22,6 +27,8 @@ serve(async (_req) => {
   const now = new Date()
   const todayDay = now.getDate()         // day of month: 1–31
   const nowISO   = now.toISOString()
+
+  // ── TASK A: Monthly session reset for annual plans ──────────────────────────
 
   // Fetch all active annual memberships that have not yet expired
   const { data: memberships, error } = await supabase
@@ -70,9 +77,45 @@ serve(async (_req) => {
     }
   }
 
-  console.log(`[monthly-reset] Day ${todayDay} — checked ${memberships?.length ?? 0} active annual members, reset ${updated}`)
+  console.log(`[monthly-reset] Task A — Day ${todayDay}: checked ${memberships?.length ?? 0} active annual members, reset ${updated}`)
+
+  // ── TASK B: Zero out sessions for expired memberships ───────────────────────
+
+  const { data: expired, error: expFetchErr } = await supabase
+    .from('player_memberships')
+    .select('id')
+    .eq('status', 'active')
+    .lt('expires_at', nowISO)
+    .gt('sessions_total', 0)
+
+  let zeroed = 0
+  const expireErrors: string[] = []
+
+  if (expFetchErr) {
+    expireErrors.push(`Fetch expired error: ${expFetchErr.message}`)
+  } else if (expired && expired.length > 0) {
+    const ids = expired.map(m => m.id)
+    const { error: zeroErr } = await supabase
+      .from('player_memberships')
+      .update({ sessions_total: 0, sessions_used: 0 })
+      .in('id', ids)
+
+    if (zeroErr) {
+      expireErrors.push(`Zero update error: ${zeroErr.message}`)
+    } else {
+      zeroed = ids.length
+      console.log(`[monthly-reset] Task B — Zeroed sessions for ${zeroed} expired memberships`)
+    }
+  }
+
+  console.log(`[monthly-reset] Task B — Found ${expired?.length ?? 0} expired-with-sessions, zeroed ${zeroed}`)
+
   return new Response(
-    JSON.stringify({ ok: true, today_day: todayDay, candidates: toReset.length, updated, errors }),
+    JSON.stringify({
+      ok: true,
+      taskA: { today_day: todayDay, candidates: toReset.length, updated, errors },
+      taskB: { expired_found: expired?.length ?? 0, zeroed, errors: expireErrors },
+    }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   )
 })

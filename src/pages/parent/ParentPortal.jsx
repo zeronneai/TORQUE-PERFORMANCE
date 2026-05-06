@@ -34,6 +34,19 @@ const WEEKDAY_TIMES  = ['4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM']
 const SATURDAY_TIMES = ['11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM']
 const MAX_CAPACITY = 16
 
+function parseSessionDateTime(dateStr, timeStr) {
+  const [hm, period] = timeStr.split(' ')
+  let [h, m] = hm.split(':').map(Number)
+  if (period === 'PM' && h !== 12) h += 12
+  if (period === 'AM' && h === 12) h = 0
+  return new Date(`${dateStr}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`)
+}
+
+function canModifyBooking(booking) {
+  const dt = parseSessionDateTime(booking.session_date, booking.session_time)
+  return dt.getTime() - Date.now() >= 2 * 60 * 60 * 1000
+}
+
 // ── GLOBAL CSS ────────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;1,700;1,800;1,900&family=Barlow:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -353,6 +366,9 @@ export default function ParentPortal() {
   const [bookingForm, setBookingForm] = useState({ date: '', time: '' })
   const [bookingLoading, setBookingLoading] = useState(false)
   const [slotCounts, setSlotCounts] = useState({})
+  const [cancelModal, setCancelModal] = useState({ open: false, booking: null })
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [rescheduleBooking, setRescheduleBooking] = useState(null)
 
   useEffect(() => {
     if (!bookingForm.date) return
@@ -500,8 +516,7 @@ export default function ParentPortal() {
         return
       }
 
-      // 1. Insertar booking
-      const { error: bookErr } = await supabase.from('bookings').insert([{
+      const newBookingRow = {
         parent_id:    user.id,
         kid_name:     bookingPlayer.kid_name,
         membership_id: bookingPlayer.active_membership?.id && bookingPlayer.active_membership.id !== 'local'
@@ -509,44 +524,52 @@ export default function ParentPortal() {
         session_date: bookingForm.date,
         session_time: bookingForm.time,
         status:       'confirmed'
-      }])
-      if (bookErr) {
-        console.error('[Torque] booking insert error:', bookErr)
-        alert('Error booking session: ' + (bookErr.message || JSON.stringify(bookErr)))
-        return
       }
 
-      // 2. Descontar sesión
-      const m = bookingPlayer.active_membership
-      const newUsed = (m?.sessions_used || 0) + 1
-      await supabase.from('player_memberships')
-        .update({ sessions_used: newUsed })
-        .eq('parent_id', user.id)
-        .eq('kid_name', bookingPlayer.kid_name)
-        .eq('status', 'active')
+      if (rescheduleBooking) {
+        // REAGENDAR: eliminar booking anterior, crear uno nuevo, no cambiar sessions_used
+        const { error: delErr } = await supabase.from('bookings').delete().eq('id', rescheduleBooking.id)
+        if (delErr) {
+          alert('Error al eliminar la sesión anterior: ' + delErr.message)
+          return
+        }
+        const { error: insErr } = await supabase.from('bookings').insert([newBookingRow])
+        if (insErr) {
+          alert('Error al reagendar: ' + insErr.message)
+          return
+        }
+        const optimistic = { id: 'local_' + Date.now(), ...newBookingRow }
+        setBookings(prev => [...prev.filter(b => b.id !== rescheduleBooking.id), optimistic])
+        setRescheduleBooking(null)
+      } else {
+        // NUEVA RESERVA: insertar + descontar sesión
+        const { error: bookErr } = await supabase.from('bookings').insert([newBookingRow])
+        if (bookErr) {
+          console.error('[Torque] booking insert error:', bookErr)
+          alert('Error booking session: ' + (bookErr.message || JSON.stringify(bookErr)))
+          return
+        }
 
-      // 3. Actualización optimista inmediata (sin esperar refetch)
-      const newBooking = {
-        id: 'local_' + Date.now(),
-        parent_id:    user.id,
-        kid_name:     bookingPlayer.kid_name,
-        session_date: bookingForm.date,
-        session_time: bookingForm.time,
-        status:       'confirmed'
+        const m = bookingPlayer.active_membership
+        const newUsed = (m?.sessions_used || 0) + 1
+        await supabase.from('player_memberships')
+          .update({ sessions_used: newUsed })
+          .eq('parent_id', user.id)
+          .eq('kid_name', bookingPlayer.kid_name)
+          .eq('status', 'active')
+
+        const optimistic = { id: 'local_' + Date.now(), ...newBookingRow }
+        setBookings(prev => [...prev, optimistic])
+        setPlayers(prev => prev.map(p =>
+          p.kid_name !== bookingPlayer.kid_name ? p
+            : { ...p, active_membership: p.active_membership
+                  ? { ...p.active_membership, sessions_used: newUsed }
+                  : null }
+        ))
       }
-      setBookings(prev => [...prev, newBooking])
-      setPlayers(prev => prev.map(p =>
-        p.kid_name !== bookingPlayer.kid_name ? p
-          : { ...p, active_membership: p.active_membership
-                ? { ...p.active_membership, sessions_used: newUsed }
-                : null }
-      ))
 
-      // 4. Cerrar modal
       setShowBookModal(false)
       setBookingForm({ date: '', time: '' })
-
-      // 5. Sync en background (sin bloquear UI)
       quietRefresh()
     } catch(err) {
       console.error('[Torque] handleBookSession unexpected error:', err)
@@ -686,6 +709,46 @@ export default function ParentPortal() {
     } catch {}
   }
 
+  async function handleCancelSession() {
+    const booking = cancelModal.booking
+    if (!booking) return
+    setCancelLoading(true)
+    try {
+      const { error } = await supabase.from('bookings').delete().eq('id', booking.id)
+      if (error) throw error
+
+      const player = players.find(p => p.kid_name?.toLowerCase() === booking.kid_name?.toLowerCase())
+      if (player?.active_membership) {
+        const newUsed = Math.max(0, (player.active_membership.sessions_used || 0) - 1)
+        await supabase.from('player_memberships')
+          .update({ sessions_used: newUsed })
+          .eq('id', player.active_membership.id)
+      }
+
+      setBookings(prev => prev.filter(b => b.id !== booking.id))
+      setPlayers(prev => prev.map(p => {
+        if (p.kid_name?.toLowerCase() !== booking.kid_name?.toLowerCase() || !p.active_membership) return p
+        return { ...p, active_membership: { ...p.active_membership, sessions_used: Math.max(0, (p.active_membership.sessions_used || 0) - 1) } }
+      }))
+      setCancelModal({ open: false, booking: null })
+      quietRefresh()
+    } catch(err) {
+      alert('Error al cancelar: ' + (err.message || JSON.stringify(err)))
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
+  function openReschedule(booking) {
+    const player = players.find(p => p.kid_name?.toLowerCase() === booking.kid_name?.toLowerCase())
+    if (!player) return
+    setRescheduleBooking(booking)
+    setBookingPlayer(player)
+    setBookingForm({ date: '', time: '' })
+    setSlotCounts({})
+    setShowBookModal(true)
+  }
+
   async function handleAddPlayer(e) {
     e.preventDefault(); setLoading(true)
     const { error } = await supabase.from('players').insert([{
@@ -781,8 +844,8 @@ export default function ParentPortal() {
 
   const PAGE_MAP = {
     home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} onEditSave={handleEditPlayerName} parentId={user?.id} />,
-    sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} />,
-    schedule: <SchedulePage bookings={bookings} />,
+    sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
+    schedule: <SchedulePage bookings={bookings} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     billing:  <BillingPage players={players} />,
     events:   <EventsPage />,
   }
@@ -1108,11 +1171,12 @@ export default function ParentPortal() {
         </form>
       </Modal>
 
-      {/* ── MODAL: BOOK SESSION ── */}
-      <Modal open={showBookModal} onClose={() => setShowBookModal(false)} title={`Book Session · ${bookingPlayer?.kid_name}`} width={520}>
+      {/* ── MODAL: BOOK / RESCHEDULE SESSION ── */}
+      <Modal open={showBookModal} onClose={() => { setShowBookModal(false); setRescheduleBooking(null) }} title={rescheduleBooking ? `Reagendar Sesión · ${bookingPlayer?.kid_name}` : `Book Session · ${bookingPlayer?.kid_name}`} width={520}>
         {bookingPlayer && (() => {
           const m = bookingPlayer.active_membership
           const remaining = m ? m.sessions_total - m.sessions_used : 0
+          const membershipExpired = m?.expires_at && new Date(m.expires_at) < new Date()
           // Available days: Mon=1, Wed=3, Fri=5, Sat=6
           // Mon–Fri (1–5) + Sat (6); Sun (0) closed
           const AVAILABLE_DAYS = [1, 2, 3, 4, 5, 6]
@@ -1132,11 +1196,15 @@ export default function ParentPortal() {
           const fmt = (iso) => { const d = new Date(iso+'T12:00:00'); return `${DAY_NAMES[d.getDay()]} ${d.getDate()}` }
           return (
             <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-              {remaining <= 0 ? (
+              {(remaining <= 0 || membershipExpired) ? (
                 <div style={{ textAlign:'center', padding:'24px 0', color:'var(--muted)' }}>
                   <div style={{ fontSize:36, marginBottom:8 }}>⚠️</div>
-                  <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>No sessions available</div>
-                  <div style={{ fontSize:13, marginTop:6 }}>Purchase a plan to book sessions.</div>
+                  <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>
+                    {membershipExpired ? 'Membresía vencida' : 'No sessions available'}
+                  </div>
+                  <div style={{ fontSize:13, marginTop:6 }}>
+                    {membershipExpired ? 'Tu membresía ha expirado. Renueva tu plan para agendar sesiones.' : 'Purchase a plan to book sessions.'}
+                  </div>
                 </div>
               ) : (
                 <>
@@ -1176,13 +1244,38 @@ export default function ParentPortal() {
                   </div>
                   <button onClick={handleBookSession} disabled={!bookingForm.date || !bookingForm.time || bookingLoading}
                     className="btn-primary" style={{ marginTop:4 }}>
-                    {bookingLoading ? 'Booking...' : `Confirm Session`}
+                    {bookingLoading ? (rescheduleBooking ? 'Reagendando...' : 'Booking...') : rescheduleBooking ? 'Confirmar Reagendamiento' : 'Confirm Session'}
                   </button>
                 </>
               )}
             </div>
           )
         })()}
+      </Modal>
+
+      {/* ── MODAL: CANCEL SESSION ── */}
+      <Modal open={cancelModal.open} onClose={() => !cancelLoading && setCancelModal({ open: false, booking: null })} title="Cancelar Sesión" width={420}>
+        {cancelModal.booking && (
+          <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+            <div style={{ padding:'16px 18px', background:'rgba(255,68,102,0.07)', border:'1px solid rgba(255,68,102,0.25)', borderRadius:10 }}>
+              <div style={{ fontSize:13, color:'var(--muted)', marginBottom:8 }}>Sesión a cancelar:</div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:14, color:'var(--white)', fontWeight:600 }}>
+                {new Date(cancelModal.booking.session_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} · {cancelModal.booking.session_time}
+              </div>
+              <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>{cancelModal.booking.kid_name}</div>
+            </div>
+            <div style={{ fontSize:13, color:'var(--muted)', padding:'10px 14px', background:'rgba(34,197,110,0.06)', border:'1px solid rgba(34,197,110,0.15)', borderRadius:8 }}>
+              ✓ Se devolverá 1 sesión a tu plan.
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button className="btn-ghost" onClick={() => setCancelModal({ open: false, booking: null })} disabled={cancelLoading}>Volver</button>
+              <button onClick={handleCancelSession} disabled={cancelLoading}
+                style={{ padding:'12px 24px', borderRadius:8, background:'#e04060', border:'none', color:'white', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:15, letterSpacing:'0.06em', cursor: cancelLoading ? 'not-allowed' : 'pointer', opacity: cancelLoading ? 0.7 : 1 }}>
+                {cancelLoading ? 'Cancelando...' : 'Cancelar Sesión'}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ── MODAL: SUPPORT ── */}
@@ -1412,7 +1505,7 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
 
 // ── PLACEHOLDER ───────────────────────────────────────────────────────────────
 // ── SESSIONS PAGE ─────────────────────────────────────────────────────────────
-function SessionsPage({ players, bookings, onBook }) {
+function SessionsPage({ players, bookings, onBook, onCancel, onReschedule }) {
   const playersWithPlan = players.filter(p => p.active_membership)
   const today = new Date().toISOString().split('T')[0]
   const upcoming = bookings.filter(b => b.session_date >= today && b.status === 'confirmed')
@@ -1459,7 +1552,7 @@ function SessionsPage({ players, bookings, onBook }) {
                       <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:56, lineHeight:1, color: remaining === 0 ? 'var(--muted2)' : remaining <= 2 ? '#E8A020' : 'var(--green2)' }}>{remaining}</div>
                       <div style={{ fontSize:10, color:'var(--muted)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', marginTop:2 }}>of {total} remaining</div>
                     </div>
-                    {m && remaining > 0 && (
+                    {m && remaining > 0 && !(m.expires_at && new Date(m.expires_at) < new Date()) && (
                       <button onClick={() => onBook(player)} className="btn-primary" style={{ padding:'12px 20px', fontSize:14 }}>
                         + Book
                       </button>
@@ -1484,14 +1577,31 @@ function SessionsPage({ players, bookings, onBook }) {
                   <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)' }}>
                     <div style={{ fontSize:10, color:'var(--muted2)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic', marginBottom:10 }}>Upcoming sessions</div>
                     <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                      {playerBookings.slice(0,3).map(b => (
-                        <div key={b.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', background:'rgba(34,197,110,0.06)', borderRadius:8, border:'1px solid rgba(34,197,110,0.15)' }}>
-                          <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
-                          <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)' }}>
-                            {new Date(b.session_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · {b.session_time}
-                          </span>
-                        </div>
-                      ))}
+                      {playerBookings.slice(0,3).map(b => {
+                        const canMod = canModifyBooking(b)
+                        return (
+                          <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', background:'rgba(34,197,110,0.06)', borderRadius:8, border:'1px solid rgba(34,197,110,0.15)', flexWrap:'wrap' }}>
+                            <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
+                            <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)', flex:1 }}>
+                              {new Date(b.session_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · {b.session_time}
+                            </span>
+                            {canMod ? (
+                              <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                                <button onClick={() => onReschedule(b)}
+                                  style={{ padding:'4px 10px', borderRadius:6, background:'rgba(79,168,255,0.12)', border:'1px solid rgba(79,168,255,0.3)', color:'#4fa8ff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:11, cursor:'pointer', letterSpacing:'0.05em' }}>
+                                  ↺ Reagendar
+                                </button>
+                                <button onClick={() => onCancel(b)}
+                                  style={{ padding:'4px 10px', borderRadius:6, background:'rgba(224,64,96,0.12)', border:'1px solid rgba(224,64,96,0.3)', color:'#e04060', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:11, cursor:'pointer', letterSpacing:'0.05em' }}>
+                                  ✕ Cancelar
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize:10, color:'var(--muted2)', fontFamily:'var(--font-mono)' }}>sin modificaciones</span>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -1505,7 +1615,7 @@ function SessionsPage({ players, bookings, onBook }) {
 }
 
 // ── SCHEDULE PAGE ─────────────────────────────────────────────────────────────
-function SchedulePage({ bookings }) {
+function SchedulePage({ bookings, onCancel, onReschedule }) {
   const [viewDate, setViewDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(null)
   const today = new Date(); today.setHours(0,0,0,0)
@@ -1609,14 +1719,29 @@ function SchedulePage({ bookings }) {
               <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:10 }}>
                 {new Date(selectedDay+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',day:'numeric',month:'long'})}
               </div>
-              {bookingsByDate[selectedDay].map((b,i) => (
-                <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderTop: i>0 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                  <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
-                  <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)', fontWeight:600 }}>{b.session_time}</span>
-                  <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
-                  <span style={{ fontSize:12, color:'var(--offwhite)' }}>{b.kid_name}</span>
-                </div>
-              ))}
+              {bookingsByDate[selectedDay].map((b,i) => {
+                const canMod = canModifyBooking(b)
+                return (
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderTop: i>0 ? '1px solid rgba(255,255,255,0.05)' : 'none', flexWrap:'wrap' }}>
+                    <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)', fontWeight:600 }}>{b.session_time}</span>
+                    <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
+                    <span style={{ fontSize:12, color:'var(--offwhite)', flex:1 }}>{b.kid_name}</span>
+                    {canMod && (
+                      <div style={{ display:'flex', gap:4 }}>
+                        <button onClick={() => onReschedule(b)}
+                          style={{ padding:'3px 8px', borderRadius:5, background:'rgba(79,168,255,0.12)', border:'1px solid rgba(79,168,255,0.3)', color:'#4fa8ff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:10, cursor:'pointer' }}>
+                          ↺
+                        </button>
+                        <button onClick={() => onCancel(b)}
+                          style={{ padding:'3px 8px', borderRadius:5, background:'rgba(224,64,96,0.12)', border:'1px solid rgba(224,64,96,0.3)', color:'#e04060', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:10, cursor:'pointer' }}>
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 
@@ -1631,22 +1756,37 @@ function SchedulePage({ bookings }) {
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {upcoming.map(b => {
                 const iso = normDate(b.session_date)
+                const canMod = canModifyBooking(b)
                 return (
                   <div key={b.id}
-                    onClick={() => { setSelectedDay(iso); setViewDate(new Date(iso+'T12:00:00')) }}
-                    style={{ padding:'12px 14px', background:'rgba(255,255,255,0.03)', border:`1px solid ${iso === selectedDay ? 'rgba(34,197,110,0.3)' : 'var(--border)'}`, borderRadius:10, cursor:'pointer', transition:'all 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.06)'}
-                    onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--white)' }}>
-                        {new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+                    style={{ padding:'12px 14px', background: iso === selectedDay ? 'rgba(34,197,110,0.06)' : 'rgba(255,255,255,0.03)', border:`1px solid ${iso === selectedDay ? 'rgba(34,197,110,0.3)' : 'var(--border)'}`, borderRadius:10, transition:'all 0.15s' }}>
+                    <div onClick={() => { setSelectedDay(iso); setViewDate(new Date(iso+'T12:00:00')) }}
+                      style={{ cursor:'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.opacity='0.8'}
+                      onMouseLeave={e => e.currentTarget.style.opacity='1'}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--white)' }}>
+                          {new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+                        </div>
+                        <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--green2)', fontWeight:600 }}>{b.session_time}</div>
                       </div>
-                      <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--green2)', fontWeight:600 }}>{b.session_time}</div>
+                      <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:5 }}>
+                        <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
+                        <span style={{ fontSize:11, color:'var(--text2)' }}>{b.kid_name}</span>
+                      </div>
                     </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:5 }}>
-                      <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
-                      <span style={{ marginLeft:'auto', fontSize:11, color:'var(--text2)' }}>{b.kid_name}</span>
-                    </div>
+                    {canMod && (
+                      <div style={{ display:'flex', gap:6, marginTop:10, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
+                        <button onClick={() => onReschedule(b)}
+                          style={{ flex:1, padding:'6px 0', borderRadius:6, background:'rgba(79,168,255,0.1)', border:'1px solid rgba(79,168,255,0.25)', color:'#4fa8ff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, cursor:'pointer', letterSpacing:'0.04em' }}>
+                          ↺ Reagendar
+                        </button>
+                        <button onClick={() => onCancel(b)}
+                          style={{ flex:1, padding:'6px 0', borderRadius:6, background:'rgba(224,64,96,0.1)', border:'1px solid rgba(224,64,96,0.25)', color:'#e04060', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, cursor:'pointer', letterSpacing:'0.04em' }}>
+                          ✕ Cancelar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}

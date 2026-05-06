@@ -87,6 +87,8 @@ export default async function handler(req, res) {
   const purchasedAt     = new Date(session.created * 1000).toISOString();
   const expiresAt       = addMonths(session.created, isAnnual ? 12 : 1);
 
+  // Always replace sessions_total with the package amount and reset sessions_used to 0,
+  // regardless of what the member had remaining before.
   const payload = {
     sessions_total:    info.sessions,
     sessions_used:     0,
