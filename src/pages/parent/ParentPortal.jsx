@@ -421,10 +421,30 @@ export default function ParentPortal() {
       const res = await fetch(`${API_BASE}/api/verify-payment?session_id=${encodeURIComponent(sessionId)}`)
       const data = await res.json()
       console.log('[Torque] verify-payment response:', data)
+
       if (data.ok) {
-        // Refresca inmediatamente y luego 2 veces más por si hay delay
+        // Poll Supabase directly until expires_at > now, max 10 seconds (5 attempts × 2s)
+        const now = new Date()
+        let confirmed = false
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          await new Promise(r => setTimeout(r, 2000))
+          const { data: rows } = await supabase
+            .from('player_memberships')
+            .select('expires_at, sessions_total')
+            .eq('parent_id', user.id)
+            .gt('expires_at', now.toISOString())
+            .gt('sessions_total', 0)
+            .limit(1)
+          console.log(`[Torque] membership poll attempt ${attempt}:`, rows)
+          if (rows && rows.length > 0) {
+            confirmed = true
+            break
+          }
+        }
+        if (!confirmed) {
+          console.warn('[Torque] expires_at not updated after 10s — forcing refresh anyway')
+        }
         await fetchTorqueData()
-        setTimeout(() => fetchTorqueData(), 2000)
       } else {
         console.warn('[Torque] verify-payment no-ok:', data)
         startPolling()
