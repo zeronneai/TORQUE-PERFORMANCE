@@ -7,88 +7,159 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const PACKAGE_SESSIONS = {
-  // PAQUETE A
-  'price_1TFiVSAaoJKjkq1OgPOYmeX7': { sessions: 4,   name: 'Paquete A' },
-  'price_1TFiVSAaoJKjkq1OvDzbHwbd': { sessions: 24,  name: 'Paquete A' },
-  'price_1TFiWHAaoJKjkq1OaioJwHRp': { sessions: 48,  name: 'Paquete A' },
-  'price_1TFiWHAaoJKjkq1Oge43FYOo': { sessions: 48,  name: 'Paquete A' },
-  // PAQUETE AA
-  'price_1TFiX7AaoJKjkq1OLnC5HLaS': { sessions: 8,   name: 'Paquete AA' },
-  'price_1TFiYpAaoJKjkq1OxvBFuzPJ': { sessions: 48,  name: 'Paquete AA' },
-  'price_1TFiYpAaoJKjkq1O8oFYz5VK': { sessions: 96,  name: 'Paquete AA' },
-  'price_1TFiYpAaoJKjkq1OBHUagz9Y': { sessions: 96,  name: 'Paquete AA' },
-  // PAQUETE AAA
-  'price_1TFia1AaoJKjkq1O9XQZ5YbZ': { sessions: 12,  name: 'Paquete AAA' },
-  'price_1TFiaXAaoJKjkq1OTrt1aWsR': { sessions: 72,  name: 'Paquete AAA' },
-  'price_1TFiaXAaoJKjkq1OObbQEbnX': { sessions: 144, name: 'Paquete AAA' },
-  'price_1TFiaXAaoJKjkq1OW0sZ5nOP': { sessions: 144, name: 'Paquete AAA' },
-  // PAQUETE MLB
-  'price_1TFibiAaoJKjkq1Oi9ZGJwyy': { sessions: 20,  name: 'Paquete MLB' },
-  'price_1TFicFAaoJKjkq1OK0b6zjq5': { sessions: 120, name: 'Paquete MLB' },
-  'price_1TFicFAaoJKjkq1OBV6hiqhS': { sessions: 240, name: 'Paquete MLB' },
-  'price_1TFicFAaoJKjkq1O0GJqz9Th': { sessions: 240, name: 'Paquete MLB' },
+export const config = { api: { bodyParser: false } };
+
+async function getRawBody(readable) {
+  const chunks = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+// Monthly sessions per price ID (all plans reset to monthly amount each cycle)
+const PRICE_INFO = {
+  // PAQUETE A (live)
+  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Paquete A' },
+  'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Paquete A' },
+  'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Paquete A' },
+  'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Paquete A' },
+  // PAQUETE AA (live)
+  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Paquete AA' },
+  'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Paquete AA' },
+  'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Paquete AA' },
+  'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Paquete AA' },
+  // PAQUETE AAA (live)
+  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Paquete AAA' },
+  'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Paquete AAA' },
+  'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Paquete AAA' },
+  'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Paquete AAA' },
+  // PAQUETE MLB (live)
+  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Paquete MLB' },
+  'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Paquete MLB' },
+  'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Paquete MLB' },
+  'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Paquete MLB' },
 };
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+function addMonths(unixTs, months) {
+  const d = new Date(unixTs * 1000);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString();
+}
+
+async function upsertMembership({ parentId, kidName, priceId, isAnnual, ts, stripeSessionId, stripePaymentId }) {
+  const info = PRICE_INFO[priceId];
+  if (!info) {
+    console.error('[webhook] Unknown price ID:', priceId);
+    return;
   }
+
+  const purchasedAt = new Date(ts * 1000).toISOString();
+  const expiresAt   = addMonths(ts, isAnnual ? 12 : 1);
+
+  const { data: existing } = await supabase
+    .from('player_memberships')
+    .select('id')
+    .eq('parent_id', parentId)
+    .ilike('kid_name', kidName)
+    .maybeSingle();
+
+  const payload = {
+    sessions_total:    info.sessions,
+    sessions_used:     0,
+    package_name:      info.name,
+    stripe_payment_id: stripePaymentId,
+    stripe_session_id: stripeSessionId,
+    status:            'active',
+    purchased_at:      purchasedAt,
+    expires_at:        expiresAt,
+  };
+
+  if (existing) {
+    const { error } = await supabase.from('player_memberships').update(payload).eq('id', existing.id);
+    if (error) throw error;
+    console.log(`✅ Updated — ${info.sessions} sessions → ${kidName} (${isAnnual ? 'annual' : 'monthly'}, exp ${expiresAt.slice(0,10)})`);
+  } else {
+    const { error } = await supabase.from('player_memberships').insert({ ...payload, parent_id: parentId, kid_name: kidName });
+    if (error) throw error;
+    console.log(`✅ Inserted — ${info.sessions} sessions → ${kidName} (${isAnnual ? 'annual' : 'monthly'})`);
+  }
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const sig = req.headers['stripe-signature'];
   let event;
+  try {
+    const rawBody = await getRawBody(req);
+    event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('[webhook] Signature error:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
 
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('Webhook signature error:', err.message);
-    return res.status(400).json({ error: `Webhook error: ${err.message}` });
-  }
+    // ── Initial checkout (one-time or first subscription payment) ──
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const ref   = decodeURIComponent(session.client_reference_id || '');
+      const parts = ref.split('__');
+      if (parts.length !== 3) return res.status(400).json({ error: 'Invalid client_reference_id' });
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
+      const [parentId, kidName, priceId] = parts;
+      const isAnnual       = session.mode === 'payment'; // 'payment' = one-time, 'subscription' = recurring
+      const stripePaymentId = isAnnual ? session.payment_intent : session.subscription;
 
-    // Decodear userId__kidName__priceId
-    const ref = decodeURIComponent(session.client_reference_id || '');
-    const parts = ref.split('__');
-
-    if (parts.length !== 3) {
-      console.error('client_reference_id inválido:', ref);
-      return res.status(400).json({ error: 'Invalid client_reference_id' });
-    }
-
-    const [parentId, kidName, priceId] = parts;
-    const packageInfo = PACKAGE_SESSIONS[priceId];
-
-    if (!packageInfo) {
-      console.error('Price ID no encontrado:', priceId);
-      return res.status(400).json({ error: 'Unknown price ID' });
-    }
-
-    const { error } = await supabase
-      .from('player_memberships')
-      .insert({
-        parent_id: parentId,
-        kid_name: kidName,
-        package_name: packageInfo.name,
-        sessions_total: packageInfo.sessions,
-        sessions_used: 0,
-        stripe_payment_id: session.payment_intent,
-        stripe_session_id: session.id,
-        status: 'active',
+      await upsertMembership({
+        parentId, kidName, priceId, isAnnual,
+        ts:               session.created,
+        stripeSessionId:  session.id,
+        stripePaymentId,
       });
-
-    if (error) {
-      console.error('Supabase error:', error);
-      return res.status(500).json({ error: 'DB insert failed' });
     }
 
-    console.log(`✅ Membresía creada: ${kidName} - ${packageInfo.name} - ${packageInfo.sessions} sesiones`);
+    // ── Recurring subscription renewal ──
+    else if (event.type === 'invoice.payment_succeeded') {
+      const invoice = event.data.object;
+      if (!invoice.subscription) return res.status(200).json({ received: true });
+
+      const subId  = invoice.subscription;
+      const priceId = invoice.lines?.data?.[0]?.price?.id;
+      const info   = PRICE_INFO[priceId];
+
+      const { data: existing } = await supabase
+        .from('player_memberships')
+        .select('id, kid_name')
+        .eq('stripe_payment_id', subId)
+        .maybeSingle();
+
+      if (!existing) {
+        console.log('[webhook] invoice.payment_succeeded — no record for sub:', subId);
+        return res.status(200).json({ received: true });
+      }
+
+      if (!info) {
+        console.error('[webhook] Unknown price ID from invoice:', priceId);
+        return res.status(200).json({ received: true });
+      }
+
+      const { error } = await supabase.from('player_memberships').update({
+        sessions_total: info.sessions,
+        sessions_used:  0,
+        status:         'active',
+        purchased_at:   new Date(invoice.created * 1000).toISOString(),
+        expires_at:     addMonths(invoice.created, 1),
+      }).eq('id', existing.id);
+
+      if (error) throw error;
+      console.log(`✅ Renewal — ${info.sessions} sessions reset → ${existing.kid_name}`);
+    }
+
+  } catch (err) {
+    console.error('[webhook] Handler error:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 
-  res.status(200).json({ received: true });
+  return res.status(200).json({ received: true });
 }

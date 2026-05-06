@@ -1,40 +1,60 @@
 import React, { useState } from 'react'
-import { 
-  SignedIn, 
-  SignedOut, 
-  SignIn, 
-  UserButton, 
-  useUser 
+import {
+  SignedIn,
+  SignedOut,
+  SignIn,
+  UserButton,
+  useUser
 } from "@clerk/clerk-react";
 import { dark } from '@clerk/themes';
+import { Menu } from 'lucide-react';
 
 import { AppProvider, useApp } from './context/AppContext'
 import AdminSidebar from './components/AdminSidebar'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Families from './pages/admin/Families'
-import Attendance from './pages/admin/Attendance'
+import EntranceQR from './pages/admin/EntranceQR'
 import { Schedule, Payments, Events } from './pages/admin/AdminPages'
 import ParentPortal from './pages/parent/ParentPortal'
+import CheckIn from './pages/CheckIn'
 
 // ── CONFIGURACIÓN DE PÁGINAS ADMIN ──────────────────────────────────────────
 const ADMIN_PAGES = {
-  dashboard: AdminDashboard,
-  families: Families,
-  schedule: Schedule,
-  attendance: Attendance,
-  payments: Payments,
-  events: Events,
+  dashboard:    AdminDashboard,
+  families:     Families,
+  schedule:     Schedule,
+  payments:     Payments,
+  events:       Events,
+  'entrance-qr': EntranceQR,
 }
 
 // ── VISTA ADMIN ──────────────────────────────────────────────────────────────
-function AdminShell() {
-  const [page, setPage] = useState('dashboard')
+function AdminShell({ initialPage = 'dashboard' }) {
+  const [page, setPage] = useState(initialPage)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const Page = ADMIN_PAGES[page] || AdminDashboard
-  
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--navy)' }}>
-      <AdminSidebar active={page} onNav={setPage} />
-      <main style={{ flex: 1, marginLeft: 230, padding: '36px 40px', minHeight: '100vh' }}>
+
+      {/* Topbar mobile */}
+      <div className="admin-topbar">
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 22, letterSpacing: '0.08em', color: '#fff' }}>
+          TORQUE
+        </div>
+        <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 6, display: 'flex', alignItems: 'center' }}>
+          <Menu size={22} />
+        </button>
+      </div>
+
+      {/* Overlay mobile */}
+      {sidebarOpen && (
+        <div className="admin-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <AdminSidebar active={page} onNav={setPage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <main className="admin-main" style={{ flex: 1, marginLeft: 230, padding: '36px 40px', minHeight: '100vh' }}>
         {/* BOTÓN DE PERFIL EN LA ESQUINA */}
         <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}>
           <UserButton afterSignOutUrl="/" />
@@ -48,15 +68,18 @@ function AdminShell() {
 // ── LÓGICA DE CONTROL DE ACCESO (ADMIN VS PARENT) ──────────────────────────
 function MainContent() {
   const { user } = useUser();
-  
-  // Leemos el "role" desde los metadatos de Clerk
-  const role = user?.publicMetadata?.role; 
+  const role = user?.publicMetadata?.role;
+  const path = window.location.pathname;
 
-  if (role === 'admin') {
-    return <AdminShell />;
+  if (path === '/checkin') {
+    return <CheckIn />;
   }
 
-  // Si no es admin, asumimos que es Parent y usamos el UserID de Clerk como FamilyID
+  if (role === 'admin') {
+    const initialPage = path === '/admin/entrance-qr' ? 'entrance-qr' : 'dashboard';
+    return <AdminShell initialPage={initialPage} />;
+  }
+
   return <ParentPortal familyId={user?.id} paymentSuccess={new URLSearchParams(window.location.search).get('payment') === 'success'} />;
 }
 

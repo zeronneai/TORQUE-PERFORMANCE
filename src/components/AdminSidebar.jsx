@@ -1,26 +1,34 @@
 import React from 'react'
-import { LayoutDashboard, Users, Calendar, ClipboardCheck, DollarSign, Megaphone, ChevronRight, LogOut } from 'lucide-react'
+import { useClerk } from '@clerk/clerk-react'
+import { LayoutDashboard, Users, Calendar, DollarSign, Megaphone, QrCode, ChevronRight, LogOut, X } from 'lucide-react'
 
 const NAV = [
-  { id: 'dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
-  { id: 'families',   label: 'Families',   icon: Users },
-  { id: 'schedule',   label: 'Schedule',   icon: Calendar },
-  { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
-  { id: 'payments',   label: 'Payments',   icon: DollarSign },
-  { id: 'events',     label: 'Events',     icon: Megaphone },
+  { id: 'dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
+  { id: 'families',     label: 'Families',    icon: Users },
+  { id: 'schedule',     label: 'Schedule',    icon: Calendar },
+  { id: 'payments',     label: 'Payments',    icon: DollarSign },
+  { id: 'events',       label: 'Events',      icon: Megaphone },
+  { id: 'entrance-qr',  label: 'Entrance QR', icon: QrCode },
 ]
 
-export default function AdminSidebar({ active, onNav, onSwitchToParent }) {
+export default function AdminSidebar({ active, onNav, open, onClose }) {
+  const { signOut } = useClerk()
+
+  function handleNav(id) {
+    onNav(id)
+    if (onClose) onClose()
+  }
+
   return (
-    <aside style={{
+    <aside className={`admin-sidebar${open ? ' open' : ''}`} style={{
       width: 230, minHeight: '100vh',
       background: '#080f18',
       borderRight: '1px solid rgba(255,255,255,0.07)',
       display: 'flex', flexDirection: 'column',
       position: 'fixed', top: 0, left: 0, zIndex: 100,
     }}>
-      {/* Logo */}
-      <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      {/* Logo + close button on mobile */}
+      <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ fontSize: 28 }}>⚾</div>
           <div>
@@ -28,6 +36,11 @@ export default function AdminSidebar({ active, onNav, onSwitchToParent }) {
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, letterSpacing: '0.15em', color: 'var(--text2)', lineHeight: 1 }}>PERFORMANCE</div>
           </div>
         </div>
+        {onClose && (
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text2)', padding: 4, display: 'flex', alignItems: 'center' }}>
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Role badge */}
@@ -40,7 +53,7 @@ export default function AdminSidebar({ active, onNav, onSwitchToParent }) {
         {NAV.map(({ id, label, icon: Icon }) => {
           const isActive = active === id
           return (
-            <button key={id} onClick={() => onNav(id)} style={{
+            <button key={id} onClick={() => handleNav(id)} style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: 10,
               padding: '10px 12px', borderRadius: 8,
               background: isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
@@ -63,17 +76,19 @@ export default function AdminSidebar({ active, onNav, onSwitchToParent }) {
 
       {/* Footer */}
       <div style={{ padding: '14px 10px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-        <button onClick={onSwitchToParent} style={{
+        <button onClick={() => signOut({ redirectUrl: '/' })} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 12px', borderRadius: 8, color: 'var(--text3)',
-          fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, letterSpacing: '0.05em',
-          textTransform: 'uppercase', transition: 'all 0.15s',
+          padding: '10px 12px', borderRadius: 8,
+          color: '#ff3355', border: '1px solid rgba(255,51,85,0.25)',
+          background: 'rgba(255,51,85,0.07)',
+          fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+          letterSpacing: '0.08em', textTransform: 'uppercase', transition: 'all 0.15s',
         }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.background = 'transparent' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,51,85,0.18)'; e.currentTarget.style.borderColor = 'rgba(255,51,85,0.5)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,51,85,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,51,85,0.25)' }}
         >
           <LogOut size={14} />
-          <span>View as Parent</span>
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>
