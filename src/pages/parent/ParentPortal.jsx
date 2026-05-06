@@ -1203,10 +1203,10 @@ export default function ParentPortal() {
           // Times depend on day of week
           const selectedDow = bookingForm.date ? new Date(bookingForm.date + 'T12:00:00').getDay() : null
           const TIMES = selectedDow === 6 ? SATURDAY_TIMES : WEEKDAY_TIMES
-          // Build next 14 days that match available days
+          // Build next 30 days that match available days
           const availableDates = []
           const today = new Date(); today.setHours(0,0,0,0)
-          for (let i = 1; availableDates.length < 14; i++) {
+          for (let i = 1; availableDates.length < 30; i++) {
             const d = new Date(today); d.setDate(today.getDate() + i)
             if (AVAILABLE_DAYS.includes(d.getDay())) {
               availableDates.push(d.toISOString().split('T')[0])
