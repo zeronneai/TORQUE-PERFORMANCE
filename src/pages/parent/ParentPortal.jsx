@@ -923,7 +923,15 @@ export default function ParentPortal() {
                   <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>Renueva tu plan para continuar accediendo a tus sesiones.</div>
                 </div>
               </div>
-              <button onClick={() => navigateTo('billing')} className="btn-primary" style={{ fontSize:12, padding:'8px 18px', flexShrink:0 }}>
+              <button onClick={() => {
+                  const expired = players.find(p => {
+                    const m = p.active_membership
+                    if (!m) return false
+                    return (m.expires_at && new Date(m.expires_at) < new Date()) || (m.sessions_total || 0) === 0
+                  })
+                  setSelectedPlayer(expired || players[0])
+                  setShowBuyPack(true)
+                }} className="btn-primary" style={{ fontSize:12, padding:'8px 18px', flexShrink:0 }}>
                 Renovar plan
               </button>
             </div>
