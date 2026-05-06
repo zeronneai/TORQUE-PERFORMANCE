@@ -1176,6 +1176,7 @@ export default function ParentPortal() {
         {bookingPlayer && (() => {
           const m = bookingPlayer.active_membership
           const remaining = m ? m.sessions_total - m.sessions_used : 0
+          const membershipExpired = m?.expires_at && new Date(m.expires_at) < new Date()
           // Available days: Mon=1, Wed=3, Fri=5, Sat=6
           // Mon–Fri (1–5) + Sat (6); Sun (0) closed
           const AVAILABLE_DAYS = [1, 2, 3, 4, 5, 6]
@@ -1195,11 +1196,15 @@ export default function ParentPortal() {
           const fmt = (iso) => { const d = new Date(iso+'T12:00:00'); return `${DAY_NAMES[d.getDay()]} ${d.getDate()}` }
           return (
             <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-              {remaining <= 0 ? (
+              {(remaining <= 0 || membershipExpired) ? (
                 <div style={{ textAlign:'center', padding:'24px 0', color:'var(--muted)' }}>
                   <div style={{ fontSize:36, marginBottom:8 }}>⚠️</div>
-                  <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>No sessions available</div>
-                  <div style={{ fontSize:13, marginTop:6 }}>Purchase a plan to book sessions.</div>
+                  <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>
+                    {membershipExpired ? 'Membresía vencida' : 'No sessions available'}
+                  </div>
+                  <div style={{ fontSize:13, marginTop:6 }}>
+                    {membershipExpired ? 'Tu membresía ha expirado. Renueva tu plan para agendar sesiones.' : 'Purchase a plan to book sessions.'}
+                  </div>
                 </div>
               ) : (
                 <>
@@ -1547,7 +1552,7 @@ function SessionsPage({ players, bookings, onBook, onCancel, onReschedule }) {
                       <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:56, lineHeight:1, color: remaining === 0 ? 'var(--muted2)' : remaining <= 2 ? '#E8A020' : 'var(--green2)' }}>{remaining}</div>
                       <div style={{ fontSize:10, color:'var(--muted)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', marginTop:2 }}>of {total} remaining</div>
                     </div>
-                    {m && remaining > 0 && (
+                    {m && remaining > 0 && !(m.expires_at && new Date(m.expires_at) < new Date()) && (
                       <button onClick={() => onBook(player)} className="btn-primary" style={{ padding:'12px 20px', fontSize:14 }}>
                         + Book
                       </button>

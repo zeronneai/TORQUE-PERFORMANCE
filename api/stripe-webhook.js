@@ -64,6 +64,8 @@ async function upsertMembership({ parentId, kidName, priceId, isAnnual, ts, stri
     .ilike('kid_name', kidName)
     .maybeSingle();
 
+  // Always replace sessions_total with the package amount and reset sessions_used to 0,
+  // regardless of what the member had remaining before.
   const payload = {
     sessions_total:    info.sessions,
     sessions_used:     0,
