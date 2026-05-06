@@ -136,7 +136,32 @@ export default async function handler(req, res) {
         .eq('stripe_payment_id', subId)
         .maybeSingle();
 
-      if (!existing) {
+      let record = existing;
+
+      if (!record) {
+        // Fallback for manual members: retrieve checkout session to get client_reference_id
+        try {
+          const sessions = await stripe.checkout.sessions.list({ subscription: subId, limit: 1 });
+          const cs = sessions.data[0];
+          if (cs?.client_reference_id) {
+            const parts = decodeURIComponent(cs.client_reference_id).split('__');
+            if (parts.length === 3) {
+              const [parentId, kidName] = parts;
+              const { data: byName } = await supabase
+                .from('player_memberships')
+                .select('id, kid_name')
+                .eq('parent_id', parentId)
+                .ilike('kid_name', kidName)
+                .maybeSingle();
+              if (byName) record = byName;
+            }
+          }
+        } catch (fbErr) {
+          console.error('[webhook] Fallback lookup error:', fbErr.message);
+        }
+      }
+
+      if (!record) {
         console.log('[webhook] invoice.payment_succeeded — no record for sub:', subId);
         return res.status(200).json({ received: true });
       }
@@ -147,15 +172,16 @@ export default async function handler(req, res) {
       }
 
       const { error } = await supabase.from('player_memberships').update({
-        sessions_total: info.sessions,
-        sessions_used:  0,
-        status:         'active',
-        purchased_at:   new Date(invoice.created * 1000).toISOString(),
-        expires_at:     addMonths(invoice.created, 1),
-      }).eq('id', existing.id);
+        sessions_total:    info.sessions,
+        sessions_used:     0,
+        status:            'active',
+        stripe_payment_id: subId,
+        purchased_at:      new Date(invoice.created * 1000).toISOString(),
+        expires_at:        addMonths(invoice.created, 1),
+      }).eq('id', record.id);
 
       if (error) throw error;
-      console.log(`✅ Renewal — ${info.sessions} sessions reset → ${existing.kid_name}`);
+      console.log(`✅ Renewal${existing ? '' : ' (fallback)'} — ${info.sessions} sessions reset → ${record.kid_name}`);
     }
 
   } catch (err) {

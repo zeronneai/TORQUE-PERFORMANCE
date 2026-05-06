@@ -59,13 +59,18 @@ export default async function handler(req, res) {
   // Dedup: webhook may have already processed this session
   const { data: alreadyDone } = await supabase
     .from('player_memberships')
-    .select('id')
+    .select('id, expires_at, sessions_total')
     .eq('stripe_session_id', session_id)
     .maybeSingle();
 
   if (alreadyDone) {
-    console.log('[verify-payment] Already processed by webhook:', session_id);
-    return res.status(200).json({ ok: true, message: 'already_processed' });
+    const nowIso = new Date().toISOString();
+    if (alreadyDone.expires_at > nowIso && alreadyDone.sessions_total > 0) {
+      console.log('[verify-payment] Already processed by webhook:', session_id);
+      return res.status(200).json({ ok: true, message: 'already_processed' });
+    }
+    // Found by stripe_session_id but membership still expired — fall through to re-process
+    console.log('[verify-payment] Record found but membership still expired — re-processing:', session_id);
   }
 
   const ref   = decodeURIComponent(session.client_reference_id || '');
