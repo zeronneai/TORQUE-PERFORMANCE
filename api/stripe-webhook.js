@@ -50,7 +50,7 @@ function addMonths(unixTs, months) {
 async function upsertMembership({ parentId, kidName, priceId, isAnnual, ts, stripeSessionId, stripePaymentId }) {
   const info = PRICE_INFO[priceId];
   if (!info) {
-    console.error('[webhook] Unknown price ID:', priceId);
+    console.error(`[webhook] UNRECOGNIZED PRICE ID: "${priceId}" — parent: ${parentId}, kid: ${kidName}, session: ${stripeSessionId}. Add this price ID to PRICE_INFO to process the payment.`);
     return;
   }
 
@@ -107,10 +107,32 @@ export default async function handler(req, res) {
       const session = event.data.object;
       const ref   = decodeURIComponent(session.client_reference_id || '');
       const parts = ref.split('__');
-      if (parts.length !== 3) return res.status(400).json({ error: 'Invalid client_reference_id' });
 
-      const [parentId, kidName, priceId] = parts;
-      const isAnnual       = session.mode === 'payment'; // 'payment' = one-time, 'subscription' = recurring
+      // FIX 1: never return 400 — Stripe would retry forever. Log and exit cleanly.
+      if (parts.length < 2 || !parts[0] || !parts[1]) {
+        console.error('[webhook] checkout.session.completed — missing/invalid client_reference_id:', ref || '(empty)', '| session:', session.id);
+        return res.status(200).json({ received: true });
+      }
+
+      const [parentId, kidName] = parts;
+      // FIX 2: if priceId is absent from ref, retrieve it from line items (fallback)
+      let priceId = parts[2];
+      if (!priceId) {
+        try {
+          const items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+          priceId = items.data[0]?.price?.id;
+          console.log('[webhook] priceId resolved from line items:', priceId, '| session:', session.id);
+        } catch (liErr) {
+          console.error('[webhook] listLineItems error for session', session.id, liErr.message);
+        }
+      }
+
+      if (!priceId) {
+        console.error('[webhook] checkout.session.completed — could not determine priceId | session:', session.id, '| parent:', parentId, '| kid:', kidName);
+        return res.status(200).json({ received: true });
+      }
+
+      const isAnnual        = session.mode === 'payment'; // 'payment' = one-time, 'subscription' = recurring
       const stripePaymentId = isAnnual ? session.payment_intent : session.subscription;
 
       await upsertMembership({
