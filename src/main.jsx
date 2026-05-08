@@ -7,7 +7,12 @@ import { dark } from '@clerk/themes';
 import { Capacitor } from '@capacitor/core'
 
 // ... resto del código
-<ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={{ baseTheme: dark }}>
+<ClerkProvider
+  publishableKey={PUBLISHABLE_KEY}
+  routerPush={(to) => { window.location.hash = to }}
+  routerReplace={(to) => { window.location.hash = to }}
+  appearance={{ baseTheme: dark }}
+>
   <App />
 </ClerkProvider>
 
@@ -20,7 +25,12 @@ if (!PUBLISHABLE_KEY) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={{ baseTheme: dark }}>
+    <ClerkProvider
+  publishableKey={PUBLISHABLE_KEY}
+  routerPush={(to) => { window.location.hash = to }}
+  routerReplace={(to) => { window.location.hash = to }}
+  appearance={{ baseTheme: dark }}
+>
       <App />
     </ClerkProvider>
   </React.StrictMode>,

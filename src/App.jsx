@@ -147,7 +147,7 @@ export default function App() {
               TORQUE PERFORMANCE
             </h1>
             
-            <SignIn appearance={{ baseTheme: dark }} />
+            <SignIn routing="hash" appearance={{ baseTheme: dark }} />
           </div>
         </div>
       </SignedOut>
