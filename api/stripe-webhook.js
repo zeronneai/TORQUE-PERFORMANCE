@@ -47,10 +47,55 @@ function addMonths(unixTs, months) {
   return d.toISOString();
 }
 
+// ── Admin email alert via Resend REST API ────────────────────────────────────
+async function sendAlert({ subject, parentId, kidName, priceId, sessionId, errorMsg }) {
+  const to     = process.env.ADMIN_ALERT_EMAIL;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!to || !apiKey) {
+    console.warn('[webhook] sendAlert skipped — ADMIN_ALERT_EMAIL or RESEND_API_KEY not set');
+    return;
+  }
+  const text = [
+    '❌ A Stripe webhook event failed to process a payment.',
+    '',
+    `Error      : ${errorMsg  || '—'}`,
+    `Session ID : ${sessionId || '—'}`,
+    `Parent ID  : ${parentId  || '—'}`,
+    `Kid name   : ${kidName   || '—'}`,
+    `Price ID   : ${priceId   || '—'}`,
+    '',
+    'Check the Stripe Dashboard and update Supabase manually if needed.',
+  ].join('\n');
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM_EMAIL || 'Torque Alerts <alerts@torqueperformance.app>',
+        to,
+        subject,
+        text,
+      }),
+    });
+    if (!r.ok) console.error('[webhook] sendAlert HTTP error:', r.status, await r.text());
+  } catch (e) {
+    console.error('[webhook] sendAlert failed:', e.message);
+  }
+}
+
 async function upsertMembership({ parentId, kidName, priceId, isAnnual, ts, stripeSessionId, stripePaymentId }) {
   const info = PRICE_INFO[priceId];
   if (!info) {
+    const errorMsg = `unrecognized price ID "${priceId}" — add it to PRICE_INFO`;
     console.error(`[webhook] UNRECOGNIZED PRICE ID: "${priceId}" — parent: ${parentId}, kid: ${kidName}, session: ${stripeSessionId}. Add this price ID to PRICE_INFO to process the payment.`);
+    sendAlert({
+      subject:  `⚠️ Torque webhook failed - ${kidName || stripeSessionId}`,
+      parentId, kidName, priceId, sessionId: stripeSessionId,
+      errorMsg,
+    }).catch(() => {});
     return;
   }
 
@@ -101,6 +146,9 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // Populated as we parse the event so the catch block can include context in the alert.
+  let _alertCtx = {};
+
   try {
     // ── Initial checkout (one-time or first subscription payment) ──
     if (event.type === 'checkout.session.completed') {
@@ -108,15 +156,21 @@ export default async function handler(req, res) {
       const ref   = decodeURIComponent(session.client_reference_id || '');
       const parts = ref.split('__');
 
-      // FIX 1: never return 400 — Stripe would retry forever. Log and exit cleanly.
       if (parts.length < 2 || !parts[0] || !parts[1]) {
-        console.error('[webhook] checkout.session.completed — missing/invalid client_reference_id:', ref || '(empty)', '| session:', session.id);
+        const errorMsg = `missing/invalid client_reference_id: "${ref || '(empty)'}"`;
+        console.error('[webhook] checkout.session.completed —', errorMsg, '| session:', session.id);
+        sendAlert({
+          subject:  `⚠️ Torque webhook failed - ${session.id}`,
+          sessionId: session.id,
+          errorMsg,
+        }).catch(() => {});
         return res.status(200).json({ received: true });
       }
 
       const [parentId, kidName] = parts;
-      // FIX 2: if priceId is absent from ref, retrieve it from line items (fallback)
       let priceId = parts[2];
+
+      // Fallback: if priceId is absent from ref, retrieve it from line items
       if (!priceId) {
         try {
           const items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
@@ -128,9 +182,17 @@ export default async function handler(req, res) {
       }
 
       if (!priceId) {
-        console.error('[webhook] checkout.session.completed — could not determine priceId | session:', session.id, '| parent:', parentId, '| kid:', kidName);
+        const errorMsg = 'could not determine priceId from ref or line items';
+        console.error('[webhook] checkout.session.completed —', errorMsg, '| session:', session.id);
+        sendAlert({
+          subject:  `⚠️ Torque webhook failed - ${kidName || session.id}`,
+          parentId, kidName, sessionId: session.id,
+          errorMsg,
+        }).catch(() => {});
         return res.status(200).json({ received: true });
       }
+
+      _alertCtx = { parentId, kidName, priceId, sessionId: session.id };
 
       const isAnnual        = session.mode === 'payment'; // 'payment' = one-time, 'subscription' = recurring
       const stripePaymentId = isAnnual ? session.payment_intent : session.subscription;
@@ -188,6 +250,8 @@ export default async function handler(req, res) {
         return res.status(200).json({ received: true });
       }
 
+      _alertCtx = { kidName: record.kid_name, priceId, sessionId: subId };
+
       if (!info) {
         console.error('[webhook] Unknown price ID from invoice:', priceId);
         return res.status(200).json({ received: true });
@@ -208,6 +272,11 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('[webhook] Handler error:', err.message);
+    sendAlert({
+      subject:  `⚠️ Torque webhook failed - ${_alertCtx.kidName || _alertCtx.sessionId || 'unknown'}`,
+      ..._alertCtx,
+      errorMsg: err.message,
+    }).catch(() => {});
     return res.status(500).json({ error: err.message });
   }
 
