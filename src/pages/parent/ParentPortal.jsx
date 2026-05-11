@@ -1206,10 +1206,11 @@ export default function ParentPortal() {
           // Build next 30 days that match available days
           const availableDates = []
           const today = new Date(); today.setHours(0,0,0,0)
-          for (let i = 1; availableDates.length < 30; i++) {
+          for (let i = 0; availableDates.length < 30; i++) {
             const d = new Date(today); d.setDate(today.getDate() + i)
             if (AVAILABLE_DAYS.includes(d.getDay())) {
-              availableDates.push(d.toISOString().split('T')[0])
+              const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+              availableDates.push(iso)
             }
           }
           const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
