@@ -16,8 +16,7 @@ import { Capacitor } from '@capacitor/core'
   <App />
 </ClerkProvider>
 
-// Aquí pegas tu clave de Clerk (la que empieza con pk_test_)
-const PUBLISHABLE_KEY = "pk_test_YnJpZWYtcm9kZW50LTQ1LmNsZXJrLmFjY291bnRzLmRldiQ" 
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 if (!PUBLISHABLE_KEY) {
   throw new Error("Missing Publishable Key")
