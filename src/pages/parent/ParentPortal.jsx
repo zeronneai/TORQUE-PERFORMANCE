@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Plus, LogOut, ChevronRight, Menu, X, Pencil } from 'lucide-react'
 import { Card, Avatar, Btn, Modal, ProgressBar, Label } from '../../components/UI'
-import { useUser, useClerk } from "@clerk/clerk-react"
-import { supabase } from "../../supabaseClient"
+import { useUser, useClerk, useSession } from "@clerk/clerk-react"
+import { supabase, getAuthClient } from "../../supabaseClient"
 import { API_BASE } from '../../lib/apiBase'
 import QRCheckinModal from '../../components/QRCheckinModal'
 
@@ -344,6 +344,7 @@ const GLOBAL_CSS = `
 export default function ParentPortal() {
   const { user } = useUser()
   const { signOut } = useClerk()
+  const { session } = useSession()
   const [page, setPage] = useState('home')
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
@@ -817,6 +818,8 @@ export default function ParentPortal() {
             e.preventDefault()
             setLoading(true)
             try {
+              const sb = await getAuthClient(session)
+
               const profileData = {
                 id: user.id,
                 full_name: user.fullName,
@@ -824,7 +827,6 @@ export default function ParentPortal() {
                 phone: onboardingData.phone,
                 role: 'parent'
               }
-              // Sin id — Supabase lo genera automáticamente
               const playerInsert = {
                 parent_id: user.id,
                 kid_name: onboardingData.kidName,
@@ -832,14 +834,30 @@ export default function ParentPortal() {
                 birthdate: onboardingData.kidBirthdate
               }
 
-              await supabase.from('profiles').insert([profileData])
-              await supabase.from('players').insert([playerInsert])
+              const { error: profileErr } = await sb.from('profiles').insert([profileData])
+              if (profileErr) {
+                console.error('[Torque] onboarding — profiles insert failed:', profileErr)
+                alert(`Registration failed (profiles): ${profileErr.message}\n\nCode: ${profileErr.code}`)
+                setLoading(false)
+                return
+              }
 
-              // Cache local: el perfil y el player (con kid_name para hacer match de memberships)
+              const { error: playerErr } = await sb.from('players').insert([playerInsert])
+              if (playerErr) {
+                console.error('[Torque] onboarding — players insert failed:', playerErr)
+                alert(`Registration failed (players): ${playerErr.message}\n\nCode: ${playerErr.code}`)
+                setLoading(false)
+                return
+              }
+
+              // Cache local so the portal loads instantly on next visit
               localStorage.setItem(`torque_profile_${user.id}`, JSON.stringify(profileData))
               localStorage.setItem(`torque_players_${user.id}`, JSON.stringify([{ ...playerInsert, id: 'local' }]))
             } catch (err) {
               console.error('[Torque] onboarding error:', err)
+              alert(`Unexpected error: ${err.message}`)
+              setLoading(false)
+              return
             }
             await fetchTorqueData()
           }} style={{ display:'flex', flexDirection:'column', gap:14 }}>
