@@ -358,7 +358,7 @@ export default function ParentPortal() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState(null)
   const [newPlayerData, setNewPlayerData] = useState({ name: '', age: '', birthdate: '' })
-  const [onboardingData, setOnboardingData] = useState({ phone: '', kidName: '', kidAge: '', kidBirthdate: '' })
+  const [onboardingData, setOnboardingData] = useState({ name: '', phone: '', kidName: '', kidAge: '', kidBirthdate: '' })
   const [paymentBanner, setPaymentBanner] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [bookings, setBookings] = useState([])
@@ -822,7 +822,7 @@ export default function ParentPortal() {
 
               const profileData = {
                 id: user.id,
-                full_name: user.fullName,
+                full_name: onboardingData.name.trim() || user.fullName || '',
                 email: user.primaryEmailAddress?.emailAddress,
                 phone: onboardingData.phone,
                 role: 'parent'
@@ -861,6 +861,10 @@ export default function ParentPortal() {
             }
             await fetchTorqueData()
           }} style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div>
+              <Label>Parent Full Name</Label>
+              <input className="torque-input" required placeholder="First Last" onChange={e => setOnboardingData({...onboardingData, name: e.target.value})} />
+            </div>
             <div>
               <Label>Parent Phone</Label>
               <input className="torque-input" required placeholder="(555) 000-0000" onChange={e => setOnboardingData({...onboardingData, phone: e.target.value})} />
