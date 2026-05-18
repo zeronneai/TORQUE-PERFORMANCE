@@ -118,8 +118,8 @@ export default function AdminDashboard() {
   }
 
   const SESSIONS_BY_PACKAGE = {
-    'A': 4, 'Paquete A': 4, 'AA': 8, 'Paquete AA': 8,
-    'AAA': 12, 'Paquete AAA': 12, 'MLB': 20, 'Paquete MLB': 20,
+    'A': 4, 'Package A': 4, 'AA': 8, 'Package AA': 8,
+    'AAA': 12, 'Package AAA': 12, 'MLB': 20, 'Package MLB': 20,
   }
 
   async function handleManualRenewal(isAnnual) {
@@ -148,7 +148,7 @@ export default function AdminDashboard() {
       setRenewalModal(null)
     } catch (err) {
       console.error('Renewal error:', err)
-      setToast({ error: `Error al renovar: ${err.message}` })
+      setToast({ error: `Renewal error: ${err.message}` })
       setTimeout(() => setToast(null), 4000)
     } finally {
       setRenewalLoading(false)
@@ -215,9 +215,9 @@ export default function AdminDashboard() {
       <Card style={{ marginBottom:24 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:8 }}>
           <div>
-            <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>Check-ins de Hoy</div>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>Today's Check-ins</div>
             <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>
-              {new Date().toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' })}
+              {new Date().toLocaleDateString('en-US', { weekday:'long', day:'numeric', month:'long' })}
             </div>
           </div>
           <Badge color={todayCheckins.length > 0 ? 'green' : 'default'}>{todayCheckins.length} check-ins</Badge>
@@ -225,14 +225,14 @@ export default function AdminDashboard() {
 
         {todayCheckins.length === 0 ? (
           <div style={{ textAlign:'center', padding:'24px 0', color:'var(--muted)', fontSize:13 }}>
-            No hay check-ins registrados hoy
+            No check-ins recorded today
           </div>
         ) : (
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
               <thead>
                 <tr style={{ borderBottom:'1px solid var(--border)' }}>
-                  {['Jugador','Padre','Hora','Sesiones rest.','Paquete'].map(h => (
+                  {['Player','Parent','Time','Sessions left','Package'].map(h => (
                     <th key={h} style={{ textAlign:'left', padding:'6px 10px', fontSize:11, fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--text3)', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -404,7 +404,7 @@ export default function AdminDashboard() {
                     </button>
                     <button
                       onClick={() => setRenewalModal({ player, membership: m })}
-                      title="Renovar manualmente"
+                      title="Renew manually"
                       style={{
                         padding:'5px 10px',
                         background:'rgba(243,156,18,0.1)',
@@ -429,13 +429,13 @@ export default function AdminDashboard() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
           <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:28, width:'100%', maxWidth:380 }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:17, marginBottom:4 }}>
-              Renovar manualmente
+              Renew manually
             </div>
             <div style={{ fontSize:13, color:'var(--text2)', marginBottom:4 }}>
               <strong>{renewalModal.player.kid_name}</strong> · {renewalModal.membership.package_name}
             </div>
             <div style={{ fontSize:12, color:'var(--muted)', marginBottom:20 }}>
-              Sessions: {SESSIONS_BY_PACKAGE[renewalModal.membership.package_name] || renewalModal.membership.sessions_total} · sessions_used se reinicia a 0
+              Sessions: {SESSIONS_BY_PACKAGE[renewalModal.membership.package_name] || renewalModal.membership.sessions_total} · sessions_used resets to 0
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               <button
@@ -443,21 +443,21 @@ export default function AdminDashboard() {
                 disabled={renewalLoading}
                 style={{ padding:'12px 0', background:'rgba(34,197,110,0.1)', border:'1px solid rgba(34,197,110,0.3)', borderRadius:8, color:'var(--green2)', fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, cursor:'pointer', letterSpacing:'0.05em', textTransform:'uppercase' }}
               >
-                {renewalLoading ? 'Renovando…' : '↺ Renovar 1 mes (expires_at +30 días)'}
+                {renewalLoading ? 'Renewing…' : '↺ Renew 1 month (+30 days)'}
               </button>
               <button
                 onClick={() => handleManualRenewal(true)}
                 disabled={renewalLoading}
                 style={{ padding:'12px 0', background:'rgba(243,156,18,0.08)', border:'1px solid rgba(243,156,18,0.3)', borderRadius:8, color:'#f39c12', fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, cursor:'pointer', letterSpacing:'0.05em', textTransform:'uppercase' }}
               >
-                {renewalLoading ? 'Renovando…' : '↺ Renovar anual (expires_at +12 meses)'}
+                {renewalLoading ? 'Renewing…' : '↺ Renew annual (+12 months)'}
               </button>
               <button
                 onClick={() => setRenewalModal(null)}
                 disabled={renewalLoading}
                 style={{ padding:'10px 0', background:'transparent', border:'1px solid var(--border)', borderRadius:8, color:'var(--text3)', fontFamily:'var(--font-display)', fontWeight:600, fontSize:12, cursor:'pointer' }}
               >
-                Cancelar
+                Cancel
               </button>
             </div>
           </div>
@@ -478,7 +478,7 @@ export default function AdminDashboard() {
           {toast.error ? (
             <span style={{ color:'#ff6b6b' }}>⚠ {toast.error}</span>
           ) : (
-            <><Check size={16} /> {toast.kidName} registró entrada — {toast.remaining} sesiones restantes</>
+            <><Check size={16} /> {toast.kidName} checked in — {toast.remaining} sessions remaining</>
           )}
         </div>
       )}

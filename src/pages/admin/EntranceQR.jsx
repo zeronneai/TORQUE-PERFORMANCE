@@ -50,7 +50,7 @@ export default function EntranceQR() {
 
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#060d18', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Escanea para registrar tu entrada
+              Scan to check in
             </div>
             <div style={{ fontSize: 11, color: '#999', marginTop: 4, fontFamily: 'monospace' }}>{CHECKIN_URL}</div>
           </div>

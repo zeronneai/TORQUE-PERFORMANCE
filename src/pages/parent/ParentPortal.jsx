@@ -8,16 +8,16 @@ import QRCheckinModal from '../../components/QRCheckinModal'
 
 // ── PAQUETES ──────────────────────────────────────────────────────────────────
 const PACKS = [
-  { id: 'a',   name: 'PAQUETE A',   sessions: 4,  price: 260, tag: 'Basic Training',
+  { id: 'a',   name: 'PACKAGE A',   sessions: 4,  price: 260, tag: 'Basic Training',
     links: { stand: 'https://buy.stripe.com/aFa00i6ZU9aI03r4uafAc0f', m6: 'https://buy.stripe.com/aFa8wOesm9aI3fD5yefAc0e', m12: 'https://buy.stripe.com/14A7sKdoi0EcaI55yefAc0d', annual: 'https://buy.stripe.com/6oU00i6ZU1Igg2p6CifAc0b' },
     prices: { stand: 'price_1TLqDdAPTWbxe0YytEOlF7ZH', m6: 'price_1TLqDmAPTWbxe0YyqbHEcuFr', m12: 'price_1TLqDmAPTWbxe0YysigUumPn', annual: 'price_1TLqDlAPTWbxe0YyljY5WD6Y' }},
-  { id: 'aa',  name: 'PAQUETE AA',  sessions: 8,  price: 360, tag: 'Advanced Growth',
+  { id: 'aa',  name: 'PACKAGE AA',  sessions: 8,  price: 360, tag: 'Advanced Growth',
     links: { stand: 'https://buy.stripe.com/00weVc2JEev2dUh8KqfAc09', m6: 'https://buy.stripe.com/dRmdR8cke9aIeYl2m2fAc08', m12: 'https://buy.stripe.com/bJe14m4RM5Yw7vTgcSfAc04', annual: 'https://buy.stripe.com/aFafZg6ZU9aIbM90dUfAc07' },
     prices: { stand: 'price_1TLqDgAPTWbxe0Yy7yaP3VX3', m6: 'price_1TLqDkAPTWbxe0YyZu4hFrI3', m12: 'price_1TLqDjAPTWbxe0YyTsqaUdt5', annual: 'price_1TLqDkAPTWbxe0YykcsrB50f' }},
-  { id: 'aaa', name: 'PAQUETE AAA', sessions: 12, price: 440, tag: 'Elite Prospect',
+  { id: 'aaa', name: 'PACKAGE AAA', sessions: 12, price: 440, tag: 'Elite Prospect',
     links: { stand: 'https://buy.stripe.com/4gMaEWfwq1Ig2bze4KfAc01', m6: 'https://buy.stripe.com/8x28wO3NI3Qo5nL6CifAc0c', m12: 'https://buy.stripe.com/4gMaEW2JEbiQdUh5yefAc03', annual: 'https://buy.stripe.com/eVq5kC5VQ86E7vTd0GfAc06' },
     prices: { stand: 'price_1TLqDhAPTWbxe0YyXXJQZrh7', m6: 'price_1TLqDkAPTWbxe0YydXEB3YqT', m12: 'price_1TLqDjAPTWbxe0YyuyUujCu4', annual: 'price_1TLqDkAPTWbxe0Yy8UHtMvEJ' }},
-  { id: 'mlb', name: 'PAQUETE MLB', sessions: 20, price: 600, tag: 'Unlimited Access',
+  { id: 'mlb', name: 'PACKAGE MLB', sessions: 20, price: 600, tag: 'Unlimited Access',
     links: { stand: 'https://buy.stripe.com/7sYeVc3NIdqYdUh9OufAc0h', m6: 'https://buy.stripe.com/dRmfZgckegDacQd8KqfAc0a', m12: 'https://buy.stripe.com/14A6oG4RM5Yw9E1bWCfAc05', annual: 'https://buy.stripe.com/dRm9ASgAu3QoeYle4KfAc00' },
     prices: { stand: 'price_1TLqDdAPTWbxe0YydO64XMLw', m6: 'price_1TLqDlAPTWbxe0YyEIZi7YR5', m12: 'price_1TLqDjAPTWbxe0YyVQxRaHFs', annual: 'price_1TLqDjAPTWbxe0Yy6fRLwlFM' }},
 ]
@@ -532,7 +532,7 @@ export default function ParentPortal() {
         .eq('session_time', bookingForm.time)
         .eq('status', 'confirmed')
       if ((slotCount || 0) >= MAX_CAPACITY) {
-        alert('Esta sesión está llena (máximo 16 jugadores). Por favor elige otro horario.')
+        alert('This session is full (maximum 16 players). Please choose another time.')
         setBookingLoading(false)
         return
       }
@@ -551,12 +551,12 @@ export default function ParentPortal() {
         // REAGENDAR: eliminar booking anterior, crear uno nuevo, no cambiar sessions_used
         const { error: delErr } = await supabase.from('bookings').delete().eq('id', rescheduleBooking.id)
         if (delErr) {
-          alert('Error al eliminar la sesión anterior: ' + delErr.message)
+          alert('Error removing the previous session: ' + delErr.message)
           return
         }
         const { error: insErr } = await supabase.from('bookings').insert([newBookingRow])
         if (insErr) {
-          alert('Error al reagendar: ' + insErr.message)
+          alert('Error rescheduling: ' + insErr.message)
           return
         }
         const optimistic = { id: 'local_' + Date.now(), ...newBookingRow }
@@ -754,7 +754,7 @@ export default function ParentPortal() {
       setCancelModal({ open: false, booking: null })
       quietRefresh()
     } catch(err) {
-      alert('Error al cancelar: ' + (err.message || JSON.stringify(err)))
+      alert('Error canceling: ' + (err.message || JSON.stringify(err)))
     } finally {
       setCancelLoading(false)
     }
@@ -1024,8 +1024,8 @@ export default function ParentPortal() {
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <div style={{ fontSize:22, flexShrink:0 }}>⚠️</div>
                 <div>
-                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'#ff4466', letterSpacing:'0.06em', textTransform:'uppercase' }}>Tu membresía ha vencido</div>
-                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>Renueva tu plan para continuar accediendo a tus sesiones.</div>
+                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, color:'#ff4466', letterSpacing:'0.06em', textTransform:'uppercase' }}>Your membership has expired</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>Renew your plan to continue accessing your sessions.</div>
                 </div>
               </div>
               <button onClick={() => {
@@ -1037,7 +1037,7 @@ export default function ParentPortal() {
                   setSelectedPlayer(expired || players[0])
                   setShowBuyPack(true)
                 }} className="btn-primary" style={{ fontSize:12, padding:'8px 18px', flexShrink:0 }}>
-                Renovar plan
+                Renew Plan
               </button>
             </div>
           )}
@@ -1214,7 +1214,7 @@ export default function ParentPortal() {
       </Modal>
 
       {/* ── MODAL: BOOK / RESCHEDULE SESSION ── */}
-      <Modal open={showBookModal} onClose={() => { setShowBookModal(false); setRescheduleBooking(null) }} title={rescheduleBooking ? `Reagendar Sesión · ${bookingPlayer?.kid_name}` : `Book Session · ${bookingPlayer?.kid_name}`} width={520}>
+      <Modal open={showBookModal} onClose={() => { setShowBookModal(false); setRescheduleBooking(null) }} title={rescheduleBooking ? `Reschedule Session · ${bookingPlayer?.kid_name}` : `Book Session · ${bookingPlayer?.kid_name}`} width={520}>
         {bookingPlayer && (() => {
           const m = bookingPlayer.active_membership
           const remaining = m ? m.sessions_total - m.sessions_used : 0
@@ -1243,10 +1243,10 @@ export default function ParentPortal() {
                 <div style={{ textAlign:'center', padding:'24px 0', color:'var(--muted)' }}>
                   <div style={{ fontSize:36, marginBottom:8 }}>⚠️</div>
                   <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>
-                    {membershipExpired ? 'Membresía vencida' : 'No sessions available'}
+                    {membershipExpired ? 'Membership expired' : 'No sessions available'}
                   </div>
                   <div style={{ fontSize:13, marginTop:6 }}>
-                    {membershipExpired ? 'Tu membresía ha expirado. Renueva tu plan para agendar sesiones.' : 'Purchase a plan to book sessions.'}
+                    {membershipExpired ? 'Your membership has expired. Renew your plan to book sessions.' : 'Purchase a plan to book sessions.'}
                   </div>
                 </div>
               ) : (
@@ -1287,7 +1287,7 @@ export default function ParentPortal() {
                   </div>
                   <button onClick={handleBookSession} disabled={!bookingForm.date || !bookingForm.time || bookingLoading}
                     className="btn-primary" style={{ marginTop:4 }}>
-                    {bookingLoading ? (rescheduleBooking ? 'Reagendando...' : 'Booking...') : rescheduleBooking ? 'Confirmar Reagendamiento' : 'Confirm Session'}
+                    {bookingLoading ? (rescheduleBooking ? 'Rescheduling...' : 'Booking...') : rescheduleBooking ? 'Confirm Reschedule' : 'Confirm Session'}
                   </button>
                 </>
               )}
@@ -1297,24 +1297,24 @@ export default function ParentPortal() {
       </Modal>
 
       {/* ── MODAL: CANCEL SESSION ── */}
-      <Modal open={cancelModal.open} onClose={() => !cancelLoading && setCancelModal({ open: false, booking: null })} title="Cancelar Sesión" width={420}>
+      <Modal open={cancelModal.open} onClose={() => !cancelLoading && setCancelModal({ open: false, booking: null })} title="Cancel Session" width={420}>
         {cancelModal.booking && (
           <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
             <div style={{ padding:'16px 18px', background:'rgba(255,68,102,0.07)', border:'1px solid rgba(255,68,102,0.25)', borderRadius:10 }}>
-              <div style={{ fontSize:13, color:'var(--muted)', marginBottom:8 }}>Sesión a cancelar:</div>
+              <div style={{ fontSize:13, color:'var(--muted)', marginBottom:8 }}>Session to cancel:</div>
               <div style={{ fontFamily:'var(--font-mono)', fontSize:14, color:'var(--white)', fontWeight:600 }}>
                 {new Date(cancelModal.booking.session_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} · {cancelModal.booking.session_time}
               </div>
               <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>{cancelModal.booking.kid_name}</div>
             </div>
             <div style={{ fontSize:13, color:'var(--muted)', padding:'10px 14px', background:'rgba(34,197,110,0.06)', border:'1px solid rgba(34,197,110,0.15)', borderRadius:8 }}>
-              ✓ Se devolverá 1 sesión a tu plan.
+              ✓ 1 session will be returned to your plan.
             </div>
             <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-              <button className="btn-ghost" onClick={() => setCancelModal({ open: false, booking: null })} disabled={cancelLoading}>Volver</button>
+              <button className="btn-ghost" onClick={() => setCancelModal({ open: false, booking: null })} disabled={cancelLoading}>Go Back</button>
               <button onClick={handleCancelSession} disabled={cancelLoading}
                 style={{ padding:'12px 24px', borderRadius:8, background:'#e04060', border:'none', color:'white', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:15, letterSpacing:'0.06em', cursor: cancelLoading ? 'not-allowed' : 'pointer', opacity: cancelLoading ? 0.7 : 1 }}>
-                {cancelLoading ? 'Cancelando...' : 'Cancelar Sesión'}
+                {cancelLoading ? 'Canceling...' : 'Cancel Session'}
               </button>
             </div>
           </div>
@@ -1463,11 +1463,11 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
                   onClick={() => setQrModal({ open: true, player })}
                   style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px 16px', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:8, color:'var(--white)', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:13, letterSpacing:'0.08em', textTransform:'uppercase', cursor:'pointer' }}
                 >
-                  📷 Escanear QR
+                  📷 Scan QR
                 </button>
                 <div style={{ display:'flex', gap:8 }}>
                   <button className="btn-ghost" onClick={() => loadCheckins(player.kid_name)} style={{ flex:1, justifyContent:'center', display:'flex', padding:'8px 10px', fontSize:12 }}>
-                    Ver Asistencias
+                    View Attendance
                   </button>
                   {m && (
                     <button className="btn-ghost" onClick={() => onBuy(player)} style={{ flex:1, justifyContent:'center', display:'flex', padding:'8px 10px', fontSize:12 }}>
@@ -1496,17 +1496,17 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
       />
 
       {/* Attendance modal */}
-      <Modal open={attendanceModal.open} onClose={() => setAttendanceModal({ open:false, kidName:null, checkins:[], loading:false })} title={`Asistencias · ${attendanceModal.kidName || ''}`} width={460}>
+      <Modal open={attendanceModal.open} onClose={() => setAttendanceModal({ open:false, kidName:null, checkins:[], loading:false })} title={`Attendance · ${attendanceModal.kidName || ''}`} width={460}>
         {attendanceModal.loading ? (
-          <div style={{ textAlign:'center', padding:32, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Cargando…</div>
+          <div style={{ textAlign:'center', padding:32, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Loading…</div>
         ) : attendanceModal.checkins.length === 0 ? (
-          <div style={{ textAlign:'center', padding:32, color:'var(--muted)', fontSize:14 }}>No hay asistencias registradas.</div>
+          <div style={{ textAlign:'center', padding:32, color:'var(--muted)', fontSize:14 }}>No attendance records found.</div>
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {attendanceModal.checkins.map((c, i) => {
               const dt = new Date(c.checked_in_at)
-              const date = dt.toLocaleDateString('es-MX', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
-              const time = dt.toLocaleTimeString('es-MX', { hour:'2-digit', minute:'2-digit' })
+              const date = dt.toLocaleDateString('en-US', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
+              const time = dt.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
               const rem = c.sessions_remaining_after
               return (
                 <div key={c.id || i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
@@ -1516,7 +1516,7 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
                   </div>
                   <div style={{ textAlign:'right' }}>
                     <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:24, color: rem <= 2 ? '#E8A020' : 'var(--green2)', lineHeight:1 }}>{rem}</div>
-                    <div style={{ fontSize:10, color:'var(--muted)', letterSpacing:'0.1em', textTransform:'uppercase', marginTop:2 }}>sesiones restantes</div>
+                    <div style={{ fontSize:10, color:'var(--muted)', letterSpacing:'0.1em', textTransform:'uppercase', marginTop:2 }}>sessions remaining</div>
                   </div>
                 </div>
               )
@@ -1632,15 +1632,15 @@ function SessionsPage({ players, bookings, onBook, onCancel, onReschedule }) {
                               <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                                 <button onClick={() => onReschedule(b)}
                                   style={{ padding:'4px 10px', borderRadius:6, background:'rgba(79,168,255,0.12)', border:'1px solid rgba(79,168,255,0.3)', color:'#4fa8ff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:11, cursor:'pointer', letterSpacing:'0.05em' }}>
-                                  ↺ Reagendar
+                                  ↺ Reschedule
                                 </button>
                                 <button onClick={() => onCancel(b)}
                                   style={{ padding:'4px 10px', borderRadius:6, background:'rgba(224,64,96,0.12)', border:'1px solid rgba(224,64,96,0.3)', color:'#e04060', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:11, cursor:'pointer', letterSpacing:'0.05em' }}>
-                                  ✕ Cancelar
+                                  ✕ Cancel
                                 </button>
                               </div>
                             ) : (
-                              <span style={{ fontSize:10, color:'var(--muted2)', fontFamily:'var(--font-mono)' }}>sin modificaciones</span>
+                              <span style={{ fontSize:10, color:'var(--muted2)', fontFamily:'var(--font-mono)' }}>no changes allowed</span>
                             )}
                           </div>
                         )
@@ -1822,11 +1822,11 @@ function SchedulePage({ bookings, onCancel, onReschedule }) {
                       <div style={{ display:'flex', gap:6, marginTop:10, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
                         <button onClick={() => onReschedule(b)}
                           style={{ flex:1, padding:'6px 0', borderRadius:6, background:'rgba(79,168,255,0.1)', border:'1px solid rgba(79,168,255,0.25)', color:'#4fa8ff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, cursor:'pointer', letterSpacing:'0.04em' }}>
-                          ↺ Reagendar
+                          ↺ Reschedule
                         </button>
                         <button onClick={() => onCancel(b)}
                           style={{ flex:1, padding:'6px 0', borderRadius:6, background:'rgba(224,64,96,0.1)', border:'1px solid rgba(224,64,96,0.25)', color:'#e04060', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, cursor:'pointer', letterSpacing:'0.04em' }}>
-                          ✕ Cancelar
+                          ✕ Cancel
                         </button>
                       </div>
                     )}

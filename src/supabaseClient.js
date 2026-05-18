@@ -4,7 +4,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error("⚠️ ERROR: Faltan las llaves de Supabase en Vercel Settings.");
+  console.error("⚠️ ERROR: Missing Supabase keys in Vercel Settings.");
 }
 
 // Unauthenticated client — used for public reads (events, etc.)

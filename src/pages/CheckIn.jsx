@@ -100,7 +100,7 @@ export default function CheckIn() {
       setResult({ kidName: selected, remaining: remainingAfter, packageName: membership.package_name })
       setStep('success')
     } catch (err) {
-      setErrorMsg(err.message || 'Error desconocido')
+      setErrorMsg(err.message || 'Unknown error')
       setStep('error')
     } finally {
       setChecking(false)
@@ -142,17 +142,17 @@ export default function CheckIn() {
                 Check In
               </div>
               <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginTop: 6 }}>
-                Selecciona quién va a entrenar hoy
+                Select who is training today
               </div>
             </div>
 
             {loading ? (
               <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 14, padding: '48px 0', fontFamily: 'var(--font-display)', fontStyle: 'italic' }}>
-                Cargando…
+                Loading…
               </div>
             ) : players.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 14, padding: '48px 0' }}>
-                No hay jugadores registrados en esta cuenta.
+                No players registered on this account.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
@@ -185,7 +185,7 @@ export default function CheckIn() {
                         <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', fontFamily: 'var(--font-display)' }}>
                           {p.kid_name}
                         </div>
-                        {p.age && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{p.age} años</div>}
+                        {p.age && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{p.age} yrs</div>}
                       </div>
                       <ChevronRight size={18} color={isSelected ? RED : 'rgba(255,255,255,0.2)'} />
                     </button>
@@ -208,7 +208,7 @@ export default function CheckIn() {
                 transition: 'all 0.2s',
               }}
             >
-              {checking ? 'Registrando…' : 'Confirmar Entrada'}
+              {checking ? 'Checking in…' : 'Confirm Check-in'}
             </button>
           </>
         )}
@@ -220,7 +220,7 @@ export default function CheckIn() {
               <CheckCircle size={80} color={GREEN} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto' }} />
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(26px, 7vw, 36px)', fontWeight: 900, color: '#fff', lineHeight: 1.1, marginBottom: 8 }}>
-              Entrada Registrada ✅
+              Check-in Confirmed ✅
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: GREEN, marginBottom: 24 }}>
               {result.kidName}
@@ -230,13 +230,13 @@ export default function CheckIn() {
               borderRadius: 12, padding: '20px 24px', marginBottom: 32,
             }}>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--font-display)', marginBottom: 4 }}>
-                Sesiones restantes
+                Sessions remaining
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 48, fontWeight: 900, color: result.remaining <= 2 ? AMBER : GREEN, lineHeight: 1 }}>
                 {result.remaining}
               </div>
               {result.packageName && (
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>Paquete {result.packageName}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>Package {result.packageName}</div>
               )}
             </div>
             <button onClick={reset} style={{
@@ -244,7 +244,7 @@ export default function CheckIn() {
               borderRadius: 10, color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700,
               fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
             }}>
-              Otro jugador
+              Another player
             </button>
           </div>
         )}
@@ -256,18 +256,18 @@ export default function CheckIn() {
               <Clock size={72} color={AMBER} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto' }} />
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 12 }}>
-              Ya registraste entrada hoy
+              Already checked in today
             </div>
             <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', marginBottom: 32, lineHeight: 1.5 }}>
-              Ya registraste entrada hoy para <strong style={{ color: '#fff' }}>{selected}</strong>.
-              Solo se permite un check-in por día.
+              Already checked in today for <strong style={{ color: '#fff' }}>{selected}</strong>.
+              Only one check-in per day is allowed.
             </div>
             <button onClick={reset} style={{
               padding: '14px 32px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${BORD}`,
               borderRadius: 10, color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700,
               fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
             }}>
-              Volver
+              Go back
             </button>
           </div>
         )}
@@ -279,17 +279,17 @@ export default function CheckIn() {
               <AlertCircle size={72} color={RED} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto' }} />
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 12 }}>
-              Sin sesiones disponibles
+              No sessions available
             </div>
             <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', marginBottom: 32, lineHeight: 1.5 }}>
-              No tienes sesiones disponibles. Contacta a <strong style={{ color: '#fff' }}>Torque Performance</strong> para renovar tu membresía.
+              You have no sessions available. Contact <strong style={{ color: '#fff' }}>Torque Performance</strong> to renew your membership.
             </div>
             <button onClick={reset} style={{
               padding: '14px 32px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${BORD}`,
               borderRadius: 10, color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700,
               fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
             }}>
-              Volver
+              Go back
             </button>
           </div>
         )}
@@ -311,7 +311,7 @@ export default function CheckIn() {
               borderRadius: 10, color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700,
               fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
             }}>
-              Intentar de nuevo
+              Try again
             </button>
           </div>
         )}

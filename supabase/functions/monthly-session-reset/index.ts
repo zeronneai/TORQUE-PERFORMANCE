@@ -12,10 +12,10 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SESSIONS_BY_PACKAGE: Record<string, number> = {
-  'A': 4,    'Paquete A': 4,
-  'AA': 8,   'Paquete AA': 8,
-  'AAA': 12, 'Paquete AAA': 12,
-  'MLB': 20, 'Paquete MLB': 20,
+  'A': 4,    'Package A': 4,
+  'AA': 8,   'Package AA': 8,
+  'AAA': 12, 'Package AAA': 12,
+  'MLB': 20, 'Package MLB': 20,
 }
 
 serve(async (_req) => {

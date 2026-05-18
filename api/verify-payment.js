@@ -8,26 +8,26 @@ const supabase = createClient(
 );
 
 const PRICE_INFO = {
-  // PAQUETE A (live)
-  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Paquete A' },
-  'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Paquete A' },
-  'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Paquete A' },
-  'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Paquete A' },
-  // PAQUETE AA (live)
-  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Paquete AA' },
-  'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Paquete AA' },
-  'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Paquete AA' },
-  'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Paquete AA' },
-  // PAQUETE AAA (live)
-  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Paquete AAA' },
-  'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Paquete AAA' },
-  'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Paquete AAA' },
-  'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Paquete AAA' },
-  // PAQUETE MLB (live)
-  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Paquete MLB' },
-  'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Paquete MLB' },
-  'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Paquete MLB' },
-  'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Paquete MLB' },
+  // PACKAGE A (live)
+  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Package A' },
+  'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Package A' },
+  'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Package A' },
+  'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Package A' },
+  // PACKAGE AA (live)
+  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Package AA' },
+  'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Package AA' },
+  'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Package AA' },
+  'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Package AA' },
+  // PACKAGE AAA (live)
+  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Package AAA' },
+  'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Package AAA' },
+  'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Package AAA' },
+  'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Package AAA' },
+  // PACKAGE MLB (live)
+  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Package MLB' },
+  'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Package MLB' },
+  'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Package MLB' },
+  'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Package MLB' },
 };
 
 function addMonths(unixTs, months) {
