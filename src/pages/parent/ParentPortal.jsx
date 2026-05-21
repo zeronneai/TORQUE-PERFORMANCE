@@ -643,7 +643,7 @@ export default function ParentPortal() {
   const handleCheckout = (stripeUrl, priceId) => {
     if (!selectedPlayer) return
     const ref = encodeURIComponent(`${user.id}__${selectedPlayer.kid_name}__${priceId}`)
-    window.open(`${stripeUrl}?prefilled_promo_code=PRUEBA100&client_reference_id=${ref}`, '_blank')
+    window.open(`${stripeUrl}?client_reference_id=${ref}`, '_blank')
   }
 
   const BILLING_LABELS = {
@@ -665,7 +665,7 @@ export default function ParentPortal() {
     const stripeUrl = waiverData.stripeUrl
     const priceId   = waiverData.priceId
     const ref       = encodeURIComponent(`${user.id}__${selectedPlayer.kid_name}__${priceId}`)
-    const fullUrl   = `${stripeUrl}?prefilled_promo_code=PRUEBA100&client_reference_id=${ref}`
+    const fullUrl   = `${stripeUrl}?client_reference_id=${ref}`
     try {
       const { error } = await supabase.from('waivers').insert({
         parent_id:        user.id,
