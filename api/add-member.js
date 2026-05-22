@@ -7,6 +7,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const PACKAGE_NAMES = { A: 'Package A', AA: 'Package AA', AAA: 'Package AAA', MLB: 'Package MLB' };
+
 const MEMBERSHIP_IDS = {
   'A':   '93e92b42-7453-46c2-9660-12426eaa51a5',
   'AA':  'be63127a-09a3-4320-bfd6-cf18c69b9def',
@@ -44,7 +46,7 @@ const STRIPE_LINKS = {
     annual:  { link: 'https://buy.stripe.com/eVq5kC5VQ86E7vTd0GfAc06', price: 'price_1TLqDkAPTWbxe0Yy8UHtMvEJ' },
   },
   MLB: {
-    monthly: { link: 'https://buy.stripe.com/9B6dR8ac62MkdUhaSyfAc02', price: 'price_1TLqDdAPTWbxe0YydO64XMLw' },
+    monthly: { link: 'https://buy.stripe.com/7sYeVc3NIdqYdUh9OufAc0h', price: 'price_1TLqDdAPTWbxe0YydO64XMLw' },
     m6:      { link: 'https://buy.stripe.com/dRmfZgckegDacQd8KqfAc0a', price: 'price_1TLqDlAPTWbxe0YyEIZi7YR5' },
     m12:     { link: 'https://buy.stripe.com/14A6oG4RM5Yw9E1bWCfAc05', price: 'price_1TLqDjAPTWbxe0YyVQxRaHFs' },
     annual:  { link: 'https://buy.stripe.com/dRm9ASgAu3QoeYle4KfAc00', price: 'price_1TLqDjAPTWbxe0Yy6fRLwlFM' },
@@ -77,29 +79,37 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const {
-    parentName, email, phone, kidName, package: pkg, startDate,
+    parentName, email, phone, kidName, package: pkg,
     planType = 'monthly', kidName2, package2, planType2 = 'monthly',
-    paymentMethod = 'manual', specialPrice,
+    paymentMethod = 'manual', startDate, specialPrice,
   } = req.body;
 
-  if (!parentName || !email || !kidName || !pkg || !startDate) {
-    return res.status(400).json({ error: 'Missing required fields' });
+  if (!parentName || !email || !kidName || !pkg) {
+    return res.status(400).json({ error: 'Missing required fields (parentName, email, kidName, package)' });
+  }
+  if (paymentMethod === 'manual' && !startDate) {
+    return res.status(400).json({ error: 'Start date is required for manual payment' });
   }
 
   try {
     // 1. Create or find Clerk user
     let clerkUser;
-    const existing = await clerk.users.getUserList({ emailAddress: [email] });
-    if (existing.length > 0) {
-      clerkUser = existing[0];
+    const existingResult = await clerk.users.getUserList({ emailAddress: [email] });
+    // Handle both SDK v4 (array) and v5 ({ data: [] }) response shapes
+    const existingUsers = Array.isArray(existingResult) ? existingResult : (existingResult.data ?? []);
+
+    if (existingUsers.length > 0) {
+      clerkUser = existingUsers[0];
+      console.log(`[add-member] Found existing Clerk user: ${clerkUser.id} (${email})`);
     } else {
       clerkUser = await clerk.users.createUser({
         emailAddress: [email],
         firstName: parentName.split(' ')[0],
-        lastName: parentName.split(' ').slice(1).join(' '),
+        lastName: parentName.split(' ').slice(1).join(' ') || undefined,
         username: email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_') + '_' + Date.now().toString().slice(-4),
         password: 'Torque2026!',
       });
+      console.log(`[add-member] Created Clerk user: ${clerkUser.id} (${email})`);
     }
 
     // 2. Upsert profile
@@ -108,21 +118,25 @@ export default async function handler(req, res) {
       .upsert({ id: clerkUser.id, full_name: parentName, phone, email, role: 'parent' }, { onConflict: 'id' });
     if (profileError) throw new Error(`Profile: ${profileError.message}`);
 
-    // 3. Insert player(s)
+    // 3. Insert player(s) — ignore if already exists
     const { error: playerError } = await supabase
       .from('players')
       .insert({ parent_id: clerkUser.id, kid_name: kidName, birthdate: null, age: null });
-    if (playerError) throw new Error(`Player: ${playerError.message}`);
+    if (playerError && !playerError.message.includes('duplicate')) {
+      throw new Error(`Player: ${playerError.message}`);
+    }
 
     const pkg2 = package2 || pkg;
     if (kidName2) {
       const { error: player2Error } = await supabase
         .from('players')
         .insert({ parent_id: clerkUser.id, kid_name: kidName2, birthdate: null, age: null });
-      if (player2Error) throw new Error(`Player 2: ${player2Error.message}`);
+      if (player2Error && !player2Error.message.includes('duplicate')) {
+        throw new Error(`Player 2: ${player2Error.message}`);
+      }
     }
 
-    // 4a. STRIPE flow — return payment links, do not create memberships yet
+    // 4a. STRIPE flow — return payment links; memberships created by webhook after payment
     if (paymentMethod === 'stripe') {
       const stripeLink  = buildStripeLink(pkg,  planType,  clerkUser.id, kidName);
       const stripeLink2 = kidName2 ? buildStripeLink(pkg2, planType2, clerkUser.id, kidName2) : null;
@@ -131,24 +145,26 @@ export default async function handler(req, res) {
     }
 
     // 4b. MANUAL flow — insert memberships immediately
+    const effectiveStart = new Date(startDate).toISOString();
     const sp = specialPrice ? Math.round(parseFloat(specialPrice)) : null;
     const effectivePrice1 = sp ?? (PRICE_TABLE[pkg]?.[planType] ?? null);
     const effectivePrice2 = PRICE_TABLE[pkg2]?.monthly != null ? Math.round(PRICE_TABLE[pkg2].monthly * 0.5) : null;
+
     const { error: membershipError } = await supabase
       .from('player_memberships')
       .insert({
-        parent_id: clerkUser.id,
-        kid_name: kidName,
-        membership_id: MEMBERSHIP_IDS[pkg],
-        sessions_total: calcSessions(pkg, planType),
-        sessions_used: 0,
-        status: 'active',
+        parent_id:         clerkUser.id,
+        kid_name:          kidName,
+        membership_id:     MEMBERSHIP_IDS[pkg],
+        sessions_total:    calcSessions(pkg, planType),
+        sessions_used:     0,
+        status:            'active',
         stripe_payment_id: 'manual',
         stripe_session_id: 'manual',
-        purchased_at: new Date(startDate).toISOString(),
-        expires_at: calcExpires(startDate, planType),
-        package_name: pkg,
-        monthly_price: effectivePrice1,
+        purchased_at:      effectiveStart,
+        expires_at:        calcExpires(startDate, planType),
+        package_name:      PACKAGE_NAMES[pkg] || pkg,
+        monthly_price:     effectivePrice1,
       });
     if (membershipError) throw new Error(`Membership: ${membershipError.message}`);
 
@@ -156,24 +172,24 @@ export default async function handler(req, res) {
       const { error: membership2Error } = await supabase
         .from('player_memberships')
         .insert({
-          parent_id: clerkUser.id,
-          kid_name: kidName2,
-          membership_id: MEMBERSHIP_IDS[pkg2],
-          sessions_total: calcSessions(pkg2, planType2),
-          sessions_used: 0,
-          status: 'active',
+          parent_id:         clerkUser.id,
+          kid_name:          kidName2,
+          membership_id:     MEMBERSHIP_IDS[pkg2],
+          sessions_total:    calcSessions(pkg2, planType2),
+          sessions_used:     0,
+          status:            'active',
           stripe_payment_id: 'manual',
           stripe_session_id: 'manual',
-          purchased_at: new Date(startDate).toISOString(),
-          expires_at: calcExpires(startDate, planType2),
-          package_name: pkg2,
-          sibling_discount: true,
-          monthly_price: effectivePrice2,
+          purchased_at:      effectiveStart,
+          expires_at:        calcExpires(startDate, planType2),
+          package_name:      PACKAGE_NAMES[pkg2] || pkg2,
+          sibling_discount:  true,
+          monthly_price:     effectivePrice2,
         });
       if (membership2Error) throw new Error(`Membership 2: ${membership2Error.message}`);
     }
 
-    console.log(`[add-member] ✅ Manual — ${parentName} / ${kidName}${kidName2 ? ' + ' + kidName2 : ''} — Package ${pkg} / ${planType}`);
+    console.log(`[add-member] ✅ Manual — ${parentName} / ${kidName}${kidName2 ? ' + ' + kidName2 : ''} — ${PACKAGE_NAMES[pkg]} / ${planType}`);
     return res.status(200).json({ ok: true, clerkId: clerkUser.id });
   } catch (err) {
     console.error('[add-member] Error:', err.message);
