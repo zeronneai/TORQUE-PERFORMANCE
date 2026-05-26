@@ -17,7 +17,6 @@
     "@capacitor/keyboard": "^8.0.3",
     "@capacitor/status-bar": "^8.0.2",
     "@clerk/clerk-react": "^5.0.0",
-    "@clerk/clerk-sdk-node": "^4.13.23",
     "@clerk/themes": "^2.0.0",
     "@supabase/supabase-js": "latest",
     "html5-qrcode": "^2.3.8",
@@ -31,6 +30,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.3.1",
     "@capacitor/ios": "^8.3.1",
+    "@clerk/clerk-sdk-node": "^4.13.23",
     "@vitejs/plugin-react": "^4.2.1",
     "typescript": "^6.0.3",
     "vite": "^5.0.8"
