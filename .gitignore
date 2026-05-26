@@ -4,3 +4,4 @@ dist/
 .env.local
 .env.*.local
 sync-output.sql
+migration.sql
