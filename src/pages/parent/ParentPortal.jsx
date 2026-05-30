@@ -1328,7 +1328,7 @@ export default function ParentPortal() {
             Need help with your account, sessions, or billing? Our team is ready to assist you.
             Reach out via WhatsApp for a fast response, or send us an email and we'll get back to you shortly.
           </p>
-          <a href="https://wa.me/19152343655" target="_blank" rel="noopener noreferrer"
+          <a href="https://wa.me/19152423456" target="_blank" rel="noopener noreferrer"
             className="support-btn"
             style={{ border:'1px solid rgba(34,197,110,0.25)', background:'rgba(34,197,110,0.05)' }}>
             <div style={{ display:'flex', alignItems:'center', gap:16 }}>
@@ -1337,7 +1337,7 @@ export default function ParentPortal() {
               </svg>
               <div>
                 <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', letterSpacing:'0.05em', textTransform:'uppercase' }}>WhatsApp</div>
-                <div style={{ fontSize:12, color:'var(--muted)', fontFamily:'var(--font-mono)', marginTop:2 }}>+1 (915) 234-3655 · fastest response</div>
+                <div style={{ fontSize:12, color:'var(--muted)', fontFamily:'var(--font-mono)', marginTop:2 }}>+1 (915) 242-3456 · fastest response</div>
               </div>
             </div>
             <ChevronRight size={16} color="var(--green2)" />
