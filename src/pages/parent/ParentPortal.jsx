@@ -370,6 +370,12 @@ export default function ParentPortal() {
   const [cancelModal, setCancelModal] = useState({ open: false, booking: null })
   const [cancelLoading, setCancelLoading] = useState(false)
   const [rescheduleBooking, setRescheduleBooking] = useState(null)
+  const [showPromo, setShowPromo] = useState(() => !sessionStorage.getItem('promoDismissed'))
+
+  function dismissPromo() {
+    sessionStorage.setItem('promoDismissed', '1')
+    setShowPromo(false)
+  }
 
   useEffect(() => {
     if (!bookingForm.date) return
@@ -950,6 +956,97 @@ export default function ParentPortal() {
   return (
     <>
       <style>{GLOBAL_CSS}</style>
+
+      {/* ── SUMMER PROMO MODAL ── */}
+      {showPromo && (
+        <div onClick={dismissPromo} style={{
+          position:'fixed', inset:0, zIndex:9999,
+          background:'rgba(0,0,0,0.72)', backdropFilter:'blur(4px)',
+          display:'flex', alignItems:'center', justifyContent:'center', padding:'20px',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:'linear-gradient(145deg, #0E1A2E 0%, #152440 100%)',
+            border:'1px solid rgba(255,255,255,0.12)',
+            borderRadius:20, padding:'36px 32px 32px',
+            maxWidth:440, width:'100%', position:'relative',
+            boxShadow:'0 24px 80px rgba(0,0,0,0.6)',
+          }}>
+            {/* Close */}
+            <button onClick={dismissPromo} style={{
+              position:'absolute', top:16, right:16,
+              background:'rgba(255,255,255,0.07)', border:'none', borderRadius:8,
+              width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center',
+              cursor:'pointer', color:'rgba(255,255,255,0.5)',
+            }}>
+              <X size={16} />
+            </button>
+
+            {/* Badge */}
+            <div style={{
+              display:'inline-flex', alignItems:'center', gap:6,
+              background:'rgba(34,197,110,0.12)', border:'1px solid rgba(34,197,110,0.3)',
+              borderRadius:20, padding:'4px 12px', marginBottom:16,
+              fontSize:11, fontFamily:'var(--font-display)', fontWeight:700,
+              letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--green2)',
+            }}>
+              Limited Time
+            </div>
+
+            {/* Title */}
+            <div style={{
+              fontFamily:'var(--font-display)', fontWeight:900, lineHeight:1.05,
+              fontSize:'clamp(28px,6vw,38px)', color:'var(--white)',
+              letterSpacing:'0.03em', textTransform:'uppercase', marginBottom:12,
+            }}>
+              ⚾ Summer Special
+            </div>
+
+            {/* Body */}
+            <p style={{ fontSize:15, color:'rgba(255,255,255,0.7)', lineHeight:1.6, marginBottom:20 }}>
+              Get the <strong style={{ color:'var(--white)' }}>MLB Package</strong> — 20 sessions/month — for just{' '}
+              <strong style={{ color:'var(--green2)' }}>$400/month</strong>.
+              Save $200 every month this summer!
+            </p>
+
+            {/* Promo code chip */}
+            <div style={{
+              background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)',
+              borderRadius:10, padding:'10px 16px', marginBottom:24,
+              display:'flex', alignItems:'center', justifyContent:'space-between',
+            }}>
+              <span style={{ fontSize:12, color:'rgba(255,255,255,0.45)', fontFamily:'var(--font-display)', letterSpacing:'0.08em', textTransform:'uppercase' }}>Promo code</span>
+              <span style={{ fontFamily:'var(--font-mono)', fontWeight:700, fontSize:15, color:'var(--green2)', letterSpacing:'0.1em' }}>MLBSUMMER</span>
+            </div>
+
+            {/* CTA */}
+            <a
+              href="https://buy.stripe.com/7sYeVc3NIdqYdUh9OufAc0h?prefilled_promo_code=MLBSUMMER"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={dismissPromo}
+              style={{
+                display:'block', width:'100%', padding:'15px 0',
+                background:'var(--white)', color:'var(--navy)',
+                borderRadius:12, border:'none', textDecoration:'none',
+                fontFamily:'var(--font-display)', fontWeight:900, fontSize:17,
+                letterSpacing:'0.06em', textTransform:'uppercase', textAlign:'center',
+                cursor:'pointer', marginBottom:12,
+              }}
+            >
+              Get the Deal →
+            </a>
+
+            <button onClick={dismissPromo} style={{
+              display:'block', width:'100%', padding:'10px 0',
+              background:'transparent', border:'none', cursor:'pointer',
+              color:'rgba(255,255,255,0.3)', fontSize:12,
+              fontFamily:'var(--font-body)',
+            }}>
+              No thanks, maybe later
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display:'flex', minHeight:'100vh', position:'relative', zIndex:1 }}>
 
