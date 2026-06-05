@@ -1018,12 +1018,13 @@ export default function ParentPortal() {
               <span style={{ fontFamily:'var(--font-mono)', fontWeight:700, fontSize:15, color:'var(--green2)', letterSpacing:'0.1em' }}>MLBSUMMER</span>
             </div>
 
-            {/* CTA */}
-            <a
-              href="https://buy.stripe.com/7sYeVc3NIdqYdUh9OufAc0h?prefilled_promo_code=MLBSUMMER"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={dismissPromo}
+            {/* CTA — routes through in-app package selection so client_reference_id is attached */}
+            <button
+              onClick={() => {
+                dismissPromo()
+                setSelectedPlayer(players[0] ?? null)
+                setShowBuyPack(true)
+              }}
               style={{
                 display:'block', width:'100%', padding:'15px 0',
                 background:'var(--white)', color:'var(--navy)',
@@ -1034,7 +1035,7 @@ export default function ParentPortal() {
               }}
             >
               Get the Deal →
-            </a>
+            </button>
 
             <button onClick={dismissPromo} style={{
               display:'block', width:'100%', padding:'10px 0',
