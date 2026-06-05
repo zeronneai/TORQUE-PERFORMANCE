@@ -5,3 +5,4 @@ dist/
 .env.*.local
 sync-output.sql
 migration.sql
+orphaned-payments.csv
