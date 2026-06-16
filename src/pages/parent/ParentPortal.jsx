@@ -668,10 +668,6 @@ export default function ParentPortal() {
   const handleWaiverSubmit = async () => {
     if (!waiverData || !waiverForm.signedName.trim() || !waiverForm.agreed) return
     setWaiverSaving(true)
-    const stripeUrl = waiverData.stripeUrl
-    const priceId   = waiverData.priceId
-    const ref       = encodeURIComponent(`${user.id}__${selectedPlayer.kid_name}__${priceId}`)
-    const fullUrl   = `${stripeUrl}?client_reference_id=${ref}`
     try {
       const { error } = await supabase.from('waivers').insert({
         parent_id:        user.id,
@@ -688,7 +684,26 @@ export default function ParentPortal() {
       })
       if (error) throw error
       setWaiverData(null)
-      window.location.href = fullUrl
+
+      // Sibling discount: parent has ≥1 other child with an active membership right now.
+      const isSibling = players.some(
+        p => p.kid_name !== selectedPlayer.kid_name && p.active_membership
+      )
+
+      const checkoutRes = await fetch(`${API_BASE}/api/create-checkout`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          userId:      user.id,
+          kidName:     selectedPlayer.kid_name,
+          priceId:     waiverData.priceId,
+          billingType: waiverData.billingType,
+          sibling:     isSibling,
+        }),
+      })
+      const checkoutData = await checkoutRes.json()
+      if (!checkoutRes.ok) throw new Error(checkoutData.error || 'Checkout session failed')
+      window.location.href = checkoutData.url
     } catch (err) {
       console.error('[Waiver] Submit failed:', err)
       alert('Error saving waiver: ' + (err.message || JSON.stringify(err)))
