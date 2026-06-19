@@ -7,27 +7,33 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Mirror of PRICE_INFO in stripe-webhook.js — keep the two in sync.
+//   months: how far out expires_at is set (stand/m6/m12 → 1, annual → 12).
 const PRICE_INFO = {
   // PACKAGE A (live)
-  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Package A' },
-  'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Package A' },
-  'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Package A' },
-  'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Package A' },
+  'price_1Tk92RAPTWbxe0YyE8zgXLet': { sessions: 4,  name: 'Package A',   months: 1  }, // stand (one-time)
+  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Package A',   months: 1  }, // stand — legacy recurring — kept for existing subs
+  'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Package A',   months: 1  }, // m6
+  'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Package A',   months: 1  }, // m12
+  'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Package A',   months: 12 }, // annual
   // PACKAGE AA (live)
-  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Package AA' },
-  'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Package AA' },
-  'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Package AA' },
-  'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Package AA' },
+  'price_1Tk92RAPTWbxe0Yy4zaPZkvx': { sessions: 8,  name: 'Package AA',  months: 1  }, // stand (one-time)
+  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Package AA',  months: 1  }, // stand — legacy recurring — kept for existing subs
+  'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Package AA',  months: 1  }, // m6
+  'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Package AA',  months: 1  }, // m12
+  'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Package AA',  months: 12 }, // annual
   // PACKAGE AAA (live)
-  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Package AAA' },
-  'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Package AAA' },
-  'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Package AAA' },
-  'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Package AAA' },
+  'price_1Tk92RAPTWbxe0YyM8hl6j9s': { sessions: 12, name: 'Package AAA', months: 1  }, // stand (one-time)
+  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Package AAA', months: 1  }, // stand — legacy recurring — kept for existing subs
+  'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Package AAA', months: 1  }, // m6
+  'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Package AAA', months: 1  }, // m12
+  'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Package AAA', months: 12 }, // annual
   // PACKAGE MLB (live)
-  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Package MLB' },
-  'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Package MLB' },
-  'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Package MLB' },
-  'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Package MLB' },
+  'price_1Tk92SAPTWbxe0YyRaxsup9N': { sessions: 20, name: 'Package MLB', months: 1  }, // stand (one-time)
+  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Package MLB', months: 1  }, // stand — legacy recurring — kept for existing subs
+  'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Package MLB', months: 1  }, // m6
+  'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Package MLB', months: 1  }, // m12
+  'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Package MLB', months: 12 }, // annual
 };
 
 function addMonths(unixTs, months) {
@@ -87,10 +93,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Unknown price ID' });
   }
 
-  const isAnnual        = session.mode === 'payment';
-  const stripePaymentId = isAnnual ? session.payment_intent : session.subscription;
+  // 'payment' mode (stand + annual) → one-time payment_intent; 'subscription' (m6/m12) → subscription id.
+  const isOneTime       = session.mode === 'payment';
+  const stripePaymentId = isOneTime ? session.payment_intent : session.subscription;
   const purchasedAt     = new Date(session.created * 1000).toISOString();
-  const expiresAt       = addMonths(session.created, isAnnual ? 12 : 1);
+  const expiresAt       = addMonths(session.created, info.months); // months is per-billing-type (see PRICE_INFO)
+  const isAnnual        = info.months === 12;                       // for logging only
 
   // Always replace sessions_total with the package amount and reset sessions_used to 0,
   // regardless of what the member had remaining before.
@@ -108,10 +116,23 @@ export default async function handler(req, res) {
   // Update existing record (e.g. manual member paying via Stripe) or insert new
   const { data: existing } = await supabase
     .from('player_memberships')
-    .select('id')
+    .select('id, stripe_payment_id')
     .eq('parent_id', parentId)
     .ilike('kid_name', kidName)
     .maybeSingle();
+
+  // Upgrade cleanup: if this kid was on a different recurring subscription, cancel it so
+  // the old plan stops billing alongside the new one. Prorate credits unused time to the
+  // customer's Stripe balance. Never throw — the membership write must still succeed.
+  const oldPaymentId = existing?.stripe_payment_id;
+  if (oldPaymentId?.startsWith('sub_') && oldPaymentId !== stripePaymentId) {
+    try {
+      await stripe.subscriptions.cancel(oldPaymentId, { prorate: true });
+      console.log(`[verify-payment] ✅ Cancelled superseded subscription ${oldPaymentId} for ${kidName}`);
+    } catch (e) {
+      console.error(`[verify-payment] Failed to cancel old subscription ${oldPaymentId}:`, e.message);
+    }
+  }
 
   if (existing) {
     const { error } = await supabase.from('player_memberships').update(payload).eq('id', existing.id);

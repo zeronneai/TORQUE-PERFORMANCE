@@ -114,10 +114,23 @@ async function upsertMembership({ parentId, kidName, priceId, ts, stripeSessionI
 
   const { data: existing } = await supabase
     .from('player_memberships')
-    .select('id')
+    .select('id, stripe_payment_id')
     .eq('parent_id', parentId)
     .ilike('kid_name', kidName)
     .maybeSingle();
+
+  // Upgrade cleanup: if this kid was on a different recurring subscription, cancel it so
+  // the old plan stops billing alongside the new one. Prorate credits unused time to the
+  // customer's Stripe balance. Never throw — the membership write must still succeed.
+  const oldPaymentId = existing?.stripe_payment_id;
+  if (oldPaymentId?.startsWith('sub_') && oldPaymentId !== stripePaymentId) {
+    try {
+      await stripe.subscriptions.cancel(oldPaymentId, { prorate: true });
+      console.log(`✅ Cancelled superseded subscription ${oldPaymentId} for ${kidName}`);
+    } catch (e) {
+      console.error(`[webhook] Failed to cancel old subscription ${oldPaymentId}:`, e.message);
+    }
+  }
 
   // Always replace sessions_total with the package amount and reset sessions_used to 0,
   // regardless of what the member had remaining before.
