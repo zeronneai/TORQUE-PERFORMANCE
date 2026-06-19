@@ -20,9 +20,10 @@ export default async function handler(req, res) {
   try {
     const ref = encodeURIComponent(`${userId}__${kidName}__${priceId}`);
 
-    // 'annual' is a one-time upfront payment; all other plans are recurring subscriptions.
-    // Webhook reads isAnnual = (session.mode === 'payment') — must stay in sync.
-    const mode = billingType === 'annual' ? 'payment' : 'subscription';
+    // One-time upfront payments (no autopay): 'annual' (12-month lump sum) and 'stand'
+    // (month-to-month, renewed manually). 'm6'/'m12' stay recurring subscriptions.
+    // Webhook keys expiry off priceId (PRICE_INFO.months), NOT session.mode — must stay in sync.
+    const mode = (billingType === 'annual' || billingType === 'stand') ? 'payment' : 'subscription';
 
     const sessionParams = {
       mode,

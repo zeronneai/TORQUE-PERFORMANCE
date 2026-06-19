@@ -17,28 +17,33 @@ async function getRawBody(readable) {
   return Buffer.concat(chunks);
 }
 
-// Monthly sessions per price ID (all plans reset to monthly amount each cycle)
+// Sessions + initial expiry window per price ID.
+//   months: how far out expires_at is set on the FIRST checkout.session.completed.
+//     stand (month-to-month, one-time)  → 1   m6/m12 (subscription) → 1 (then invoice.payment_succeeded resets +1 each cycle)
+//     annual (one-time lump sum)         → 12
+// NOTE: billing type is encoded by the priceId itself (each billing type has its own price ID),
+// so we no longer infer expiry from session.mode — see checkout.session.completed handler.
 const PRICE_INFO = {
   // PACKAGE A (live)
-  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Package A' },
-  'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Package A' },
-  'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Package A' },
-  'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Package A' },
+  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Package A',   months: 1  }, // stand
+  'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Package A',   months: 1  }, // m6
+  'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Package A',   months: 1  }, // m12
+  'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Package A',   months: 12 }, // annual
   // PACKAGE AA (live)
-  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Package AA' },
-  'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Package AA' },
-  'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Package AA' },
-  'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Package AA' },
+  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Package AA',  months: 1  }, // stand
+  'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Package AA',  months: 1  }, // m6
+  'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Package AA',  months: 1  }, // m12
+  'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Package AA',  months: 12 }, // annual
   // PACKAGE AAA (live)
-  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Package AAA' },
-  'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Package AAA' },
-  'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Package AAA' },
-  'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Package AAA' },
+  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Package AAA', months: 1  }, // stand
+  'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Package AAA', months: 1  }, // m6
+  'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Package AAA', months: 1  }, // m12
+  'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Package AAA', months: 12 }, // annual
   // PACKAGE MLB (live)
-  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Package MLB' },
-  'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Package MLB' },
-  'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Package MLB' },
-  'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Package MLB' },
+  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Package MLB', months: 1  }, // stand
+  'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Package MLB', months: 1  }, // m6
+  'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Package MLB', months: 1  }, // m12
+  'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Package MLB', months: 12 }, // annual
 };
 
 function addMonths(unixTs, months) {
@@ -86,7 +91,7 @@ async function sendAlert({ subject, parentId, kidName, priceId, sessionId, error
   }
 }
 
-async function upsertMembership({ parentId, kidName, priceId, isAnnual, ts, stripeSessionId, stripePaymentId }) {
+async function upsertMembership({ parentId, kidName, priceId, ts, stripeSessionId, stripePaymentId }) {
   const info = PRICE_INFO[priceId];
   if (!info) {
     const errorMsg = `unrecognized price ID "${priceId}" — add it to PRICE_INFO`;
@@ -100,7 +105,8 @@ async function upsertMembership({ parentId, kidName, priceId, isAnnual, ts, stri
   }
 
   const purchasedAt = new Date(ts * 1000).toISOString();
-  const expiresAt   = addMonths(ts, isAnnual ? 12 : 1);
+  const expiresAt   = addMonths(ts, info.months); // months is per-billing-type (see PRICE_INFO)
+  const isAnnual    = info.months === 12;          // for logging only
 
   const { data: existing } = await supabase
     .from('player_memberships')
@@ -194,11 +200,13 @@ export default async function handler(req, res) {
 
       _alertCtx = { parentId, kidName, priceId, sessionId: session.id };
 
-      const isAnnual        = session.mode === 'payment'; // 'payment' = one-time, 'subscription' = recurring
-      const stripePaymentId = isAnnual ? session.payment_intent : session.subscription;
+      // 'payment' mode (stand + annual) → one-time payment_intent; 'subscription' (m6/m12) → subscription id.
+      // This only selects which Stripe id to store; expiry is derived from priceId in upsertMembership.
+      const isOneTime       = session.mode === 'payment';
+      const stripePaymentId = isOneTime ? session.payment_intent : session.subscription;
 
       await upsertMembership({
-        parentId, kidName, priceId, isAnnual,
+        parentId, kidName, priceId,
         ts:               session.created,
         stripeSessionId:  session.id,
         stripePaymentId,

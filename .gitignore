@@ -6,3 +6,4 @@ dist/
 sync-output.sql
 migration.sql
 orphaned-payments.csv
+stand-subscriptions.csv
