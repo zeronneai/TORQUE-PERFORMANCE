@@ -30,8 +30,8 @@ const NAV_ITEMS = [
   { id: 'events',   label: 'Events'    },
 ]
 
-const WEEKDAY_TIMES  = ['4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM']
-const SATURDAY_TIMES = ['11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM']
+const WEEKDAY_TIMES  = ['4:00 PM', '5:00 PM', '6:00 PM']
+const SATURDAY_TIMES = ['12:00 PM', '1:00 PM', '2:00 PM']
 const MAX_CAPACITY = 16
 
 function parseSessionDateTime(dateStr, timeStr) {
