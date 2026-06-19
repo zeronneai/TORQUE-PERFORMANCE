@@ -25,22 +25,26 @@ async function getRawBody(readable) {
 // so we no longer infer expiry from session.mode — see checkout.session.completed handler.
 const PRICE_INFO = {
   // PACKAGE A (live)
-  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Package A',   months: 1  }, // stand
+  'price_1Tk92RAPTWbxe0YyE8zgXLet': { sessions: 4,  name: 'Package A',   months: 1  }, // stand (one-time)
+  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Package A',   months: 1  }, // stand — legacy recurring — kept for existing subs
   'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Package A',   months: 1  }, // m6
   'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Package A',   months: 1  }, // m12
   'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Package A',   months: 12 }, // annual
   // PACKAGE AA (live)
-  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Package AA',  months: 1  }, // stand
+  'price_1Tk92RAPTWbxe0Yy4zaPZkvx': { sessions: 8,  name: 'Package AA',  months: 1  }, // stand (one-time)
+  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Package AA',  months: 1  }, // stand — legacy recurring — kept for existing subs
   'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Package AA',  months: 1  }, // m6
   'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Package AA',  months: 1  }, // m12
   'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Package AA',  months: 12 }, // annual
   // PACKAGE AAA (live)
-  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Package AAA', months: 1  }, // stand
+  'price_1Tk92RAPTWbxe0YyM8hl6j9s': { sessions: 12, name: 'Package AAA', months: 1  }, // stand (one-time)
+  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Package AAA', months: 1  }, // stand — legacy recurring — kept for existing subs
   'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Package AAA', months: 1  }, // m6
   'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Package AAA', months: 1  }, // m12
   'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Package AAA', months: 12 }, // annual
   // PACKAGE MLB (live)
-  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Package MLB', months: 1  }, // stand
+  'price_1Tk92SAPTWbxe0YyRaxsup9N': { sessions: 20, name: 'Package MLB', months: 1  }, // stand (one-time)
+  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Package MLB', months: 1  }, // stand — legacy recurring — kept for existing subs
   'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Package MLB', months: 1  }, // m6
   'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Package MLB', months: 1  }, // m12
   'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Package MLB', months: 12 }, // annual
