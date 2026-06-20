@@ -8,3 +8,4 @@ migration.sql
 orphaned-payments.csv
 stand-subscriptions.csv
 audit-subscriptions.csv
+cross-reference-subscriptions.csv
