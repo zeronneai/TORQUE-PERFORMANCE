@@ -34,6 +34,10 @@ const WEEKDAY_TIMES  = ['4:00 PM', '5:00 PM', '6:00 PM']
 const SATURDAY_TIMES = ['12:00 PM', '1:00 PM', '2:00 PM']
 const MAX_CAPACITY = 16
 
+// Días festivos completamente bloqueados para reservar (sin slots disponibles).
+// 4 de julio — feriado nacional de EE. UU. (se bloquea cada año).
+const isBlockedHoliday = (d) => d.getMonth() === 6 && d.getDate() === 4
+
 function parseSessionDateTime(dateStr, timeStr) {
   const [hm, period] = timeStr.split(' ')
   let [h, m] = hm.split(':').map(Number)
@@ -529,6 +533,11 @@ export default function ParentPortal() {
 
   async function handleBookSession() {
     if (!bookingPlayer || !bookingForm.date || !bookingForm.time) return
+    // Salvaguarda: bloquear feriados (4 de julio) aunque la fecha llegue por otra vía
+    if (isBlockedHoliday(new Date(bookingForm.date + 'T12:00:00'))) {
+      alert('July 4th is a holiday — bookings are closed that day. Please choose another date.')
+      return
+    }
     setBookingLoading(true)
     try {
       // 0. Capacity check
@@ -1343,7 +1352,7 @@ export default function ParentPortal() {
           const today = new Date(); today.setHours(0,0,0,0)
           for (let i = 0; availableDates.length < 30; i++) {
             const d = new Date(today); d.setDate(today.getDate() + i)
-            if (AVAILABLE_DAYS.includes(d.getDay())) {
+            if (AVAILABLE_DAYS.includes(d.getDay()) && !isBlockedHoliday(d)) {
               const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
               availableDates.push(iso)
             }
