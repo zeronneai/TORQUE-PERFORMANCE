@@ -46,6 +46,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Handled separately by the owner — never touched by this script.
 const EXCLUDE_EMAILS = new Set([
   'maldo2504@gmail.com',        // Jerry Gomez — Package A label but MLB sessions, double-charge review
+  'felipeb19@yahoo.com',        // Felipe Bermudez — Package AA label but MLB sessions, double-charge review
   'jesus.r.flores00@gmail.com', // unmatched sub — needs membership creation, not update
   'jessica.arlene03@gmail.com', // unmatched sub — needs membership creation, not update
 ]);
