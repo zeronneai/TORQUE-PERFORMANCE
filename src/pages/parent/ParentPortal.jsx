@@ -53,35 +53,10 @@ function canModifyBooking(booking) {
 
 // ── GLOBAL CSS ────────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;1,700;1,800;1,900&family=Barlow:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
-
+  /* Fonts are loaded in index.html; all design tokens live in the unified
+     :root in src/index.css (single source of truth). This block no longer
+     redefines them so admin and the parent portal stay in sync. */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --navy:    #0B1423;
-    --navy2:   #0E1A2E;
-    --navy3:   #111F35;
-    --navy4:   #152440;
-    --navy5:   #1A2B4A;
-    /* Brand accent: blanco */
-    --accent:  #FFFFFF;
-    --accent2: rgba(255,255,255,0.75);
-    /* Kept as aliases so existing var(--red) / var(--red2) still work */
-    --red:     #FFFFFF;
-    --red2:    rgba(255,255,255,0.75);
-    --white:   #FFFFFF;
-    --offwhite:#EEF2F7;
-    --muted:   #7A8EA8;
-    --muted2:  #4A5E78;
-    --border:  rgba(255,255,255,0.07);
-    --border2: rgba(255,255,255,0.04);
-    --green:   #1A9B5A;
-    --green2:  #22C56E;
-    --font-display: 'Barlow Condensed', sans-serif;
-    --font-body:    'Barlow', sans-serif;
-    --font-mono:    'DM Mono', monospace;
-    --sidebar-w: 240px;
-  }
 
   html, body { background: var(--navy); color: var(--white); font-family: var(--font-body); }
 
@@ -161,7 +136,7 @@ const GLOBAL_CSS = `
   .player-card::after {
     content: '';
     position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, var(--red), transparent);
+    background: linear-gradient(90deg, var(--white), transparent);
     opacity: 0; transition: opacity 0.25s;
   }
   .player-card:hover {
@@ -929,7 +904,7 @@ export default function ParentPortal() {
       <div style={{ padding:'28px 22px 0', position:'relative' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
           <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:30, letterSpacing:'0.1em', lineHeight:1 }}>
-            TOR<span style={{ color:'var(--red)' }}>QUE</span>
+            TOR<span style={{ color:'var(--white)' }}>QUE</span>
           </div>
           {sidebarOpen && (
             <button onClick={() => setSidebarOpen(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', padding:4, display:'flex' }}>
@@ -952,7 +927,7 @@ export default function ParentPortal() {
         {NAV_ITEMS.map(({ id, label }) => (
           <button key={id} onClick={() => navigateTo(id)} className={`nav-item${page === id ? ' active' : ''}`}>
             {/* Red indicator dot */}
-            <span style={{ width:5, height:5, borderRadius:'50%', flexShrink:0, transition:'all 0.2s', background: page === id ? 'var(--red)' : 'transparent', border: page === id ? 'none' : '1px solid var(--muted2)' }} />
+            <span style={{ width:5, height:5, borderRadius:'50%', flexShrink:0, transition:'all 0.2s', background: page === id ? 'var(--white)' : 'transparent', border: page === id ? 'none' : '1px solid var(--muted2)' }} />
             {label}
           </button>
         ))}
@@ -1091,7 +1066,7 @@ export default function ParentPortal() {
           zIndex:200, display:'none'
         }}>
           <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, letterSpacing:'0.1em', lineHeight:1 }}>
-            TOR<span style={{ color:'var(--red)' }}>QUE</span>
+            TOR<span style={{ color:'var(--white)' }}>QUE</span>
           </div>
           <button onClick={() => setSidebarOpen(true)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--white)', padding:6 }}>
             <Menu size={22} />

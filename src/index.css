@@ -1,14 +1,25 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   UNIFIED DESIGN TOKENS — single source of truth for admin AND parent portal.
+   Phase 0 consolidation: merges the former index.css :root with the :root that
+   used to be injected inside ParentPortal.jsx. On conflicts the brand-anchored
+   index.css value wins (navy base is #0d1b2a, matching the PWA theme-color).
+   NO values were redesigned here — only made to resolve consistently everywhere.
+   ───────────────────────────────────────────────────────────────────────────── */
 :root {
+  /* ── Base surfaces (navy) ── */
   --navy:   #0d1b2a;
   --navy2:  #142338;
   --navy3:  #1c2f48;
   --navy4:  #243a5a;
+  --navy5:  #1A2B4A;   /* was ParentPortal-only */
   /* ── Brand accent: blanco ── */
   --accent:       #FFFFFF;
+  --accent2:      rgba(255,255,255,0.75); /* was ParentPortal-only */
   --accent-soft:  rgba(255,255,255,0.07);
   --accent-hover: rgba(255,255,255,0.12);
-  /* ── Kept for error/danger states only ── */
-  --red:      #c8102e;
+  /* ── Error/danger states ── */
+  --red:      #c8102e;                     /* FIX: ParentPortal had aliased this to #FFFFFF */
+  --red2:     rgba(200,16,46,0.75);        /* was ParentPortal-only (a white-alias leftover); now a real translucent red — unused in JS today */
   --red-soft: rgba(200,16,46,0.12);
   /* ── Util colors ── */
   --cream:      #f5f0e8;
@@ -16,25 +27,33 @@
   --gold:       #d4a017;
   --gold-soft:  rgba(212,160,23,0.15);
   --green:      #2ecc71;
+  --green2:     #22C56E;                    /* was ParentPortal-only; brand green */
   --green-soft: rgba(46,204,113,0.12);
   --amber:      #f39c12;
   --amber-soft: rgba(243,156,18,0.12);
   --blue-light: #4fa8ff;
   --blue-soft:  rgba(79,168,255,0.12);
   /* ── Text ── */
-  --text:   #f0ede8;
-  --text2:  #8a9ab5;
-  --text3:  #4a5a70;
+  --text:     #f0ede8;
+  --text2:    #8a9ab5;
+  --text3:    #4a5a70;
+  --white:    #FFFFFF;    /* was ParentPortal-only */
+  --offwhite: #EEF2F7;    /* was ParentPortal-only */
+  --muted:    #7A8EA8;    /* was ParentPortal-only */
+  --muted2:   #4A5E78;    /* was ParentPortal-only */
   /* ── Borders ── */
   --border:  rgba(255,255,255,0.07);
   --border2: rgba(255,255,255,0.13);
   /* ── Typography ── */
   --font-display: 'Barlow Condensed', sans-serif;
   --font-body:    'Barlow', sans-serif;
+  --font-mono:    'DM Mono', monospace;    /* was ParentPortal-only */
   /* ── Radii ── */
   --radius:    10px;
   --radius-sm: 6px;
   --radius-lg: 16px;
+  /* ── Layout ── */
+  --sidebar-w: 240px;                       /* was ParentPortal-only */
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
