@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Search, UserPlus, Pencil, Download } from 'lucide-react'
 import { Card, Badge, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
 import { useAdminData, PACK_INFO, parentName, normDate, daysUntil, expiryColor, expiryLabel } from '../../hooks/useAdminData'
@@ -15,6 +15,15 @@ const PRICE_TABLE = {
 }
 const SEL = { width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }
 const LBL = { fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }
+
+// Stable key to match a player across tables (parent + case-insensitive kid name)
+const memberKey = (pid, kid) => `${pid}::${(kid || '').toLowerCase().trim()}`
+
+const TABS = [
+  { id: 'members',   label: 'Members'          },
+  { id: 'prospects', label: 'Prospects'        },
+  { id: 'expired',   label: 'Expired / Win-back' },
+]
 
 export default function Families() {
   const { players, memberships, profiles, loading, refetch } = useAdminData()
@@ -33,6 +42,28 @@ export default function Families() {
   const [editParentName, setEditParentName]     = useState('')
   const [editParentSaving, setEditParentSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [tab, setTab] = useState('members')
+  // Set of memberKey() for every player that has EVER had a membership row (any status).
+  // Sourced separately from useAdminData (which is active-only) so we can tell
+  // never-members (prospects) apart from lapsed members (expired/win-back).
+  const [everMemberKeys, setEverMemberKeys] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    supabase
+      .from('player_memberships')
+      .select('parent_id, kid_name') // no status filter — ALL rows, any status
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) {
+          console.error('[Families] ever-member fetch failed:', error)
+          setEverMemberKeys(new Set()) // fail open: classify all non-active as prospects
+          return
+        }
+        setEverMemberKeys(new Set((data || []).map(m => memberKey(m.parent_id, m.kid_name))))
+      })
+    return () => { cancelled = true }
+  }, [])
 
   function csvEscape(v) {
     if (v == null) return ''
@@ -213,21 +244,37 @@ export default function Families() {
         m => m.parent_id === pid &&
           m.kid_name?.toLowerCase().trim() === player.kid_name?.toLowerCase().trim()
       ) || null
-      grouped[pid].players.push({ ...player, membership })
+      // Bucket: active membership → member; else ever had one → expired; else prospect.
+      // null while everMemberKeys is still loading (only affects prospects/expired tabs).
+      const everMember = everMemberKeys ? everMemberKeys.has(memberKey(pid, player.kid_name)) : null
+      const bucket = membership ? 'members'
+        : everMember == null ? null
+        : everMember ? 'expired' : 'prospects'
+      grouped[pid].players.push({ ...player, membership, _bucket: bucket })
     })
     return Object.values(grouped)
-  }, [players, memberships, profiles])
+  }, [players, memberships, profiles, everMemberKeys])
 
+  const counts = useMemo(() => {
+    const c = { members: 0, prospects: 0, expired: 0 }
+    families.forEach(f => f.players.forEach(p => { if (p._bucket) c[p._bucket]++ }))
+    return c
+  }, [families])
+
+  // Keep only players in the active tab, then apply search; drop families left empty.
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
-    if (!q) return families
-    return families.filter(f => {
-      const pName = (parentName(f.profile) || '').toLowerCase()
-      const pEmail = (f.profile?.email || '').toLowerCase()
-      const kidMatch = f.players.some(p => (p.kid_name || '').toLowerCase().includes(q))
-      return pName.includes(q) || pEmail.includes(q) || kidMatch
-    })
-  }, [families, search])
+    return families
+      .map(f => ({ ...f, players: f.players.filter(p => p._bucket === tab) }))
+      .filter(f => f.players.length > 0)
+      .filter(f => {
+        if (!q) return true
+        const pName = (parentName(f.profile) || '').toLowerCase()
+        const pEmail = (f.profile?.email || '').toLowerCase()
+        const kidMatch = f.players.some(p => (p.kid_name || '').toLowerCase().includes(q))
+        return pName.includes(q) || pEmail.includes(q) || kidMatch
+      })
+  }, [families, tab, search])
 
   const toggleFamily = id => setExpanded(p => ({ ...p, [id]: !p[id] }))
 
@@ -246,6 +293,32 @@ export default function Families() {
         title="Families & Players"
         subtitle={`${families.length} families · ${totalActive} active players`}
       />
+
+      {/* ── Member / Prospect / Win-back tabs ── */}
+      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+        {TABS.map(t => {
+          const isActive = tab === t.id
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              style={{
+                display:'flex', alignItems:'center', gap:8, padding:'8px 16px', height:38,
+                background: isActive ? 'rgba(79,168,255,0.12)' : 'transparent',
+                border: `1px solid ${isActive ? '#4fa8ff' : 'var(--border2)'}`,
+                borderRadius:8, color: isActive ? '#4fa8ff' : 'var(--text2)',
+                fontWeight:700, fontSize:13, cursor:'pointer', whiteSpace:'nowrap',
+              }}>
+              {t.label}
+              <span style={{
+                fontSize:11, fontWeight:800, padding:'1px 7px', borderRadius:20,
+                background: isActive ? 'rgba(79,168,255,0.22)' : 'rgba(255,255,255,0.07)',
+                color: isActive ? '#4fa8ff' : 'var(--text3)',
+              }}>
+                {counts[t.id]}
+              </span>
+            </button>
+          )
+        })}
+      </div>
 
       <div style={{ display:'flex', gap:10, marginBottom:16 }}>
         <div style={{ position:'relative', flex:1 }}>
@@ -274,7 +347,10 @@ export default function Families() {
         <div style={{ textAlign:'center', padding:48, color:'var(--muted)' }}>
           <div style={{ fontSize:36, marginBottom:12 }}>👥</div>
           <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>
-            {search ? 'No results' : 'No families registered yet'}
+            {search ? 'No results'
+              : tab === 'members'   ? 'No active members'
+              : tab === 'prospects' ? 'No prospects (players who never had a membership)'
+              : 'No expired members to win back'}
           </div>
         </div>
       )}
