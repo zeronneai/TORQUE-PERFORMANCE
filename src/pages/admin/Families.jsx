@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { ChevronDown, ChevronRight, Search, UserPlus, Pencil } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search, UserPlus, Pencil, Download } from 'lucide-react'
 import { Card, Badge, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
 import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAdminData'
 import { API_BASE } from '../../lib/apiBase'
@@ -32,6 +32,75 @@ export default function Families() {
   const [editParent, setEditParent]             = useState(null)
   const [editParentName, setEditParentName]     = useState('')
   const [editParentSaving, setEditParentSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  function csvEscape(v) {
+    if (v == null) return ''
+    const s = String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+
+  async function handleExportCsv() {
+    setExporting(true)
+    try {
+      // useAdminData only loads status='active' memberships — fetch ALL of them
+      // (expired/cancelled included) just for this export, without touching the panel.
+      const { data: allMemberships, error } = await supabase
+        .from('player_memberships')
+        .select('*')
+      if (error) throw error
+
+      const headers = [
+        'parent_name', 'parent_email', 'parent_phone', 'kid_name', 'age',
+        'package_name', 'status', 'sessions_total', 'sessions_used',
+        'sessions_remaining', 'purchased_at', 'expires_at', 'monthly_price',
+      ]
+
+      const rows = players.map(player => {
+        const profile = profiles.find(pr => pr.id === player.parent_id) || null
+        // Most recent membership for this kid, regardless of status
+        const m = (allMemberships || [])
+          .filter(mem =>
+            mem.parent_id === player.parent_id &&
+            mem.kid_name?.toLowerCase().trim() === player.kid_name?.toLowerCase().trim())
+          .sort((a, b) => (b.purchased_at || '').localeCompare(a.purchased_at || ''))[0] || null
+        return [
+          parentName(profile) || '',
+          profile?.email || '',
+          profile?.phone || '',
+          player.kid_name || '',
+          player.age ?? '',
+          m?.package_name ?? '',
+          m?.status ?? '',
+          m?.sessions_total ?? '',
+          m?.sessions_used ?? '',
+          m ? (m.sessions_total || 0) - (m.sessions_used || 0) : '',
+          normDate(m?.purchased_at),
+          normDate(m?.expires_at),
+          m?.monthly_price ?? '',
+        ].map(csvEscape).join(',')
+      })
+
+      // UTF-8 BOM so Excel detects the encoding (accented names) correctly
+      const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n') + '\n'
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const d = new Date()
+      const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `torque-members-${stamp}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('[Families] Export CSV failed:', err)
+      alert('Export failed: ' + (err.message || JSON.stringify(err)))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   async function handleEditSave() {
     if (!editPlayer || !editName.trim()) return
@@ -185,6 +254,14 @@ export default function Families() {
             placeholder="Search by parent name, player or email..."
             style={{ paddingLeft:40, width:'100%' }} />
         </div>
+        <button
+          onClick={handleExportCsv}
+          disabled={exporting}
+          title="Export all members to CSV (includes expired/inactive memberships)"
+          style={{ display:'flex', alignItems:'center', gap:7, padding:'0 16px', height:42, background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', fontWeight:700, fontSize:13, cursor: exporting ? 'wait' : 'pointer', whiteSpace:'nowrap', flexShrink:0, opacity: exporting ? 0.6 : 1 }}
+        >
+          <Download size={15} /> {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
         <button
           onClick={() => { setShowAddMember(true); setShowPlayer2(false); setSaveError(null) }}
           style={{ display:'flex', alignItems:'center', gap:7, padding:'0 18px', height:42, background:'#4fa8ff', border:'none', borderRadius:8, color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
