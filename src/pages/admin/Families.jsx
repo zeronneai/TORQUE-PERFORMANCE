@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, Search, UserPlus, Pencil, Download } from 'lucide-react'
 import { Card, Badge, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
-import { useAdminData, PACK_INFO, parentName, normDate } from '../../hooks/useAdminData'
+import { useAdminData, PACK_INFO, parentName, normDate, daysUntil, expiryColor, expiryLabel } from '../../hooks/useAdminData'
 import { API_BASE } from '../../lib/apiBase'
 import { supabase } from '../../supabaseClient'
 
@@ -412,11 +412,19 @@ export default function Families() {
                                 max={m.sessions_total||1}
                                 color={remaining<=0?'var(--red)':remaining<=2?'var(--amber)':'var(--green)'}
                               />
-                              {m.expires_at && (
-                                <div style={{ fontSize:11, color:'var(--muted)', marginTop:5 }}>
-                                  Renews: {new Date(normDate(m.expires_at) + 'T00:00:00').toLocaleDateString('en-US', { month:'2-digit', day:'2-digit', year:'numeric' })}
-                                </div>
-                              )}
+                              {m.expires_at && (() => {
+                                const days = daysUntil(m.expires_at)
+                                return (
+                                  <div style={{ fontSize:11, marginTop:5, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                                    <span style={{ color:'var(--muted)' }}>
+                                      Renews: {new Date(normDate(m.expires_at) + 'T00:00:00').toLocaleDateString('en-US', { month:'2-digit', day:'2-digit', year:'numeric' })}
+                                    </span>
+                                    <span style={{ color: expiryColor(days), fontWeight:700 }}>
+                                      {expiryLabel(days)}
+                                    </span>
+                                  </div>
+                                )
+                              })()}
                             </>
                           ) : (
                             <div style={{ fontSize:12, color:'var(--muted)' }}>—</div>

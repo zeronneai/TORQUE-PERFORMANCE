@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { StatCard, Card, Badge, Avatar, PageHeader, ProgressBar } from '../../components/UI'
-import { useAdminData, normDate, PACK_INFO, TYPE_COLORS, parentName } from '../../hooks/useAdminData'
+import { useAdminData, normDate, PACK_INFO, TYPE_COLORS, parentName, daysUntil, expiryColor, expiryLabel } from '../../hooks/useAdminData'
 import { supabase } from '../../supabaseClient'
 import { Check } from 'lucide-react'
 
@@ -167,6 +167,15 @@ export default function AdminDashboard() {
     memberships.filter(m => ((m.sessions_total || 0) - (m.sessions_used || 0)) <= 2).length
   , [memberships])
 
+  // Active memberships whose expires_at falls within the next 30 days (soonest first).
+  // Different metric from expiringSoon above, which counts sessions remaining.
+  const expiringByDate = useMemo(() =>
+    memberships
+      .map(m => ({ ...m, _days: daysUntil(m.expires_at) }))
+      .filter(m => m._days != null && m._days >= 0 && m._days <= 30)
+      .sort((a, b) => a._days - b._days)
+  , [memberships])
+
   const sessionsByDay = useMemo(() => {
     const counts = { 1:0, 3:0, 5:0, 6:0 }
     bookings.forEach(b => {
@@ -285,8 +294,47 @@ export default function AdminDashboard() {
         <StatCard label="Active Players"    value={memberships.length}              sub="active memberships"      icon="⚾" />
         <StatCard label="Today's Sessions"  value={todayBookings.length}            sub="confirmed for today"     icon="📅" />
         <StatCard label="Monthly Revenue"   value={`$${monthlyRevenue.toLocaleString()}`} sub="active memberships" icon="💰" />
-        <StatCard label="Expiring Soon"     value={expiringSoon}                    sub="≤ 2 sessions left"       icon="⚠️" />
+        <StatCard label="Low Sessions"      value={expiringSoon}                    sub="≤ 2 sessions left"       icon="⚠️" />
+        <StatCard label="Expiring ≤30 Days" value={expiringByDate.length}           sub="by expiry date"          icon="⏳" />
       </div>
+
+      {/* Expiring Soon (by date) — renewals at risk in the next 30 days */}
+      {expiringByDate.length > 0 && (
+        <Card style={{ marginBottom:24 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14, flexWrap:'wrap', gap:8 }}>
+            <div>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>Expiring Soon (by date)</div>
+              <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>
+                Memberships whose expiry date is within 30 days — soonest first
+              </div>
+            </div>
+            <Badge color="amber">{expiringByDate.length} at risk</Badge>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {expiringByDate.map(m => {
+              const profile = profiles.find(pr => pr.id === m.parent_id)
+              const pName = parentName(profile)
+              const color = expiryColor(m._days)
+              const expDate = new Date(normDate(m.expires_at) + 'T00:00:00')
+                .toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+              return (
+                <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'rgba(255,255,255,0.03)', border:`1px solid ${color}33`, borderRadius:8, flexWrap:'wrap' }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:color, flexShrink:0 }} />
+                  <span style={{ fontSize:13, fontWeight:600 }}>{m.kid_name}</span>
+                  {pName && <span style={{ fontSize:12, color:'var(--muted)' }}>· {pName}</span>}
+                  <span style={{ fontSize:11, color: PACK_INFO[m.package_name]?.color || 'var(--text3)', fontFamily:'var(--font-display)', fontWeight:700 }}>
+                    {m.package_name}
+                  </span>
+                  <span style={{ marginLeft:'auto', fontSize:12, color:'var(--muted)' }}>{expDate}</span>
+                  <span style={{ fontSize:12, fontWeight:700, color, minWidth:110, textAlign:'right' }}>
+                    {expiryLabel(m._days)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Charts */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:14, marginBottom:24 }}>

@@ -35,6 +35,31 @@ export function useAdminData() {
 // Normaliza fechas de Supabase: "2026-04-14T00:00:00+00:00" → "2026-04-14"
 export const normDate = (d) => (d || '').split('T')[0]
 
+// Whole days from today until a date (negative = already past). null when no date.
+export const daysUntil = (dateStr) => {
+  if (!dateStr) return null
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const target = new Date(normDate(dateStr) + 'T00:00:00')
+  return Math.round((target - today) / 86400000)
+}
+
+// Color tier for days-to-expiry: >30 green · ≤30 yellow · ≤14 orange · ≤7 (and past) red
+export const expiryColor = (days) => {
+  if (days == null) return 'var(--muted)'
+  if (days <= 7)  return '#ff4466'
+  if (days <= 14) return '#f39c12'
+  if (days <= 30) return '#facc15'
+  return 'var(--green2)'
+}
+
+// Human label: "Expired 3d ago" / "Expires today" / "Expires in 5 days"
+export const expiryLabel = (days) => {
+  if (days == null) return ''
+  if (days < 0)   return `Expired ${-days}d ago`
+  if (days === 0) return 'Expires today'
+  return `Expires in ${days} day${days === 1 ? '' : 's'}`
+}
+
 // Paquetes
 export const PACK_INFO = {
   'A':   { sessions: 4,  price: 260, color: '#4fa8ff' },
