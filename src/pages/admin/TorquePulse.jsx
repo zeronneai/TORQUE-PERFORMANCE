@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Activity, MessageCircle } from 'lucide-react'
+import { Activity, MessageCircle, Search, Download } from 'lucide-react'
 import { Card, StatCard, Pill, Avatar, PageHeader } from '../../components/UI'
 import { supabase } from '../../supabaseClient'
 import {
@@ -14,6 +14,8 @@ export default function TorquePulse() {
   const { memberships, profiles, loading } = useAdminData()
   const [lastVisitByKey, setLastVisitByKey] = useState(null) // Map playerKey -> Date | null
   const [filter, setFilter] = useState('all') // all | at_risk | churn
+  const [search, setSearch] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   // Real data: most recent check-in per player (last WINDOW_DAYS from checkins table).
   useEffect(() => {
@@ -52,6 +54,7 @@ export default function TorquePulse() {
         email: profile?.email || '',
         pkg: m.package_name,
         daysSince,
+        lastVisit: last,
         bucket,
       }
     }).sort((a, b) => {
@@ -69,11 +72,54 @@ export default function TorquePulse() {
     return c
   }, [rows])
 
+  // Filtered by BOTH the health filter and the search box (player or parent name).
   const filtered = useMemo(() => {
     if (!rows) return []
-    if (filter === 'all') return rows
-    return rows.filter(r => r.bucket === filter)
-  }, [rows, filter])
+    const q = search.toLowerCase().trim()
+    return rows
+      .filter(r => filter === 'all' || r.bucket === filter)
+      .filter(r => !q || r.kidName.toLowerCase().includes(q) || r.parent.toLowerCase().includes(q))
+  }, [rows, filter, search])
+
+  function csvEscape(v) {
+    if (v == null) return ''
+    const s = String(v)
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+
+  // Export the CURRENTLY FILTERED list (respects search + health filter).
+  function handleExportCsv() {
+    setExporting(true)
+    try {
+      const headers = ['player_name', 'parent_name', 'phone', 'package', 'days_since_last_visit', 'health_status', 'last_visit_date']
+      const lines = filtered.map(r => [
+        r.kidName,
+        r.parent,
+        r.phone,
+        r.pkg || '',
+        r.daysSince == null ? '' : r.daysSince,
+        HEALTH[r.bucket].label,
+        r.lastVisit ? r.lastVisit.toISOString().split('T')[0] : '',
+      ].map(csvEscape).join(','))
+      const csv = '\uFEFF' + headers.join(',') + '\n' + lines.join('\n') + '\n'
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const d = new Date()
+      const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `torque-pulse-${stamp}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('[TorquePulse] Export CSV failed:', err)
+      alert('Export failed: ' + (err.message || JSON.stringify(err)))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   // Contact the parent — WhatsApp if we have a phone, else email. Friendly prefilled note.
   function contactHref(r) {
@@ -108,6 +154,24 @@ export default function TorquePulse() {
         <StatCard label="Churn Risk"  value={counts.churn}    sub="15+ days / no visits" icon="🚨" block={VIBRANT.red} />
       </div>
 
+      {/* Search + Export */}
+      <div style={{ display:'flex', gap:10, marginBottom:'var(--space-3)', flexWrap:'wrap' }}>
+        <div style={{ position:'relative', flex:1, minWidth:200 }}>
+          <Search size={14} style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', color:'var(--text3)' }} />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search by player or parent name..."
+            style={{ paddingLeft:40, width:'100%' }} />
+        </div>
+        <button
+          onClick={handleExportCsv}
+          disabled={exporting || filtered.length === 0}
+          title="Export the currently filtered list to CSV"
+          style={{ display:'flex', alignItems:'center', gap:7, padding:'0 16px', height:42, background:'transparent', border:'1px solid var(--border2)', borderRadius:8, color:'var(--text2)', fontWeight:700, fontSize:13, cursor: (exporting || filtered.length === 0) ? 'not-allowed' : 'pointer', whiteSpace:'nowrap', flexShrink:0, opacity: (exporting || filtered.length === 0) ? 0.6 : 1 }}
+        >
+          <Download size={15} /> {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
+      </div>
+
       {/* Filter */}
       <div style={{ display:'flex', gap:8, marginBottom:'var(--space-4)', flexWrap:'wrap' }}>
         {FILTERS.map(f => {
@@ -132,7 +196,9 @@ export default function TorquePulse() {
           <div style={{ textAlign:'center', padding:48, color:'var(--muted)' }}>
             <div style={{ fontSize:32, marginBottom:12 }}>✅</div>
             <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>
-              {rows.length === 0 ? 'No active members yet' : 'Nobody in this bucket — nice.'}
+              {rows.length === 0 ? 'No active members yet'
+                : search.trim() ? 'No matches for your search'
+                : 'Nobody in this bucket — nice.'}
             </div>
           </div>
         ) : (
