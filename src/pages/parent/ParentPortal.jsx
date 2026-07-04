@@ -1546,7 +1546,7 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
                           <circle cx="41" cy="41" r={R} fill="none" stroke={ringColor} strokeWidth="7" strokeLinecap="round"
                             strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - prog)} transform="rotate(-90 41 41)"
                             style={{ transition:'stroke-dashoffset 0.7s cubic-bezier(0.16,1,0.3,1)' }} />
-                          <text x="41" y="40" textAnchor="middle" style={{ fontFamily:'var(--font-mono)', fontSize:'21px', fontWeight:700, fill:'#0D1B2A' }}>{remaining}</text>
+                          <text x="41" y="40" textAnchor="middle" style={{ fontFamily:'var(--font-body)', fontSize:'22px', fontWeight:700, fill:'#0D1B2A', fontVariantNumeric:'tabular-nums' }}>{remaining}</text>
                           <text x="41" y="55" textAnchor="middle" style={{ fontFamily:'var(--font-body)', fontSize:'10px', fill:'#66748A' }}>of {total}</text>
                         </svg>
                       )
@@ -1701,7 +1701,7 @@ function SessionsPage({ players, bookings, onBook, onCancel, onReschedule }) {
                   {/* Right: big counter */}
                   <div style={{ display:'flex', alignItems:'center', gap:20 }}>
                     <div style={{ textAlign:'center' }}>
-                      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:56, lineHeight:1, color: remaining === 0 ? 'var(--muted2)' : remaining <= 2 ? '#E8A020' : 'var(--green2)' }}>{remaining}</div>
+                      <div className="num" style={{ fontSize:56, lineHeight:1, color: remaining === 0 ? 'var(--muted2)' : remaining <= 2 ? '#FB8500' : 'var(--green2)' }}>{remaining}</div>
                       <div style={{ fontSize:10, color:'var(--muted)', letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:'var(--font-display)', marginTop:2 }}>of {total} remaining</div>
                     </div>
                     {m && remaining > 0 && !(m.expires_at && new Date(m.expires_at) < new Date()) && (

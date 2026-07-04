@@ -45,6 +45,22 @@ export function Badge({ children, color = 'default', size = 'sm' }) {
   )
 }
 
+// Colored identifier/status pill — tinted by default (subtle bg + colored text),
+// or solid. `color` is a hex string (from PKG_VIBRANT / STATUS). Readable on white.
+export function Pill({ color = '#5A6B84', children, solid = false }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      background: solid ? color : `${color}1f`,
+      color: solid ? '#fff' : color,
+      fontSize: 11, fontWeight: 700,
+      padding: '3px 10px', borderRadius: 20,
+      letterSpacing: '0.06em', textTransform: 'uppercase',
+      fontFamily: 'var(--font-display)', whiteSpace: 'nowrap',
+    }}>{children}</span>
+  )
+}
+
 export function Avatar({ initials, size = 36, color = 'var(--navy4)' }) {
   return (
     <div style={{
@@ -72,7 +88,7 @@ export function StatCard({ label, value, sub, trend, icon, block }) {
         <div style={{ fontSize: 'var(--text-xs)', color: b ? b.fg : 'var(--text2)', opacity: b ? 0.85 : 1, fontWeight: 600, letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', fontFamily: 'var(--font-display)' }}>{label}</div>
         {icon && <span style={{ fontSize: 18, opacity: b ? 0.9 : 1 }}>{icon}</span>}
       </div>
-      <div style={{ fontFamily: b ? 'var(--font-body)' : 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: 'clamp(2.1rem, 5vw, 2.9rem)', fontWeight: b ? 700 : 500, color: b ? b.fg : 'var(--text)', letterSpacing: 'var(--tracking-tight)', lineHeight: 'var(--leading-tight)' }}>{value}</div>
+      <div className="num" style={{ fontSize: 'clamp(2.1rem, 5vw, 2.9rem)', color: b ? b.fg : 'var(--text)', lineHeight: 'var(--leading-tight)' }}>{value}</div>
       {(sub || trend !== undefined) && (
         <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-xs)', color: b ? b.fg : 'var(--text2)', opacity: b ? 0.8 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
           {trend !== undefined && <span style={{ color: b ? b.fg : (trend >= 0 ? 'var(--green)' : '#ff4466'), fontWeight: 600 }}>{trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%</span>}

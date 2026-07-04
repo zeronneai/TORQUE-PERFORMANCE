@@ -32,7 +32,7 @@ export default function AdminSidebar({ active, onNav, open, onClose }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ fontSize: 28 }}>⚾</div>
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 17, letterSpacing: '0.03em', color: '#ffffff', lineHeight: 1 }}>TORQUE</div>
+            <div className="title-slant" style={{ fontSize: 22, color: '#ffffff', lineHeight: 1 }}>TORQUE</div>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, letterSpacing: '0.15em', color: 'var(--text2)', lineHeight: 1 }}>PERFORMANCE</div>
           </div>
         </div>

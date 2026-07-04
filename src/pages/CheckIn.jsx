@@ -233,7 +233,7 @@ export default function CheckIn() {
               <div style={{ fontSize: 12, color: 'rgba(13,27,42,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--font-display)', marginBottom: 4 }}>
                 Sessions remaining
               </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 48, fontWeight: 900, color: result.remaining <= 2 ? AMBER : GREEN, lineHeight: 1 }}>
+              <div className="num" style={{ fontSize: 48, color: result.remaining <= 2 ? AMBER : GREEN, lineHeight: 1 }}>
                 {result.remaining}
               </div>
               {result.packageName && (

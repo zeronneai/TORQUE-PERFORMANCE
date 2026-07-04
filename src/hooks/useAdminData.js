@@ -78,8 +78,19 @@ export const VIBRANT = {
   orange: { bg: '#FB8500', fg: '#0D1B2A' },
   purple: { bg: '#7C3AED', fg: '#FFFFFF' },
 }
-// Package → vibrant chart color
-export const PKG_VIBRANT = { A: '#118AB2', AA: '#06D6A0', AAA: '#FFB703', MLB: '#E63946' }
+// Package → vibrant identifier color (A=blue, AA=green, AAA=amber, MLB=purple)
+export const PKG_VIBRANT = { A: '#118AB2', AA: '#06D6A0', AAA: '#FFB703', MLB: '#7C3AED' }
+// Normalize "Package A" / "A" → "A"
+export const pkgKey = (name) => (name || '').replace(/^Package\s+/i, '').trim()
+export const pkgColor = (name) => PKG_VIBRANT[pkgKey(name)] || '#5A6B84'
+
+// Status → palette color (green=active/paid, amber=expiring, red=expired/overdue, blue=info)
+export const STATUS = {
+  active: '#06D6A0', paid: '#06D6A0',
+  expiring: '#FFB703',
+  expired: '#E63946', overdue: '#E63946', inactive: '#E63946',
+  info: '#118AB2',
+}
 
 export const TYPE_COLORS = {
   'Speed & Agility':    '#4fa8ff',

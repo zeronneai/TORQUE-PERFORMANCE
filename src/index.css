@@ -127,10 +127,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Numeric/metric treatment — mono + tabular figures (Strava/Apple-Fitness style).
-   Add className="num" to any KPI value or session count for aligned digits. */
+/* Unified numeric/metric treatment — Inter bold + tabular figures.
+   Add className="num" to any meaningful number (KPI, count, price, sessions)
+   so every metric across the app renders the SAME way (aligned digits). */
 .num {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
   letter-spacing: var(--tracking-tight);

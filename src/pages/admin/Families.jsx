@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Search, UserPlus, Pencil, Download } from 'lucide-react'
-import { Card, Badge, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
-import { useAdminData, PACK_INFO, parentName, normDate, daysUntil, expiryColor, expiryLabel } from '../../hooks/useAdminData'
+import { Card, Badge, Pill, StatCard, Avatar, PageHeader, ProgressBar, Modal } from '../../components/UI'
+import { useAdminData, PACK_INFO, parentName, normDate, daysUntil, expiryColor, expiryLabel, VIBRANT, pkgColor, STATUS } from '../../hooks/useAdminData'
 import { API_BASE } from '../../lib/apiBase'
 import { supabase } from '../../supabaseClient'
 
@@ -294,6 +294,14 @@ export default function Families() {
         subtitle={`${families.length} families · ${totalActive} active players`}
       />
 
+      {/* KPI summary — vibrant color blocks */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'var(--space-4)', marginBottom:'var(--space-6)' }}>
+        <StatCard label="Members"   value={counts.members}   sub="active membership" icon="⚾" block={VIBRANT.green} />
+        <StatCard label="Prospects" value={counts.prospects} sub="never enrolled"    icon="🌱" block={VIBRANT.blue} />
+        <StatCard label="Win-back"  value={counts.expired}   sub="lapsed members"    icon="↩️" block={VIBRANT.orange} />
+        <StatCard label="Families"  value={families.length}  sub="total accounts"    icon="👨‍👩‍👧" block={VIBRANT.purple} />
+      </div>
+
       {/* ── Member / Prospect / Win-back tabs ── */}
       <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
         {TABS.map(t => {
@@ -405,11 +413,11 @@ export default function Families() {
 
               {/* Player details */}
               {isOpen && (
-                <div style={{ borderTop:'1px solid var(--border)', background:'rgba(0,0,0,0.2)' }}>
+                <div style={{ borderTop:'1px solid var(--border)', background:'var(--navy)' }}>
                   {family.players.map((player, idx) => {
                     const m = player.membership
                     const remaining = m ? (m.sessions_total||0) - (m.sessions_used||0) : 0
-                    const pkgColor = PACK_INFO[m?.package_name]?.color || 'var(--muted)'
+                    const pClr = pkgColor(m?.package_name)
                     const initials = (player.kid_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)
                     return (
                       <div key={player.id} style={{
@@ -420,7 +428,7 @@ export default function Families() {
                       }}>
                         {/* Player info */}
                         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                          <Avatar initials={initials} size={36} color={pkgColor} />
+                          <Avatar initials={initials} size={36} color={pClr} />
                           <div>
                             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                               <div style={{ fontSize:14, fontWeight:600 }}>{player.kid_name}</div>
@@ -444,7 +452,7 @@ export default function Families() {
                           <div style={{ fontSize:11, color:'var(--text3)', marginBottom:3, textTransform:'uppercase', letterSpacing:'0.06em' }}>Package</div>
                           {m ? (
                             <>
-                              <div style={{ fontSize:13, fontWeight:600, color:pkgColor }}>{m.package_name || '—'}</div>
+                              <Pill color={pClr}>{m.package_name || '—'}</Pill>
                               {(() => {
                                 const base = PRICE_TABLE[m.package_name]?.monthly
                                 const paid = m.monthly_price
@@ -477,10 +485,10 @@ export default function Families() {
                           {m ? (
                             <>
                               <div style={{ fontSize:12, color:'var(--text3)', marginBottom:5 }}>
-                                {m.sessions_used||0}/{m.sessions_total||0} used
+                                <span className="num" style={{ fontSize:12, color:'var(--text2)' }}>{m.sessions_used||0}/{m.sessions_total||0}</span> used
                                 {' · '}
-                                <span style={{ color: remaining<=0?'#ff4466':remaining<=2?'var(--amber)':'var(--green2)', fontWeight:600 }}>
-                                  {remaining} remaining
+                                <span className="num" style={{ fontSize:12, color: remaining<=0?'#E63946':remaining<=2?'#FFB703':'#06D6A0' }}>
+                                  {remaining} left
                                 </span>
                               </div>
                               <ProgressBar

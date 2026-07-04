@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Plus } from 'lucide-react'
-import { Card, Badge, Avatar, PageHeader, Btn, Modal, Label, StatCard, ProgressBar } from '../../components/UI'
+import { Card, Badge, Pill, Avatar, PageHeader, Btn, Modal, Label, StatCard, ProgressBar } from '../../components/UI'
 import { supabase } from '../../supabaseClient'
-import { useAdminData, normDate, PACK_INFO, TYPE_COLORS, parentName } from '../../hooks/useAdminData'
+import { useAdminData, normDate, PACK_INFO, TYPE_COLORS, parentName, VIBRANT, pkgColor, STATUS } from '../../hooks/useAdminData'
 
 // ── SCHEDULE PAGE ─────────────────────────────────────────────────────────────
 export function Schedule() {
@@ -218,12 +218,12 @@ export function Payments() {
     <div className="fade-in">
       <PageHeader eyebrow="Finance" title="Payments" subtitle="Billing summary and active memberships" />
 
-      {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:14, marginBottom:24 }}>
-        <StatCard label="Monthly Revenue"    value={`$${totalRevenue.toLocaleString()}`}  sub="active memberships" icon="💰" />
-        <StatCard label="Active Memberships" value={memberships.length}                   sub="active players"     icon="✅" />
-        <StatCard label="Package A"          value={memberships.filter(m=>m.package_name==='A').length}   sub={`$260/mo`} icon="⚾" />
-        <StatCard label="Package MLB"        value={memberships.filter(m=>m.package_name==='MLB').length} sub={`$600/mo`} icon="🏆" />
+      {/* KPIs — vibrant color blocks */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'var(--space-4)', marginBottom:'var(--space-8)' }}>
+        <StatCard label="Monthly Revenue"    value={`$${totalRevenue.toLocaleString()}`}  sub="active memberships" icon="💰" block={VIBRANT.red} />
+        <StatCard label="Active Memberships" value={memberships.length}                   sub="active players"     icon="✅" block={VIBRANT.green} />
+        <StatCard label="Package A"          value={memberships.filter(m=>m.package_name==='A').length}   sub="$260/mo" icon="⚾" block={VIBRANT.blue} />
+        <StatCard label="Package MLB"        value={memberships.filter(m=>m.package_name==='MLB').length} sub="$600/mo" icon="🏆" block={VIBRANT.purple} />
       </div>
 
       <Card style={{ padding:0, overflow:'hidden' }}>
@@ -251,7 +251,7 @@ export function Payments() {
                 const profile = profiles.find(pr => pr.id === m.parent_id)
                 const pName = parentName(profile) || `ID: ${(m.parent_id||'').slice(0,8)}…`
                 const remaining = (m.sessions_total||0) - (m.sessions_used||0)
-                const pkgColor = PACK_INFO[m.package_name]?.color || 'var(--muted)'
+                const pColor = pkgColor(m.package_name)
                 const initials = (m.kid_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)
                 return (
                   <tr key={m.id}
@@ -260,26 +260,26 @@ export function Payments() {
                     onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                     <td style={{ padding:'12px 16px' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <Avatar initials={initials} size={28} color={pkgColor} />
+                        <Avatar initials={initials} size={28} color={pColor} />
                         <span style={{ fontWeight:500 }}>{m.kid_name}</span>
                       </div>
                     </td>
                     <td style={{ padding:'12px 16px', color:'var(--text2)', fontSize:12 }}>{pName}</td>
                     <td style={{ padding:'12px 16px' }}>
-                      <span style={{ fontFamily:'var(--font-display)', fontWeight:700, color:pkgColor }}>{m.package_name || '—'}</span>
+                      <Pill color={pColor}>{m.package_name || '—'}</Pill>
                     </td>
                     <td style={{ padding:'12px 16px' }}>
                       <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                        <span style={{ fontSize:12, color:'var(--muted)' }}>{m.sessions_used||0}/{m.sessions_total||0} used</span>
+                        <span style={{ fontSize:12, color:'var(--muted)' }}><span className="num" style={{ fontSize:12, color:'var(--text)' }}>{m.sessions_used||0}/{m.sessions_total||0}</span> used</span>
                         <ProgressBar value={m.sessions_used||0} max={m.sessions_total||1}
                           color={remaining<=0?'var(--red)':remaining<=2?'var(--amber)':'var(--green)'} height={4} />
                       </div>
                     </td>
                     <td style={{ padding:'12px 16px' }}>
-                      <Badge color={remaining<=0?'red':remaining<=2?'amber':'green'}>{remaining} remaining</Badge>
+                      <Pill color={remaining<=0?STATUS.expired:remaining<=2?STATUS.expiring:STATUS.active}>{remaining} left</Pill>
                     </td>
                     <td style={{ padding:'12px 16px' }}>
-                      <span style={{ fontFamily:'var(--font-display)', fontWeight:700, color:'var(--green2)', fontSize:15 }}>
+                      <span className="num" style={{ color:'var(--text)', fontSize:15 }}>
                         ${PACK_INFO[m.package_name]?.price?.toLocaleString() || '—'}
                       </span>
                       <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4 }}>/mo</span>
