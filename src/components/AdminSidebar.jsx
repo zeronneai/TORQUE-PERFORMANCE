@@ -20,7 +20,7 @@ export default function AdminSidebar({ active, onNav, open, onClose }) {
   }
 
   return (
-    <aside className={`admin-sidebar${open ? ' open' : ''}`} style={{
+    <aside data-theme="dark" className={`admin-sidebar${open ? ' open' : ''}`} style={{
       width: 230, minHeight: '100vh',
       background: '#080f18',
       borderRight: '1px solid rgba(255,255,255,0.07)',

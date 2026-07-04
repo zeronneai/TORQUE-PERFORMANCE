@@ -94,9 +94,10 @@ export default function App() {
   return (
     <AppProvider>
       {/* 1. SI NO ESTÁ LOGUEADO: Pantalla de Acceso con Fondo y Filtro Azul */}
+      {/* data-theme="dark" keeps this hero screen dark in the light-themed app (Phase 2A) */}
       <SignedOut>
-        <div style={{ 
-          minHeight: '100vh', 
+        <div data-theme="dark" style={{
+          minHeight: '100vh',
           display: 'flex', 
           flexDirection: 'column',
           alignItems: 'center', 

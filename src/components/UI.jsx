@@ -80,7 +80,7 @@ export function StatCard({ label, value, sub, trend, icon }) {
 
 export function Btn({ children, variant = 'primary', onClick, style = {}, size = 'md', disabled }) {
   const v = {
-    primary: { background: '#FFFFFF', color: 'var(--navy)', border: 'none' },
+    primary: { background: 'var(--ink)', color: 'var(--white)', border: 'none' },
     ghost:   { background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)' },
     navy:    { background: 'var(--navy3)', color: 'var(--text)', border: '1px solid var(--border)' },
     danger:  { background: 'var(--red-soft)', color: '#ff4466', border: '1px solid rgba(200,16,46,0.25)' },

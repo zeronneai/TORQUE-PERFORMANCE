@@ -1,49 +1,52 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    UNIFIED DESIGN TOKENS — single source of truth for admin AND parent portal.
-   Phase 0 consolidation: merges the former index.css :root with the :root that
-   used to be injected inside ParentPortal.jsx. On conflicts the brand-anchored
-   index.css value wins (navy base is #0d1b2a, matching the PWA theme-color).
-   NO values were redesigned here — only made to resolve consistently everywhere.
+   Phase 2A: LIGHT theme is the new default (:root). The former dark palette is
+   preserved under [data-theme="dark"] — a plain attribute selector (NOT :root)
+   so it can be re-scoped onto individual containers (login hero, EntranceQR,
+   AdminSidebar) that intentionally stay dark, and later onto <html> for a full
+   dark mode. Only COLOR tokens differ per theme; typography/spacing/radii and
+   the status-accent colors are theme-independent and live once in :root.
    ───────────────────────────────────────────────────────────────────────────── */
 :root {
-  /* ── Base surfaces (navy) ── */
-  --navy:   #0d1b2a;
-  --navy2:  #142338;
-  --navy3:  #1c2f48;
-  --navy4:  #243a5a;
-  --navy5:  #1A2B4A;   /* was ParentPortal-only */
-  /* ── Brand accent: blanco ── */
-  --accent:       #FFFFFF;
-  --accent2:      rgba(255,255,255,0.75); /* was ParentPortal-only */
-  --accent-soft:  rgba(255,255,255,0.07);
-  --accent-hover: rgba(255,255,255,0.12);
-  /* ── Error/danger states ── */
-  --red:      #c8102e;                     /* FIX: ParentPortal had aliased this to #FFFFFF */
-  --red2:     rgba(200,16,46,0.75);        /* was ParentPortal-only (a white-alias leftover); now a real translucent red — unused in JS today */
+  /* ── Base surfaces — LIGHT (page bg / cards / elevation steps) ── */
+  --navy:   #F4F5F7;   /* page background */
+  --navy2:  #FFFFFF;   /* card surface */
+  --navy3:  #F9FAFB;   /* inputs / subtle elevation */
+  --navy4:  #E9ECF1;   /* fills / avatars / progress track */
+  --navy5:  #E1E5EC;   /* stronger fill */
+  /* ── Accent — navy as the dark-on-light accent ── */
+  --accent:       #0D1B2A;
+  --accent2:      rgba(13,27,42,0.72);
+  --accent-soft:  rgba(13,27,42,0.06);
+  --accent-hover: rgba(13,27,42,0.10);
+  --ink:          #0D1B2A;   /* NEW — dark navy for accent blocks / primary buttons on light */
+  /* ── Error/danger states (theme-independent accent) ── */
+  --red:      #c8102e;
+  --red2:     rgba(200,16,46,0.75);
   --red-soft: rgba(200,16,46,0.12);
-  /* ── Util colors ── */
+  /* ── Util / status colors (theme-independent accents) ── */
   --cream:      #f5f0e8;
   --cream2:     #ede7d9;
   --gold:       #d4a017;
   --gold-soft:  rgba(212,160,23,0.15);
   --green:      #2ecc71;
-  --green2:     #22C56E;                    /* was ParentPortal-only; brand green */
+  --green2:     #22C56E;
   --green-soft: rgba(46,204,113,0.12);
   --amber:      #f39c12;
   --amber-soft: rgba(243,156,18,0.12);
   --blue-light: #4fa8ff;
   --blue-soft:  rgba(79,168,255,0.12);
-  /* ── Text ── */
-  --text:     #f0ede8;
-  --text2:    #8a9ab5;
-  --text3:    #4a5a70;
-  --white:    #FFFFFF;    /* was ParentPortal-only */
-  --offwhite: #EEF2F7;    /* was ParentPortal-only */
-  --muted:    #7A8EA8;    /* was ParentPortal-only */
-  --muted2:   #4A5E78;    /* was ParentPortal-only */
-  /* ── Borders ── */
-  --border:  rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.13);
+  /* ── Text — dark-on-light ── */
+  --text:     #0D1B2A;   /* primary (near-black navy) */
+  --text2:    #5A6B84;   /* secondary */
+  --text3:    #97A3B4;   /* tertiary / faint */
+  --white:    #FFFFFF;   /* literal white (on-accent text / white fills) — same in both themes */
+  --offwhite: #1A2B3C;   /* was near-white text; now off-black text on light */
+  --muted:    #66748A;
+  --muted2:   #95A1B2;
+  /* ── Borders — dark hairlines on light ── */
+  --border:  rgba(13,27,42,0.08);
+  --border2: rgba(13,27,42,0.14);
   /* ── Typography (Phase 1: Space Grotesk display / Inter body / DM Mono numeric) ── */
   --font-display: 'Space Grotesk', 'Barlow Condensed', sans-serif;
   --font-body:    'Inter', 'Barlow', sans-serif;
@@ -85,6 +88,29 @@
   --radius-lg: 16px;
   /* ── Layout ── */
   --sidebar-w: 240px;                       /* was ParentPortal-only */
+}
+
+/* ── DARK palette — preserved original values. Re-scopes on any element carrying
+   data-theme="dark" (intentional dark islands now; whole <html> for future dark mode).
+   Only color tokens are overridden; everything else inherits from :root. ── */
+[data-theme="dark"] {
+  --navy:   #0d1b2a;
+  --navy2:  #142338;
+  --navy3:  #1c2f48;
+  --navy4:  #243a5a;
+  --navy5:  #1A2B4A;
+  --accent:       #FFFFFF;
+  --accent2:      rgba(255,255,255,0.75);
+  --accent-soft:  rgba(255,255,255,0.07);
+  --accent-hover: rgba(255,255,255,0.12);
+  --text:     #f0ede8;
+  --text2:    #8a9ab5;
+  --text3:    #4a5a70;
+  --offwhite: #EEF2F7;
+  --muted:    #7A8EA8;
+  --muted2:   #4A5E78;
+  --border:  rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

@@ -25,6 +25,9 @@ export default function EntranceQR() {
         />
       </div>
 
+      {/* data-theme="dark" keeps this scan panel dark in the light-themed admin (Phase 2A).
+          Dark bg lives on this OUTER wrapper, not on #entrance-qr-print, so print (white) is unaffected. */}
+      <div data-theme="dark" style={{ background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-10) var(--space-6)' }}>
       <div id="entrance-qr-print" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
         {/* QR card */}
         <div style={{
@@ -79,6 +82,7 @@ export default function EntranceQR() {
           This QR encodes <span style={{ fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,0.4)' }}>{CHECKIN_URL}</span>.
           Parents scan it at the entrance, log in with their Clerk account, and check in their player.
         </div>
+      </div>
       </div>
     </>
   )
