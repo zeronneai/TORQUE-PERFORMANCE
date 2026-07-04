@@ -232,7 +232,7 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--font-display)', marginBottom: 4 }}>
                 Sessions remaining
               </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 900, color: result.remaining <= 2 ? AMBER : GREEN, lineHeight: 1 }}>
+              <div className="num" style={{ fontSize: 56, fontWeight: 500, color: result.remaining <= 2 ? AMBER : GREEN, lineHeight: 1 }}>
                 {result.remaining}
               </div>
               {result.nextPayment && (

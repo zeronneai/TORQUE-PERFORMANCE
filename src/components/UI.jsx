@@ -7,7 +7,7 @@ export function Card({ children, style = {}, onClick, highlight }) {
       background: 'var(--navy2)',
       border: `1px solid ${highlight ? 'rgba(255,255,255,0.3)' : 'var(--border)'}`,
       borderRadius: 'var(--radius)',
-      padding: 20,
+      padding: 'var(--space-6)',
       cursor: onClick ? 'pointer' : 'default',
       transition: 'border-color 0.2s, transform 0.15s',
       ...style,
@@ -63,13 +63,13 @@ export function Avatar({ initials, size = 36, color = 'var(--navy4)' }) {
 export function StatCard({ label, value, sub, trend, icon }) {
   return (
     <Card>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-        <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase', fontFamily: 'var(--font-display)' }}>{label}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-4)' }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text2)', fontWeight: 600, letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', fontFamily: 'var(--font-display)' }}>{label}</div>
         {icon && <span style={{ fontSize: 18 }}>{icon}</span>}
       </div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 4vw, 32px)', fontWeight: 800, color: 'var(--text)', letterSpacing: '-1px', lineHeight: 1 }}>{value}</div>
+      <div className="num" style={{ fontSize: 'clamp(2rem, 5vw, 2.75rem)', fontWeight: 500, color: 'var(--text)', letterSpacing: 'var(--tracking-tight)', lineHeight: 'var(--leading-tight)' }}>{value}</div>
       {(sub || trend !== undefined) && (
-        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6 }}>
           {trend !== undefined && <span style={{ color: trend >= 0 ? 'var(--green)' : '#ff4466', fontWeight: 600 }}>{trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%</span>}
           {sub}
         </div>
@@ -108,11 +108,11 @@ export function Btn({ children, variant = 'primary', onClick, style = {}, size =
 
 export function PageHeader({ title, subtitle, action, eyebrow }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 'var(--space-8)', flexWrap: 'wrap', gap: 12 }}>
       <div>
-        {eyebrow && <div style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', color: 'var(--text2)', textTransform: 'uppercase', marginBottom: 4 }}>{eyebrow}</div>}
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.5px', lineHeight: 1.1 }}>{title}</h1>
-        {subtitle && <p style={{ color: 'var(--text2)', fontSize: 14, marginTop: 4 }}>{subtitle}</p>}
+        {eyebrow && <div style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xs)', fontWeight: 600, letterSpacing: 'var(--tracking-widest)', color: 'var(--text2)', textTransform: 'uppercase', marginBottom: 'var(--space-2)' }}>{eyebrow}</div>}
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.75rem, 5vw, 2.25rem)', fontWeight: 600, color: 'var(--text)', letterSpacing: 'var(--tracking-tight)', lineHeight: 'var(--leading-tight)' }}>{title}</h1>
+        {subtitle && <p style={{ color: 'var(--text2)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-2)' }}>{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -129,7 +129,7 @@ export function Modal({ open, onClose, title, children, width = 500 }) {
         width: '100%', maxWidth: `min(${width}px, 95vw)`, maxHeight: '90vh', overflowY: 'auto', overflowX: 'hidden',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, letterSpacing: '-0.3px' }}>{title}</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', fontWeight: 600, letterSpacing: 'var(--tracking-tight)' }}>{title}</h2>
           <button onClick={onClose} style={{ color: 'var(--text3)', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>✕</button>
         </div>
         {children}
@@ -165,5 +165,6 @@ export function SessionBubble({ used, total }) {
 }
 
 export function Label({ children }) {
-  return <label style={{ display: 'block', fontSize: 12, fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text2)', marginBottom: 6 }}>{children}</label>
+  return <label style={{ display: 'block', fontSize: 'var(--text-xs)', fontFamily: 'var(--font-display)', fontWeight: 600, letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--text2)', marginBottom: 'var(--space-2)' }}>{children}</label>
+
 }

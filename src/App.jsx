@@ -135,13 +135,13 @@ export default function App() {
               style={{ width: '180px', marginBottom: '24px', auto: 'height' }} 
             />
             
-            <h1 style={{ 
-              fontFamily: 'var(--font-display)', 
-              color: 'white', 
-              marginBottom: '40px',
-              fontSize: '2rem',
-              letterSpacing: '2px',
-              fontWeight: 800,
+            <h1 style={{
+              fontFamily: 'var(--font-display)',
+              color: 'white',
+              marginBottom: 'var(--space-10)',
+              fontSize: 'clamp(1.75rem, 6vw, 2.25rem)',
+              letterSpacing: 'var(--tracking-wide)',
+              fontWeight: 600,
               textTransform: 'uppercase'
             }}>
               TORQUE PERFORMANCE
