@@ -58,7 +58,7 @@ const GLOBAL_CSS = `
      redefines them so admin and the parent portal stay in sync. */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html, body { background: var(--navy); color: var(--white); font-family: var(--font-body); }
+  html, body { background: var(--navy); color: var(--text); font-family: var(--font-body); }
 
   /* Subtle diagonal stripe texture on body */
   body::before {
@@ -68,14 +68,14 @@ const GLOBAL_CSS = `
       -45deg,
       transparent,
       transparent 40px,
-      rgba(255,255,255,0.008) 40px,
-      rgba(255,255,255,0.008) 41px
+      rgba(13,27,42,0.02) 40px,
+      rgba(13,27,42,0.02) 41px
     );
   }
 
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb { background: rgba(13,27,42,0.18); border-radius: 2px; }
 
   /* ── Keyframes ── */
   @keyframes fadeUp {
@@ -86,9 +86,9 @@ const GLOBAL_CSS = `
     from { opacity: 0; } to { opacity: 1; }
   }
   @keyframes redPulse {
-    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.3); }
-    70%  { box-shadow: 0 0 0 8px rgba(255,255,255,0);  }
-    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0);    }
+    0%   { box-shadow: 0 0 0 0 rgba(13,27,42,0.28); }
+    70%  { box-shadow: 0 0 0 8px rgba(13,27,42,0);  }
+    100% { box-shadow: 0 0 0 0 rgba(13,27,42,0);    }
   }
   @keyframes slideRight {
     from { transform: scaleX(0); } to { transform: scaleX(1); }
@@ -117,10 +117,10 @@ const GLOBAL_CSS = `
     transition: color 0.18s, background 0.18s, border-color 0.18s;
     margin-bottom: 2px;
   }
-  .nav-item:hover { color: var(--offwhite); background: rgba(255,255,255,0.04); }
+  .nav-item:hover { color: var(--text); background: var(--accent-soft); }
   .nav-item.active {
-    color: var(--white);
-    background: rgba(255,255,255,0.05);
+    color: var(--text);
+    background: var(--accent-soft);
     border-left-color: var(--accent);
   }
 
@@ -136,20 +136,20 @@ const GLOBAL_CSS = `
   .player-card::after {
     content: '';
     position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, var(--white), transparent);
+    background: linear-gradient(90deg, var(--accent), transparent);
     opacity: 0; transition: opacity 0.25s;
   }
   .player-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.15);
+    box-shadow: 0 24px 64px rgba(13,27,42,0.12), 0 0 0 1px rgba(13,27,42,0.10);
+    border-color: var(--border2);
   }
   .player-card:hover::after { opacity: 1; }
 
   /* ── Add card ── */
   .add-card {
     background: transparent;
-    border: 1.5px dashed rgba(255,255,255,0.08);
+    border: 1.5px dashed var(--border2);
     border-radius: 14px; padding: 26px;
     display: flex; flex-direction: column;
     justify-content: center; align-items: center;
@@ -157,8 +157,8 @@ const GLOBAL_CSS = `
     transition: all 0.22s ease;
   }
   .add-card:hover {
-    border-color: rgba(255,255,255,0.25);
-    background: rgba(255,255,255,0.03);
+    border-color: var(--accent);
+    background: var(--accent-soft);
   }
   .add-card:hover .add-icon { color: var(--accent); transform: rotate(90deg) scale(1.1); }
   .add-icon { color: var(--muted2); transition: all 0.3s ease; }
@@ -168,16 +168,16 @@ const GLOBAL_CSS = `
     display: flex; flex-direction: column; align-items: center;
     padding: 18px 10px; border-radius: 10px;
     border: 1px solid var(--border);
-    background: var(--navy4); color: var(--white);
+    background: var(--navy4); color: var(--text);
     cursor: pointer; gap: 5px;
     transition: all 0.18s ease;
     position: relative; overflow: hidden;
   }
   .pack-option:hover {
-    border-color: rgba(255,255,255,0.25);
-    background: rgba(255,255,255,0.05);
+    border-color: var(--accent);
+    background: var(--accent-soft);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 24px rgba(13,27,42,0.12);
   }
   .pack-option.annual {
     border-color: rgba(26,155,90,0.35);
@@ -189,7 +189,7 @@ const GLOBAL_CSS = `
   }
 
   /* ── Sessions bar ── */
-  .sessions-bar { height: 3px; border-radius: 2px; background: rgba(255,255,255,0.06); overflow: hidden; }
+  .sessions-bar { height: 3px; border-radius: 2px; background: var(--navy4); overflow: hidden; }
   .sessions-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--green), var(--green2)); transition: width 0.7s cubic-bezier(0.16,1,0.3,1); }
 
   /* ── Support buttons ── */
@@ -205,33 +205,33 @@ const GLOBAL_CSS = `
     width: 100%; padding: 13px 16px;
     border-radius: 8px;
     border: 1px solid var(--border);
-    background: rgba(255,255,255,0.04);
-    color: var(--white); font-family: var(--font-body);
+    background: var(--navy3);
+    color: var(--text); font-family: var(--font-body);
     font-size: 14px; margin-top: 8px;
     outline: none;
     transition: border-color 0.18s, box-shadow 0.18s;
   }
   .torque-input:focus {
-    border-color: rgba(255,255,255,0.3);
-    box-shadow: 0 0 0 3px rgba(255,255,255,0.05);
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
   .torque-input::placeholder { color: var(--muted2); }
 
   /* ── Primary button ── */
   .btn-primary {
     padding: 14px 24px; border-radius: 8px;
-    background: #FFFFFF; color: #0B1423;
+    background: var(--ink); color: var(--white);
     border: none; cursor: pointer;
     font-family: var(--font-display); font-weight: 800;
     font-style: italic; font-size: 16px;
     letter-spacing: 0.08em; text-transform: uppercase;
     transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
-    box-shadow: 0 4px 20px rgba(255,255,255,0.12);
+    box-shadow: 0 4px 20px rgba(13,27,42,0.15);
   }
   .btn-primary:hover {
-    background: rgba(255,255,255,0.88);
+    background: var(--accent2);
     transform: translateY(-1px);
-    box-shadow: 0 6px 28px rgba(255,255,255,0.18);
+    box-shadow: 0 6px 28px rgba(13,27,42,0.22);
   }
   .btn-primary:active { transform: translateY(0); }
 
@@ -239,16 +239,16 @@ const GLOBAL_CSS = `
   .btn-ghost {
     padding: 8px 16px; border-radius: 6px;
     background: transparent;
-    color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.2);
+    color: var(--text2); border: 1px solid var(--border2);
     cursor: pointer; font-family: var(--font-display);
     font-weight: 700; font-style: italic; font-size: 13px;
     letter-spacing: 0.06em; text-transform: uppercase;
     transition: all 0.18s ease;
   }
   .btn-ghost:hover {
-    background: rgba(255,255,255,0.07);
-    border-color: rgba(255,255,255,0.35);
-    color: var(--white);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--text);
   }
 
   /* ── Calendar ── */
@@ -261,24 +261,24 @@ const GLOBAL_CSS = `
   }
   .cal-day.has-booking { background:rgba(34,197,110,0.1); cursor:pointer; }
   .cal-day.has-booking:hover { background:rgba(34,197,110,0.18); }
-  .cal-day.today { background:rgba(255,255,255,0.08); }
+  .cal-day.today { background:var(--accent-soft); }
   .cal-day.other-month { opacity:0.25; }
   .cal-dot { width:5px; height:5px; border-radius:50%; background:var(--green2); margin-top:3px; }
 
   /* ── Booking slots ── */
   .slot-btn {
     padding:12px 14px; border-radius:8px; border:1px solid var(--border);
-    background:var(--navy4); color:var(--white); cursor:pointer;
+    background:var(--navy4); color:var(--text); cursor:pointer;
     font-family:var(--font-display); font-size:13px; font-weight:700;
     text-align:center; transition:all 0.15s;
   }
-  .slot-btn:hover { border-color:rgba(255,255,255,0.3); background:var(--navy5); }
+  .slot-btn:hover { border-color:var(--accent); background:var(--navy5); }
   .slot-btn.selected { border-color:var(--green2); background:rgba(34,197,110,0.1); color:var(--green2); }
 
   /* ── Section header ── */
   .section-eyebrow { font-family:var(--font-display); font-style:italic; font-weight:700; font-size:12px; color:var(--muted); letter-spacing:0.25em; text-transform:uppercase; margin-bottom:6px; }
-  .section-title { font-family:var(--font-display); font-style:italic; font-weight:900; font-size:48px; letter-spacing:0.06em; color:var(--white); line-height:1; }
-  .section-bar { margin-top:10px; width:40px; height:3px; background:rgba(255,255,255,0.3); border-radius:2px; margin-bottom:28px; }
+  .section-title { font-family:var(--font-display); font-style:italic; font-weight:900; font-size:48px; letter-spacing:0.06em; color:var(--text); line-height:1; }
+  .section-bar { margin-top:10px; width:40px; height:3px; background:var(--accent); border-radius:2px; margin-bottom:28px; }
 
   /* ── Responsive layout helpers ── */
   .schedule-layout   { display:grid; grid-template-columns:1.2fr 0.8fr; gap:20px; align-items:start; }
@@ -789,11 +789,11 @@ export default function ParentPortal() {
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--navy)', flexDirection:'column', gap:20 }}>
       <style>{GLOBAL_CSS}</style>
-      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(36px, 10vw, 56px)', letterSpacing:'0.1em', color:'var(--white)' }}>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(36px, 10vw, 56px)', letterSpacing:'0.1em', color:'var(--text)' }}>
         TORQUE
       </div>
       <div style={{ width:48, height:3, background:'var(--navy4)', borderRadius:2, overflow:'hidden' }}>
-        <div style={{ height:'100%', width:'45%', background:'rgba(255,255,255,0.6)', borderRadius:2, animation:'slideRight 0.8s ease infinite alternate' }} />
+        <div style={{ height:'100%', width:'45%', background:'rgba(13,27,42,0.6)', borderRadius:2, animation:'slideRight 0.8s ease infinite alternate' }} />
       </div>
       <div style={{ fontSize:11, color:'var(--muted)', letterSpacing:'0.25em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Loading your portal...</div>
     </div>
@@ -813,9 +813,9 @@ export default function ParentPortal() {
 
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:'clamp(20px, 5vw, 36px)', position:'relative', overflow:'hidden' }}>
           {/* Top accent */}
-          <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg, rgba(255,255,255,0.35), transparent)' }} />
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg, rgba(13,27,42,0.35), transparent)' }} />
 
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:22, letterSpacing:'0.08em', color:'var(--white)', marginBottom:24, textTransform:'uppercase' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:22, letterSpacing:'0.08em', color:'var(--text)', marginBottom:24, textTransform:'uppercase' }}>
             New Account Setup
           </div>
 
@@ -963,7 +963,7 @@ export default function ParentPortal() {
           background:'rgba(0,0,0,0.72)', backdropFilter:'blur(4px)',
           display:'flex', alignItems:'center', justifyContent:'center', padding:'20px',
         }}>
-          <div onClick={e => e.stopPropagation()} style={{
+          <div data-theme="dark" onClick={e => e.stopPropagation()} style={{
             background:'linear-gradient(145deg, #0E1A2E 0%, #152440 100%)',
             border:'1px solid rgba(255,255,255,0.12)',
             borderRadius:20, padding:'36px 32px 32px',
@@ -1051,7 +1051,7 @@ export default function ParentPortal() {
       <div style={{ display:'flex', minHeight:'100vh', position:'relative', zIndex:1 }}>
 
         {/* Sidebar Desktop */}
-        <aside className="torque-sidebar-desktop" style={sidebarStyle}>
+        <aside data-theme="dark" className="torque-sidebar-desktop" style={sidebarStyle}>
           <SidebarContent />
         </aside>
 
@@ -1080,7 +1080,7 @@ export default function ParentPortal() {
         )}
 
         {/* Sidebar Mobile */}
-        <aside className="torque-sidebar-mobile" style={{
+        <aside data-theme="dark" className="torque-sidebar-mobile" style={{
           ...sidebarStyle, zIndex:300, display:'flex',
           transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
           transition:'transform 0.3s cubic-bezier(0.16,1,0.3,1)',
@@ -1146,8 +1146,8 @@ export default function ParentPortal() {
       {/* ── MODAL: BUY PACK ── */}
       <Modal open={showBuyPack} onClose={() => setShowBuyPack(false)} title={`Training Plans · ${selectedPlayer?.kid_name}`} width={800}>
         {/* Discount strip */}
-        <div style={{ marginBottom:22, padding:'12px 18px', background:'rgba(255,255,255,0.04)', borderRadius:8, border:'1px solid rgba(255,255,255,0.1)', display:'flex', alignItems:'center', gap:24, flexWrap:'wrap' }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'rgba(255,255,255,0.75)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Membership Discounts</div>
+        <div style={{ marginBottom:22, padding:'12px 18px', background:'rgba(13,27,42,0.04)', borderRadius:8, border:'1px solid rgba(13,27,42,0.1)', display:'flex', alignItems:'center', gap:24, flexWrap:'wrap' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'rgba(13,27,42,0.75)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Membership Discounts</div>
           <div style={{ display:'flex', gap:20, fontSize:12, color:'var(--muted)', fontFamily:'var(--font-body)' }}>
             <span>6 Mo <b style={{ color:'var(--offwhite)' }}>–10%</b></span>
             <span>12 Mo <b style={{ color:'var(--offwhite)' }}>–15%</b></span>
@@ -1163,16 +1163,16 @@ export default function ParentPortal() {
             return (
               <div key={pack.id} style={{ padding:'20px 22px', borderRadius:12, border:'1px solid var(--border)', background:'var(--navy3)', position:'relative', overflow:'hidden' }}>
                 {/* Left accent bar */}
-                <div style={{ position:'absolute', left:0, top:0, bottom:0, width:3, background:'rgba(255,255,255,0.25)' }} />
+                <div style={{ position:'absolute', left:0, top:0, bottom:0, width:3, background:'rgba(13,27,42,0.25)' }} />
 
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16, paddingLeft:8 }}>
                   <div>
-                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(18px, 4vw, 28px)', letterSpacing:'0.06em', color:'var(--white)', lineHeight:1 }}>{pack.name}</div>
-                    <div style={{ fontSize:12, color:'rgba(255,255,255,0.55)', fontWeight:600, marginTop:3, letterSpacing:'0.05em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{pack.tag}</div>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(18px, 4vw, 28px)', letterSpacing:'0.06em', color:'var(--text)', lineHeight:1 }}>{pack.name}</div>
+                    <div style={{ fontSize:12, color:'rgba(13,27,42,0.55)', fontWeight:600, marginTop:3, letterSpacing:'0.05em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>{pack.tag}</div>
                     <div style={{ fontSize:11, color:'var(--muted)', marginTop:2, fontFamily:'var(--font-mono)' }}>{pack.sessions} sessions / month</div>
                   </div>
                   <div style={{ textAlign:'right' }}>
-                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(22px, 5vw, 36px)', color:'var(--white)', letterSpacing:'0.02em', lineHeight:1 }}>${pack.price}</div>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(22px, 5vw, 36px)', color:'var(--text)', letterSpacing:'0.02em', lineHeight:1 }}>${pack.price}</div>
                     <div style={{ fontSize:9, color:'var(--muted)', letterSpacing:'0.2em', textTransform:'uppercase', marginTop:2 }}>base / month</div>
                   </div>
                 </div>
@@ -1185,14 +1185,14 @@ export default function ParentPortal() {
                     <span style={{ fontSize:9, color:'var(--muted2)', fontFamily:'var(--font-mono)' }}>no commit</span>
                   </button>
                   <button onClick={() => openWaiver(pack, 'm6', pack.links.m6, pack.prices.m6, p6)} className="pack-option">
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'rgba(255,255,255,0.6)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>6 MONTHS</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'rgba(13,27,42,0.6)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>6 MONTHS</span>
                     <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22 }}>${p6}</span>
-                    <span style={{ fontSize:9, color:'rgba(255,255,255,0.5)', fontFamily:'var(--font-mono)' }}>–10% /mo</span>
+                    <span style={{ fontSize:9, color:'rgba(13,27,42,0.5)', fontFamily:'var(--font-mono)' }}>–10% /mo</span>
                   </button>
                   <button onClick={() => openWaiver(pack, 'm12', pack.links.m12, pack.prices.m12, p12)} className="pack-option">
-                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'rgba(255,255,255,0.6)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>12 MONTHS</span>
+                    <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'rgba(13,27,42,0.6)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>12 MONTHS</span>
                     <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22 }}>${p12}</span>
-                    <span style={{ fontSize:9, color:'rgba(255,255,255,0.5)', fontFamily:'var(--font-mono)' }}>–15% /mo</span>
+                    <span style={{ fontSize:9, color:'rgba(13,27,42,0.5)', fontFamily:'var(--font-mono)' }}>–15% /mo</span>
                   </button>
                   <button onClick={() => openWaiver(pack, 'annual', pack.links.annual, pack.prices.annual, pAn)} className="pack-option annual">
                     <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.08em', color:'var(--green2)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>ANNUAL</span>
@@ -1212,7 +1212,7 @@ export default function ParentPortal() {
           <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
 
             {/* Pre-filled info strip */}
-            <div style={{ padding:'12px 16px', background:'rgba(255,255,255,0.04)', borderRadius:8, border:'1px solid rgba(255,255,255,0.08)', marginBottom:20, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'8px 16px', fontSize:12 }}>
+            <div style={{ padding:'12px 16px', background:'rgba(13,27,42,0.04)', borderRadius:8, border:'1px solid rgba(13,27,42,0.08)', marginBottom:20, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'8px 16px', fontSize:12 }}>
               <div><span style={{ color:'var(--muted)' }}>Participant: </span><span style={{ fontWeight:600 }}>{selectedPlayer?.kid_name}</span></div>
               <div><span style={{ color:'var(--muted)' }}>Package: </span><span style={{ fontWeight:600 }}>{waiverData.pack.name}</span></div>
               <div><span style={{ color:'var(--muted)' }}>Parent/Guardian: </span><span style={{ fontWeight:600 }}>{user?.fullName}</span></div>
@@ -1223,7 +1223,7 @@ export default function ParentPortal() {
 
             {/* Contract text scroll box */}
             <div style={{ maxHeight:280, overflowY:'auto', padding:'16px', background:'rgba(0,0,0,0.3)', borderRadius:8, border:'1px solid var(--border)', fontSize:11.5, lineHeight:1.7, color:'var(--text2)', marginBottom:20 }}>
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'var(--white)', marginBottom:12, textAlign:'center' }}>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'var(--text)', marginBottom:12, textAlign:'center' }}>
                 TORQUE PERFORMANCE LLC — TRAINING SERVICES CONTRACT<br/>
                 <span style={{ fontSize:11, fontWeight:400, color:'var(--muted)' }}>({waiverData.billingLabel} Agreement)</span>
               </div>
@@ -1287,7 +1287,7 @@ export default function ParentPortal() {
             <button
               onClick={handleWaiverSubmit}
               disabled={waiverSaving || !waiverForm.signedName.trim() || !waiverForm.agreed}
-              style={{ width:'100%', padding:'14px', background:(!waiverForm.signedName.trim() || !waiverForm.agreed) ? 'rgba(255,255,255,0.1)' : '#4fa8ff', border:'none', borderRadius:10, color:'#fff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:16, letterSpacing:'0.05em', cursor:(!waiverForm.signedName.trim() || !waiverForm.agreed) ? 'not-allowed' : 'pointer', transition:'background 0.2s' }}>
+              style={{ width:'100%', padding:'14px', background:(!waiverForm.signedName.trim() || !waiverForm.agreed) ? 'rgba(13,27,42,0.1)' : '#4fa8ff', border:'none', borderRadius:10, color:'var(--text)', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:16, letterSpacing:'0.05em', cursor:(!waiverForm.signedName.trim() || !waiverForm.agreed) ? 'not-allowed' : 'pointer', transition:'background 0.2s' }}>
               {waiverSaving ? 'Saving…' : '✦ Sign & Proceed to Payment'}
             </button>
 
@@ -1399,7 +1399,7 @@ export default function ParentPortal() {
           <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
             <div style={{ padding:'16px 18px', background:'rgba(255,68,102,0.07)', border:'1px solid rgba(255,68,102,0.25)', borderRadius:10 }}>
               <div style={{ fontSize:13, color:'var(--muted)', marginBottom:8 }}>Session to cancel:</div>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:14, color:'var(--white)', fontWeight:600 }}>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:14, color:'var(--text)', fontWeight:600 }}>
                 {new Date(cancelModal.booking.session_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})} · {cancelModal.booking.session_time}
               </div>
               <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>{cancelModal.booking.kid_name}</div>
@@ -1410,7 +1410,7 @@ export default function ParentPortal() {
             <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
               <button className="btn-ghost" onClick={() => setCancelModal({ open: false, booking: null })} disabled={cancelLoading}>Go Back</button>
               <button onClick={handleCancelSession} disabled={cancelLoading}
-                style={{ padding:'12px 24px', borderRadius:8, background:'#e04060', border:'none', color:'white', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:15, letterSpacing:'0.06em', cursor: cancelLoading ? 'not-allowed' : 'pointer', opacity: cancelLoading ? 0.7 : 1 }}>
+                style={{ padding:'12px 24px', borderRadius:8, background:'#e04060', border:'none', color:'var(--text)', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:15, letterSpacing:'0.06em', cursor: cancelLoading ? 'not-allowed' : 'pointer', opacity: cancelLoading ? 0.7 : 1 }}>
                 {cancelLoading ? 'Canceling...' : 'Cancel Session'}
               </button>
             </div>
@@ -1421,7 +1421,7 @@ export default function ParentPortal() {
       {/* ── MODAL: SUPPORT ── */}
       <Modal open={showSupport} onClose={() => setShowSupport(false)} title="Help & Support">
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <p style={{ fontSize:14, color:'var(--muted)', lineHeight:1.75, padding:'14px 18px', background:'rgba(255,255,255,0.03)', borderRadius:8, border:'1px solid var(--border)' }}>
+          <p style={{ fontSize:14, color:'var(--muted)', lineHeight:1.75, padding:'14px 18px', background:'rgba(13,27,42,0.03)', borderRadius:8, border:'1px solid var(--border)' }}>
             Need help with your account, sessions, or billing? Our team is ready to assist you.
             Reach out via WhatsApp for a fast response, or send us an email and we'll get back to you shortly.
           </p>
@@ -1433,7 +1433,7 @@ export default function ParentPortal() {
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
               </svg>
               <div>
-                <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', letterSpacing:'0.05em', textTransform:'uppercase' }}>WhatsApp</div>
+                <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--text)', letterSpacing:'0.05em', textTransform:'uppercase' }}>WhatsApp</div>
                 <div style={{ fontSize:12, color:'var(--muted)', fontFamily:'var(--font-mono)', marginTop:2 }}>+1 (915) 242-3456 · fastest response</div>
               </div>
             </div>
@@ -1441,18 +1441,18 @@ export default function ParentPortal() {
           </a>
           <a href="mailto:txtorq@gmail.com"
             className="support-btn"
-            style={{ border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.03)' }}>
+            style={{ border:'1px solid rgba(13,27,42,0.1)', background:'rgba(13,27,42,0.03)' }}>
             <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color:'rgba(255,255,255,0.5)', flexShrink:0 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color:'rgba(13,27,42,0.5)', flexShrink:0 }}>
                 <rect x="2" y="4" width="20" height="16" rx="2"/>
                 <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
               </svg>
               <div>
-                <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', letterSpacing:'0.05em', textTransform:'uppercase' }}>Email</div>
+                <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--text)', letterSpacing:'0.05em', textTransform:'uppercase' }}>Email</div>
                 <div style={{ fontSize:12, color:'var(--muted)', fontFamily:'var(--font-mono)', marginTop:2 }}>txtorq@gmail.com · reply within 24h</div>
               </div>
             </div>
-            <ChevronRight size={16} color="rgba(255,255,255,0.35)" />
+            <ChevronRight size={16} color="rgba(13,27,42,0.35)" />
           </a>
         </div>
       </Modal>
@@ -1488,11 +1488,11 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
     <div>
       <div style={{ marginBottom:36 }} className="animate-fade-up">
         <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, color:'var(--muted)', letterSpacing:'0.25em', textTransform:'uppercase', marginBottom:6 }}>Parent Portal</div>
-        <h1 style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:52, letterSpacing:'0.06em', color:'var(--white)', lineHeight:1 }}>
+        <h1 style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:52, letterSpacing:'0.06em', color:'var(--text)', lineHeight:1 }}>
           MY PLAYERS
         </h1>
         {/* Red underbar */}
-        <div style={{ marginTop:12, width:48, height:3, background:'rgba(255,255,255,0.3)', borderRadius:2 }} />
+        <div style={{ marginTop:12, width:48, height:3, background:'rgba(13,27,42,0.3)', borderRadius:2 }} />
       </div>
 
       <div className="players-grid stagger" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
@@ -1507,18 +1507,18 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
           return (
             <div key={player.id} className="player-card">
               {/* Background initial watermark */}
-              <div style={{ position:'absolute', right:16, top:10, fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:90, color:'rgba(255,255,255,0.025)', lineHeight:1, userSelect:'none', pointerEvents:'none' }}>
+              <div style={{ position:'absolute', right:16, top:10, fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:90, color:'rgba(13,27,42,0.025)', lineHeight:1, userSelect:'none', pointerEvents:'none' }}>
                 {player.kid_name[0]}
               </div>
 
               {/* Avatar + name */}
               <div style={{ display:'flex', gap:16, alignItems:'center', marginBottom:22, position:'relative' }}>
-                <div style={{ width:54, height:54, borderRadius:12, background:'linear-gradient(135deg, var(--navy4) 0%, var(--navy5) 100%)', border:'1px solid rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, color:'white', flexShrink:0, boxShadow:'0 4px 16px rgba(0,0,0,0.4)' }}>
+                <div style={{ width:54, height:54, borderRadius:12, background:'linear-gradient(135deg, var(--navy4) 0%, var(--navy5) 100%)', border:'1px solid rgba(13,27,42,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, color:'var(--text)', flexShrink:0, boxShadow:'0 4px 16px rgba(0,0,0,0.4)' }}>
                   {player.kid_name[0]}
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, letterSpacing:'0.05em', color:'var(--white)', lineHeight:1 }}>{player.kid_name}</div>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, letterSpacing:'0.05em', color:'var(--text)', lineHeight:1 }}>{player.kid_name}</div>
                     <button onClick={() => setEditModal({ open:true, player, name: player.kid_name })} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', padding:4, display:'flex', alignItems:'center', flexShrink:0 }} title="Edit name">
                       <Pencil size={14} />
                     </button>
@@ -1558,7 +1558,7 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
               <div style={{ display:'flex', flexDirection:'column', gap:8, marginTop:14 }}>
                 <button
                   onClick={() => setQrModal({ open: true, player })}
-                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px 16px', background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:8, color:'var(--white)', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:13, letterSpacing:'0.08em', textTransform:'uppercase', cursor:'pointer' }}
+                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'10px 16px', background:'rgba(13,27,42,0.07)', border:'1px solid rgba(13,27,42,0.15)', borderRadius:8, color:'var(--text)', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:13, letterSpacing:'0.08em', textTransform:'uppercase', cursor:'pointer' }}
                 >
                   📷 Scan QR
                 </button>
@@ -1606,9 +1606,9 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
               const time = dt.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })
               const rem = c.sessions_remaining_after
               return (
-                <div key={c.id || i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div key={c.id || i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'rgba(13,27,42,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
                   <div>
-                    <div style={{ fontSize:14, fontWeight:600, color:'var(--white)', textTransform:'capitalize' }}>{date}</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', textTransform:'capitalize' }}>{date}</div>
                     <div style={{ fontSize:12, color:'var(--muted)', fontFamily:'var(--font-mono)', marginTop:2 }}>{time}</div>
                   </div>
                   <div style={{ textAlign:'right' }}>
@@ -1672,16 +1672,16 @@ function SessionsPage({ players, bookings, onBook, onCancel, onReschedule }) {
 
             return (
               <div key={player.id} style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24, position:'relative', overflow:'hidden' }}>
-                <div style={{ position:'absolute', right:20, top:16, fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:80, color:'rgba(255,255,255,0.025)', lineHeight:1, userSelect:'none' }}>{player.kid_name[0]}</div>
+                <div style={{ position:'absolute', right:20, top:16, fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:80, color:'rgba(13,27,42,0.025)', lineHeight:1, userSelect:'none' }}>{player.kid_name[0]}</div>
 
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:16 }}>
                   {/* Left: player info */}
                   <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                    <div style={{ width:48, height:48, borderRadius:10, background:'linear-gradient(135deg, var(--navy4), var(--navy5))', border:'1px solid rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'white', flexShrink:0 }}>
+                    <div style={{ width:48, height:48, borderRadius:10, background:'linear-gradient(135deg, var(--navy4), var(--navy5))', border:'1px solid rgba(13,27,42,0.12)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--text)', flexShrink:0 }}>
                       {player.kid_name[0]}
                     </div>
                     <div>
-                      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--white)' }}>{player.kid_name}</div>
+                      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--text)' }}>{player.kid_name}</div>
                       <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.1em', fontFamily:'var(--font-display)', fontStyle:'italic', marginTop:2 }}>{m ? m.package_name : 'No plan'}</div>
                     </div>
                   </div>
@@ -1703,7 +1703,7 @@ function SessionsPage({ players, bookings, onBook, onCancel, onReschedule }) {
                 {/* Progress bar */}
                 {m && (
                   <div style={{ marginTop:20 }}>
-                    <div style={{ height:6, background:'rgba(255,255,255,0.06)', borderRadius:6, overflow:'hidden' }}>
+                    <div style={{ height:6, background:'rgba(13,27,42,0.06)', borderRadius:6, overflow:'hidden' }}>
                       <div style={{ height:'100%', borderRadius:6, transition:'width 0.6s ease', width:`${pct}%`, background: remaining === 0 ? 'var(--muted2)' : remaining <= 2 ? 'linear-gradient(90deg,#E8A020,#F0C040)' : 'linear-gradient(90deg,var(--green),var(--green2))' }} />
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, fontSize:11, color:'var(--muted)', fontFamily:'var(--font-mono)' }}>
@@ -1804,7 +1804,7 @@ function SchedulePage({ bookings, onCancel, onReschedule }) {
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
             <button onClick={() => { setViewDate(new Date(year,month-1,1)); setSelectedDay(null) }}
               style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:18, fontWeight:700 }}>‹</button>
-            <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:20, letterSpacing:'0.06em', color:'var(--white)', textTransform:'uppercase' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:20, letterSpacing:'0.06em', color:'var(--text)', textTransform:'uppercase' }}>
               {MONTH_NAMES[month]} {year}
             </div>
             <button onClick={() => { setViewDate(new Date(year,month+1,1)); setSelectedDay(null) }}
@@ -1835,11 +1835,11 @@ function SchedulePage({ bookings, onCancel, onReschedule }) {
                     alignItems:'center', justifyContent:'center', borderRadius:8,
                     cursor: hasB ? 'pointer' : 'default', overflow:'hidden',
                     transition:'all 0.15s', minWidth:0,
-                    background: isSelected ? 'rgba(34,197,110,0.18)' : hasB ? 'rgba(34,197,110,0.09)' : isToday ? 'rgba(255,255,255,0.07)' : 'transparent',
-                    border: isSelected ? '1.5px solid rgba(34,197,110,0.5)' : hasB ? '1px solid rgba(34,197,110,0.2)' : isToday ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                    background: isSelected ? 'rgba(34,197,110,0.18)' : hasB ? 'rgba(34,197,110,0.09)' : isToday ? 'rgba(13,27,42,0.07)' : 'transparent',
+                    border: isSelected ? '1.5px solid rgba(34,197,110,0.5)' : hasB ? '1px solid rgba(34,197,110,0.2)' : isToday ? '1px solid rgba(13,27,42,0.15)' : '1px solid transparent',
                   }}>
                   <span style={{ fontFamily:'var(--font-display)', fontWeight: hasB || isToday ? 800 : 500, fontSize:13, lineHeight:1,
-                    color: isSelected ? 'var(--green2)' : hasB ? 'var(--green2)' : isToday ? 'var(--white)' : 'var(--text2)' }}>
+                    color: isSelected ? 'var(--green2)' : hasB ? 'var(--green2)' : isToday ? 'var(--text)' : 'var(--text2)' }}>
                     {day}
                   </span>
                   {/* Booking count dot */}
@@ -1862,7 +1862,7 @@ function SchedulePage({ bookings, onCancel, onReschedule }) {
               {bookingsByDate[selectedDay].map((b,i) => {
                 const canMod = canModifyBooking(b)
                 return (
-                  <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderTop: i>0 ? '1px solid rgba(255,255,255,0.05)' : 'none', flexWrap:'wrap' }}>
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderTop: i>0 ? '1px solid rgba(13,27,42,0.05)' : 'none', flexWrap:'wrap' }}>
                     <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--green2)', flexShrink:0 }} />
                     <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)', fontWeight:600 }}>{b.session_time}</span>
                     <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
@@ -1889,7 +1889,7 @@ function SchedulePage({ bookings, onCancel, onReschedule }) {
 
         {/* ── UPCOMING LIST ── */}
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', marginBottom:16, letterSpacing:'0.04em' }}>UPCOMING SESSIONS</div>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--text)', marginBottom:16, letterSpacing:'0.04em' }}>UPCOMING SESSIONS</div>
           {upcoming.length === 0 ? (
             <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)', fontSize:13, lineHeight:1.7 }}>No sessions scheduled.<br/>Go to Sessions to book.</div>
           ) : (
@@ -1899,13 +1899,13 @@ function SchedulePage({ bookings, onCancel, onReschedule }) {
                 const canMod = canModifyBooking(b)
                 return (
                   <div key={b.id}
-                    style={{ padding:'12px 14px', background: iso === selectedDay ? 'rgba(34,197,110,0.06)' : 'rgba(255,255,255,0.03)', border:`1px solid ${iso === selectedDay ? 'rgba(34,197,110,0.3)' : 'var(--border)'}`, borderRadius:10, transition:'all 0.15s' }}>
+                    style={{ padding:'12px 14px', background: iso === selectedDay ? 'rgba(34,197,110,0.06)' : 'rgba(13,27,42,0.03)', border:`1px solid ${iso === selectedDay ? 'rgba(34,197,110,0.3)' : 'var(--border)'}`, borderRadius:10, transition:'all 0.15s' }}>
                     <div onClick={() => { setSelectedDay(iso); setViewDate(new Date(iso+'T12:00:00')) }}
                       style={{ cursor:'pointer' }}
                       onMouseEnter={e => e.currentTarget.style.opacity='0.8'}
                       onMouseLeave={e => e.currentTarget.style.opacity='1'}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                        <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--white)' }}>
+                        <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--text)' }}>
                           {new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
                         </div>
                         <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--green2)', fontWeight:600 }}>{b.session_time}</div>
@@ -1916,7 +1916,7 @@ function SchedulePage({ bookings, onCancel, onReschedule }) {
                       </div>
                     </div>
                     {canMod && (
-                      <div style={{ display:'flex', gap:6, marginTop:10, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ display:'flex', gap:6, marginTop:10, paddingTop:10, borderTop:'1px solid rgba(13,27,42,0.05)' }}>
                         <button onClick={() => onReschedule(b)}
                           style={{ flex:1, padding:'6px 0', borderRadius:6, background:'rgba(79,168,255,0.1)', border:'1px solid rgba(79,168,255,0.25)', color:'#4fa8ff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, cursor:'pointer', letterSpacing:'0.04em' }}>
                           ↺ Reschedule
@@ -1975,7 +1975,7 @@ function BillingPage({ players }) {
               {/* Header */}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 }}>
                 <div>
-                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--white)' }}>{m.kid_name}</div>
+                  <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--text)' }}>{m.kid_name}</div>
                   <div style={{ fontSize:12, color:'var(--muted)', marginTop:3, fontFamily:'var(--font-display)', fontStyle:'italic', letterSpacing:'0.06em', textTransform:'uppercase' }}>{m.package_name} · {cycleLabel(m.sessions_total)}</div>
                 </div>
                 <div style={{ padding:'4px 12px', background:'rgba(34,197,110,0.1)', border:'1px solid rgba(34,197,110,0.25)', borderRadius:20, fontSize:11, fontFamily:'var(--font-display)', fontWeight:700, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase' }}>Active</div>
@@ -1989,7 +1989,7 @@ function BillingPage({ players }) {
                   { label:'Sessions remaining', value: m.sessions_total - m.sessions_used },
                 ].map(s => (
                   <div key={s.label} style={{ background:'rgba(0,0,0,0.2)', borderRadius:10, padding:'12px 14px', textAlign:'center' }}>
-                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:28, color:'var(--white)' }}>{s.value}</div>
+                    <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:28, color:'var(--text)' }}>{s.value}</div>
                     <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.1em', fontFamily:'var(--font-display)', marginTop:2 }}>{s.label}</div>
                   </div>
                 ))}
@@ -1997,7 +1997,7 @@ function BillingPage({ players }) {
 
               {/* Payment info */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                <div style={{ padding:'12px 16px', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div style={{ padding:'12px 16px', background:'rgba(13,27,42,0.03)', border:'1px solid var(--border)', borderRadius:10 }}>
                   <div style={{ fontSize:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.12em', fontFamily:'var(--font-display)', marginBottom:4 }}>Purchase date</div>
                   <div style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--offwhite)' }}>
                     {m.purchased_at ? new Date(m.purchased_at).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : '—'}
@@ -2028,8 +2028,8 @@ function PlaceholderPage({ title }) {
   return (
     <div className="animate-fade-up">
       <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:700, fontSize:12, color:'var(--muted)', letterSpacing:'0.25em', textTransform:'uppercase', marginBottom:6 }}>Coming Soon</div>
-      <h1 style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:52, letterSpacing:'0.06em', color:'var(--white)', lineHeight:1, marginBottom:14 }}>{title.toUpperCase()}</h1>
-      <div style={{ width:48, height:3, background:'rgba(255,255,255,0.3)', borderRadius:2, marginBottom:24 }} />
+      <h1 style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:52, letterSpacing:'0.06em', color:'var(--text)', lineHeight:1, marginBottom:14 }}>{title.toUpperCase()}</h1>
+      <div style={{ width:48, height:3, background:'rgba(13,27,42,0.3)', borderRadius:2, marginBottom:24 }} />
       <div style={{ fontSize:14, color:'var(--muted)' }}>This section is under construction.</div>
     </div>
   )
@@ -2080,7 +2080,7 @@ function EventsPage() {
                   <div style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>{ev.image || '⚾'}</div>
                   <div style={{ flex:1 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap' }}>
-                      <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:17, color:'var(--white)', lineHeight:1.2 }}>{ev.title}</span>
+                      <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:17, color:'var(--text)', lineHeight:1.2 }}>{ev.title}</span>
                       <span style={{ fontSize:10, fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:tColor, background:`${tColor}18`, padding:'2px 8px', borderRadius:6, border:`1px solid ${tColor}40` }}>{typeLabel[ev.type] || ev.type}</span>
                     </div>
                     <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--accent)', letterSpacing:'0.03em' }}>
