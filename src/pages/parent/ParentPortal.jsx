@@ -357,6 +357,23 @@ export default function ParentPortal() {
     setShowPromo(false)
   }
 
+  // Announcement popup: soonest upcoming (not-yet-passed) event, once per session per event.
+  const [eventAnnounce, setEventAnnounce] = useState(null)
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0]
+    supabase.from('events').select('*').gte('date', today).order('date', { ascending: true }).limit(1)
+      .then(({ data }) => {
+        const ev = data && data[0]
+        if (!ev) return
+        if (sessionStorage.getItem('torque_event_seen') === String(ev.id)) return
+        setEventAnnounce(ev)
+      })
+  }, [])
+  function dismissEventAnnounce() {
+    if (eventAnnounce) sessionStorage.setItem('torque_event_seen', String(eventAnnounce.id))
+    setEventAnnounce(null)
+  }
+
   useEffect(() => {
     if (!bookingForm.date) return
     fetchSlotCounts(bookingForm.date)
@@ -916,7 +933,7 @@ export default function ParentPortal() {
     sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     schedule: <SchedulePage bookings={bookings} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     billing:  <BillingPage players={players} />,
-    events:   <EventsPage />,
+    events:   <EventsPage user={user} players={players} parentDisplayName={profile?.full_name || user?.fullName || ''} />,
   }
 
   // ── SIDEBAR CONTENT ──
@@ -1066,6 +1083,25 @@ export default function ParentPortal() {
             }}>
               No thanks, maybe later
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── EVENT ANNOUNCEMENT POPUP (soonest upcoming event, once per session) ── */}
+      {eventAnnounce && !showPromo && (
+        <div onClick={dismissEventAnnounce} style={{ position:'fixed', inset:0, zIndex:9998, background:'rgba(13,27,42,0.55)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--navy2)', border:'1px solid var(--border2)', borderRadius:20, padding:'32px 28px', maxWidth:420, width:'100%', position:'relative', boxShadow:'0 24px 80px rgba(13,27,42,0.25)' }}>
+            <button onClick={dismissEventAnnounce} style={{ position:'absolute', top:14, right:14, background:'var(--accent-soft)', border:'none', borderRadius:8, width:30, height:30, cursor:'pointer', color:'var(--muted)', fontSize:16 }}>✕</button>
+            <div style={{ fontSize:44, lineHeight:1, marginBottom:12 }}>{eventAnnounce.image || '📣'}</div>
+            <div style={{ fontSize:11, fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:'#06D6A0', marginBottom:6 }}>Upcoming Event</div>
+            <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, lineHeight:1.15, color:'var(--text)', marginBottom:8 }}>{eventAnnounce.title}</div>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, color:'var(--accent)', marginBottom:4 }}>{eventAnnounce.date}{eventAnnounce.time ? ` · ${eventAnnounce.time}` : ''}</div>
+            {eventAnnounce.location && <div style={{ fontSize:13, color:'var(--muted)', marginBottom:12 }}>📍 {eventAnnounce.location}</div>}
+            {eventAnnounce.description && <p style={{ fontSize:13, color:'var(--text2)', lineHeight:1.6, marginBottom:20 }}>{eventAnnounce.description}</p>}
+            <div style={{ display:'flex', gap:10, marginTop:8 }}>
+              <button onClick={() => { dismissEventAnnounce(); setPage('events') }} className="btn-primary" style={{ flex:1 }}>Join In →</button>
+              <button onClick={dismissEventAnnounce} className="btn-ghost" style={{ padding:'0 18px' }}>Close</button>
+            </div>
           </div>
         </div>
       )}
@@ -2091,16 +2127,49 @@ function PlaceholderPage({ title }) {
   )
 }
 
-// ── EVENTS PAGE (solo lectura) ────────────────────────────────────────────────
-function EventsPage() {
+// ── EVENTS PAGE (view + RSVP) ─────────────────────────────────────────────────
+function EventsPage({ user, players = [], parentDisplayName }) {
   const [events, setEvents] = useState([])
+  const [regs, setRegs] = useState([])   // registrations for the visible events
   const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(null)  // `${eventId}:${kid}` while toggling
 
-  useEffect(() => {
-    supabase.from('events').select('*').order('date', { ascending: true })
-      .then(({ data }) => { setEvents(data || []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
+  const today = new Date().toISOString().split('T')[0]
+
+  async function load() {
+    // Parents only see events that haven't passed yet.
+    const { data: evs } = await supabase.from('events').select('*').gte('date', today).order('date', { ascending: true })
+    const list = evs || []
+    setEvents(list)
+    if (list.length) {
+      const { data: rs } = await supabase.from('event_registrations').select('*').in('event_id', list.map(e => e.id))
+      setRegs(rs || [])
+    } else {
+      setRegs([])
+    }
+    setLoading(false)
+  }
+  useEffect(() => { load().catch(() => setLoading(false)) }, [user?.id])
+
+  async function toggle(ev, kidName, joined) {
+    const key = `${ev.id}:${kidName}`
+    setBusy(key)
+    try {
+      if (joined) {
+        await supabase.from('event_registrations').delete()
+          .eq('event_id', ev.id).eq('parent_id', user.id).eq('kid_name', kidName)
+        setRegs(prev => prev.filter(r => !(r.event_id === ev.id && r.parent_id === user.id && r.kid_name === kidName)))
+      } else {
+        const { data, error } = await supabase.from('event_registrations')
+          .insert({ event_id: ev.id, parent_id: user.id, kid_name: kidName, parent_name: parentDisplayName || '' })
+          .select().single()
+        if (!error && data) setRegs(prev => [...prev, data])
+        else if (error && !/duplicate|unique/i.test(error.message)) alert('Could not join: ' + error.message)
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
 
   const typeColor = { showcase:'#ff4466', camp:'#f39c12', clinic:'#4fa8ff', social:'#22C56E' }
   const typeLabel = { showcase:'Showcase', camp:'Camp', clinic:'Clinic', social:'Social' }
@@ -2126,47 +2195,74 @@ function EventsPage() {
       ) : (
         <div className="events-grid">
           {events.map(ev => {
-            const pct = ((ev.registered||0) / (ev.spots||1)) * 100
-            const spotsLeft = (ev.spots||0) - (ev.registered||0)
+            const evRegs = regs.filter(r => r.event_id === ev.id)
+            const count = evRegs.length
+            const spotsLeft = ev.spots ? Math.max(0, ev.spots - count) : null
+            const full = ev.spots ? count >= ev.spots : false
+            const myKids = new Set(evRegs.filter(r => r.parent_id === user?.id).map(r => r.kid_name))
+            const iAmIn = myKids.size > 0
+            const pct = ev.spots ? (count / ev.spots) * 100 : 0
             const tColor = typeColor[ev.type] || 'var(--muted)'
             return (
-              <div key={ev.id} style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:20, display:'flex', flexDirection:'column', gap:12 }}>
-                {/* Header */}
+              <div key={ev.id} style={{ background:'var(--navy2)', border:`1px solid ${iAmIn ? 'rgba(6,214,160,0.4)' : 'var(--border)'}`, borderRadius:16, padding:20, display:'flex', flexDirection:'column', gap:12 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:14 }}>
                   <div style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>{ev.image || '⚾'}</div>
                   <div style={{ flex:1 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap' }}>
                       <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:17, color:'var(--text)', lineHeight:1.2 }}>{ev.title}</span>
                       <span style={{ fontSize:10, fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:tColor, background:`${tColor}18`, padding:'2px 8px', borderRadius:6, border:`1px solid ${tColor}40` }}>{typeLabel[ev.type] || ev.type}</span>
+                      {iAmIn && <span style={{ fontSize:10, fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'#06D6A0', background:'rgba(6,214,160,0.14)', padding:'2px 8px', borderRadius:6 }}>You're in! ✅</span>}
                     </div>
                     <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--accent)', letterSpacing:'0.03em' }}>
                       {ev.date}{ev.time ? ` · ${ev.time}` : ''}
                     </div>
-                    {ev.location && (
-                      <div style={{ fontSize:12, color:'var(--muted)', marginTop:3 }}>📍 {ev.location}</div>
-                    )}
+                    {ev.location && <div style={{ fontSize:12, color:'var(--muted)', marginTop:3 }}>📍 {ev.location}</div>}
                   </div>
                 </div>
 
-                {/* Descripción */}
-                {ev.description && (
-                  <p style={{ fontSize:13, color:'var(--text2)', lineHeight:1.7, margin:0 }}>{ev.description}</p>
-                )}
+                {ev.description && <p style={{ fontSize:13, color:'var(--text2)', lineHeight:1.7, margin:0 }}>{ev.description}</p>}
 
-                {/* Cupo */}
+                {/* Capacity */}
                 <div>
                   <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-                    <span style={{ color:'var(--muted)' }}>{ev.registered||0} registered</span>
-                    <span style={{ color: spotsLeft<=5?'var(--amber)':'var(--green2)', fontWeight:600 }}>
-                      {spotsLeft > 0 ? `${spotsLeft} spots available` : 'Event full'}
-                    </span>
+                    <span style={{ color:'var(--muted)' }}><span className="num" style={{ fontSize:12, color:'var(--text)' }}>{count}</span> registered</span>
+                    {ev.spots ? <span style={{ color: full?'var(--muted)':spotsLeft<=5?'var(--amber)':'var(--green2)', fontWeight:600 }}>{full ? 'Event full' : `${spotsLeft} spots available`}</span> : null}
                   </div>
                   <div style={{ height:5, background:'var(--navy4)', borderRadius:5, overflow:'hidden' }}>
-                    <div style={{ height:'100%', borderRadius:5, width:`${Math.min(pct,100)}%`,
-                      background: pct>=90?'var(--red)':pct>=60?'var(--amber)':'var(--green2)',
-                      transition:'width 0.3s' }} />
+                    <div style={{ height:'100%', borderRadius:5, width:`${Math.min(pct,100)}%`, background: pct>=90?'var(--red)':pct>=60?'var(--amber)':'var(--green2)', transition:'width 0.3s' }} />
                   </div>
                 </div>
+
+                {/* RSVP — one toggle chip per player */}
+                {players.length > 0 ? (
+                  <div>
+                    <div style={{ fontSize:10, color:'var(--muted2)', fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic', marginBottom:8 }}>Join In</div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {players.map(p => {
+                        const joined = myKids.has(p.kid_name)
+                        const key = `${ev.id}:${p.kid_name}`
+                        const disabled = busy === key || (!joined && full)
+                        return (
+                          <button key={p.kid_name} onClick={() => toggle(ev, p.kid_name, joined)} disabled={disabled}
+                            style={{
+                              display:'inline-flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20,
+                              fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.03em',
+                              cursor: disabled ? 'not-allowed' : 'pointer',
+                              background: joined ? 'rgba(6,214,160,0.14)' : 'var(--accent-soft)',
+                              color: joined ? '#06D6A0' : 'var(--text)',
+                              border: `1px solid ${joined ? 'rgba(6,214,160,0.45)' : 'var(--border2)'}`,
+                              opacity: (!joined && full) ? 0.5 : 1,
+                            }}>
+                            {joined ? '✓' : '+'} {(p.kid_name||'').split(' ')[0]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {full && !iAmIn && <div style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>This event is full.</div>}
+                  </div>
+                ) : (
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>Add a player to RSVP.</div>
+                )}
               </div>
             )
           })}

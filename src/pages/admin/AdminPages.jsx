@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Pencil, Trash2, Users } from 'lucide-react'
 import { Card, Badge, Pill, Avatar, PageHeader, Btn, Modal, Label, StatCard, ProgressBar } from '../../components/UI'
 import { supabase } from '../../supabaseClient'
 import { useAdminData, normDate, PACK_INFO, TYPE_COLORS, parentName, VIBRANT, pkgColor, STATUS } from '../../hooks/useAdminData'
@@ -296,42 +296,150 @@ export function Payments() {
   )
 }
 
-// ── EVENTS PAGE ───────────────────────────────────────────────────────────────
+// ── EVENTS PAGE (full admin management) ───────────────────────────────────────
+const EMPTY_EVENT = { title:'', date:'', time:'', location:'', description:'', type:'clinic', spots:20, image:'⚾' }
+const EVT_TYPE_BADGE = { showcase:'red', camp:'gold', clinic:'blue', social:'green' }
+
 export function Events() {
   const [events, setEvents] = useState([])
+  const [regs, setRegs] = useState([])            // all event_registrations rows
   const [loadingEvts, setLoadingEvts] = useState(true)
-  const [showAdd, setShowAdd] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null) // null = create
+  const [form, setForm] = useState(EMPTY_EVENT)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ title:'', date:'', time:'', location:'', description:'', type:'clinic', spots:20, image:'⚾' })
+  const [deletingId, setDeletingId] = useState(null)
 
-  const typeColor = { showcase:'red', camp:'gold', clinic:'blue', social:'green' }
+  const today = new Date().toISOString().split('T')[0]
 
-  useEffect(() => {
-    supabase.from('events').select('*').order('date', { ascending: true })
-      .then(({ data }) => { setEvents(data || []); setLoadingEvts(false) })
-      .catch(() => setLoadingEvts(false))
-  }, [])
+  async function load() {
+    const [{ data: evs }, { data: rs }] = await Promise.all([
+      supabase.from('events').select('*').order('date', { ascending: true }),
+      supabase.from('event_registrations').select('*'),
+    ])
+    setEvents(evs || [])
+    setRegs(rs || [])
+    setLoadingEvts(false)
+  }
+  useEffect(() => { load().catch(() => setLoadingEvts(false)) }, [])
 
-  const handleAdd = async () => {
+  // registrations grouped by event
+  const regByEvent = useMemo(() => {
+    const map = {}
+    for (const r of regs) {
+      if (!map[r.event_id]) map[r.event_id] = []
+      map[r.event_id].push(r)
+    }
+    return map
+  }, [regs])
+
+  const active = events.filter(e => (e.date || '') >= today)
+  const past   = events.filter(e => (e.date || '') < today).sort((a,b) => (b.date||'').localeCompare(a.date||''))
+
+  function openCreate() { setEditingId(null); setForm(EMPTY_EVENT); setShowForm(true) }
+  function openEdit(ev) {
+    setEditingId(ev.id)
+    setForm({ title:ev.title||'', date:ev.date||'', time:ev.time||'', location:ev.location||'', description:ev.description||'', type:ev.type||'clinic', spots:ev.spots??20, image:ev.image||'⚾' })
+    setShowForm(true)
+  }
+
+  async function handleSave() {
     if (!form.title || !form.date) return
     setSaving(true)
-    const { data, error } = await supabase.from('events').insert([{
-      title: form.title, date: form.date, time: form.time,
-      location: form.location, description: form.description,
-      type: form.type, spots: form.spots, registered: 0, image: form.image,
-    }]).select().single()
-    setSaving(false)
-    if (!error && data) {
-      setEvents(prev => [...prev, data])
-      setShowAdd(false)
-      setForm({ title:'', date:'', time:'', location:'', description:'', type:'clinic', spots:20, image:'⚾' })
+    const payload = { title:form.title, date:form.date, time:form.time, location:form.location, description:form.description, type:form.type, spots:+form.spots, image:form.image }
+    let error
+    if (editingId) {
+      ({ error } = await supabase.from('events').update(payload).eq('id', editingId))
+    } else {
+      ({ error } = await supabase.from('events').insert([{ ...payload, registered: 0 }]))
     }
+    setSaving(false)
+    if (error) { alert('Save failed: ' + error.message); return }
+    setShowForm(false); setForm(EMPTY_EVENT); setEditingId(null)
+    await load()
+  }
+
+  async function handleDelete(ev) {
+    if (!window.confirm(`Delete "${ev.title}"? This also removes its registrations. This cannot be undone.`)) return
+    setDeletingId(ev.id)
+    const { error } = await supabase.from('events').delete().eq('id', ev.id)
+    setDeletingId(null)
+    if (error) { alert('Delete failed: ' + error.message); return }
+    await load()
+  }
+
+  const totalRsvps = regs.length
+
+  function EventCard({ ev, isPast }) {
+    const attendees = regByEvent[ev.id] || []
+    const count = attendees.length
+    const spotsLeft = Math.max(0, (ev.spots||0) - count)
+    const pct = ev.spots ? (count / ev.spots) * 100 : 0
+    return (
+      <Card style={isPast ? { opacity:0.6 } : undefined}>
+        <div style={{ display:'flex', gap:16, alignItems:'flex-start' }}>
+          <div style={{ fontSize:36, flexShrink:0, lineHeight:1, filter: isPast ? 'grayscale(1)' : 'none' }}>{ev.image || '⚾'}</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, marginBottom:6 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:800, lineHeight:1.2 }}>{ev.title}</div>
+              <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                {isPast && <Badge color="default">Ended</Badge>}
+                <Badge color={EVT_TYPE_BADGE[ev.type] || 'default'}>{ev.type}</Badge>
+              </div>
+            </div>
+            <div style={{ fontSize:13, color: isPast ? 'var(--text3)' : 'var(--accent)', fontFamily:'var(--font-display)', fontWeight:700, marginBottom:4 }}>{ev.date}{ev.time ? ` · ${ev.time}` : ''}</div>
+            {ev.location && <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10 }}>📍 {ev.location}</div>}
+            {ev.description && <p style={{ fontSize:13, color:'var(--text2)', lineHeight:1.6, marginBottom:14 }}>{ev.description}</p>}
+
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:8 }}>
+              <span style={{ color:'var(--text3)' }}><span className="num" style={{ fontSize:12, color:'var(--text)' }}>{count}</span> registered{ev.spots ? ` / ${ev.spots}` : ''}</span>
+              {!isPast && ev.spots ? <span style={{ color: spotsLeft<=5?'var(--amber)':'var(--green2)', fontWeight:600 }}>{spotsLeft} spots left</span> : null}
+            </div>
+            <ProgressBar value={count} max={ev.spots||count||1} color={pct>=90?'var(--red)':pct>=60?'var(--amber)':'var(--green)'} height={4} />
+
+            {/* Registered attendees */}
+            {count > 0 && (
+              <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--border)' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'0.06em', fontFamily:'var(--font-display)', fontWeight:700, marginBottom:8 }}>
+                  <Users size={12} /> Registered ({count})
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:5, maxHeight:160, overflowY:'auto' }}>
+                  {attendees.map(a => (
+                    <div key={a.id} style={{ display:'flex', alignItems:'center', gap:8, fontSize:12 }}>
+                      <span style={{ fontWeight:600 }}>{a.kid_name}</span>
+                      <span style={{ color:'var(--muted)' }}>· {a.parent_name || '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Admin actions */}
+            <div style={{ display:'flex', gap:8, marginTop:14 }}>
+              <button onClick={() => openEdit(ev)} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, background:'var(--accent-soft)', border:'1px solid var(--border2)', color:'var(--text)', fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.04em', textTransform:'uppercase', cursor:'pointer' }}>
+                <Pencil size={13} /> Edit
+              </button>
+              <button onClick={() => handleDelete(ev)} disabled={deletingId===ev.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, background:'rgba(230,57,70,0.10)', border:'1px solid rgba(230,57,70,0.35)', color:'#E63946', fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.04em', textTransform:'uppercase', cursor: deletingId===ev.id ? 'wait' : 'pointer' }}>
+                <Trash2 size={13} /> {deletingId===ev.id ? '…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Card>
+    )
   }
 
   return (
     <div className="fade-in">
-      <PageHeader eyebrow="Academy" title="Events" subtitle="Showcases, camps & clinics · visible to parents"
-        action={<Btn onClick={() => setShowAdd(true)}><Plus size={14} /> New Event</Btn>} />
+      <PageHeader eyebrow="Academy" title="Events" subtitle="Showcases, camps & clinics · manage and see who's coming"
+        action={<Btn onClick={openCreate}><Plus size={14} /> New Event</Btn>} />
+
+      {/* KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'var(--space-4)', marginBottom:'var(--space-8)' }}>
+        <StatCard label="Upcoming"    value={active.length} sub="active events"   icon="📣" block={VIBRANT.green} />
+        <StatCard label="Past"        value={past.length}   sub="ended"           icon="📁" block={VIBRANT.blue} />
+        <StatCard label="Total RSVPs" value={totalRsvps}    sub="across all events" icon="🎟️" block={VIBRANT.amber} />
+      </div>
 
       {loadingEvts ? (
         <div style={{ textAlign:'center', padding:40, color:'var(--muted)', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Loading events...</div>
@@ -341,36 +449,24 @@ export function Events() {
           <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>No events yet. Create the first one.</div>
         </div>
       ) : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:16 }}>
-          {events.map(ev => {
-            const pct = ((ev.registered||0) / (ev.spots||1)) * 100
-            const spotsLeft = (ev.spots||0) - (ev.registered||0)
-            return (
-              <Card key={ev.id} highlight={ev.type === 'showcase'}>
-                <div style={{ display:'flex', gap:16, alignItems:'flex-start' }}>
-                  <div style={{ fontSize:36, flexShrink:0, lineHeight:1 }}>{ev.image || '⚾'}</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
-                      <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:800, lineHeight:1.2 }}>{ev.title}</div>
-                      <Badge color={typeColor[ev.type] || 'default'}>{ev.type}</Badge>
-                    </div>
-                    <div style={{ fontSize:13, color:'var(--accent)', fontFamily:'var(--font-display)', fontWeight:700, marginBottom:4 }}>{ev.date}{ev.time ? ` · ${ev.time}` : ''}</div>
-                    {ev.location && <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10 }}>📍 {ev.location}</div>}
-                    {ev.description && <p style={{ fontSize:13, color:'var(--text2)', lineHeight:1.6, marginBottom:14 }}>{ev.description}</p>}
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:8 }}>
-                      <span style={{ color:'var(--text3)' }}>{ev.registered||0} registered</span>
-                      <span style={{ color: spotsLeft<=5?'var(--amber)':'var(--green2)', fontWeight:600 }}>{spotsLeft} spots available</span>
-                    </div>
-                    <ProgressBar value={ev.registered||0} max={ev.spots||1} color={pct>=90?'var(--red)':pct>=60?'var(--amber)':'var(--green)'} />
-                  </div>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
+        <>
+          {active.length > 0 && (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:16, marginBottom: past.length ? 32 : 0 }}>
+              {active.map(ev => <EventCard key={ev.id} ev={ev} isPast={false} />)}
+            </div>
+          )}
+          {past.length > 0 && (
+            <>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:800, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--text3)', marginBottom:12 }}>Past events</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:16 }}>
+                {past.map(ev => <EventCard key={ev.id} ev={ev} isPast={true} />)}
+              </div>
+            </>
+          )}
+        </>
       )}
 
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Create New Event">
+      <Modal open={showForm} onClose={() => { setShowForm(false); setEditingId(null) }} title={editingId ? 'Edit Event' : 'Create New Event'}>
         <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
           <div><Label>Title *</Label><input value={form.title} onChange={e => setForm(p=>({...p,title:e.target.value}))} placeholder="Spring Showcase 2026" /></div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:12 }}>
@@ -387,8 +483,8 @@ export function Events() {
           <div><Label>Emoji / Image</Label><input value={form.image} onChange={e => setForm(p=>({...p,image:e.target.value}))} placeholder="⚾" style={{ maxWidth:80 }} /></div>
           <div><Label>Description</Label><textarea value={form.description} onChange={e => setForm(p=>({...p,description:e.target.value}))} style={{ minHeight:80 }} /></div>
           <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-            <Btn variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Btn>
-            <Btn onClick={handleAdd} disabled={saving}><Plus size={14} /> {saving ? 'Saving…' : 'Create Event'}</Btn>
+            <Btn variant="ghost" onClick={() => { setShowForm(false); setEditingId(null) }}>Cancel</Btn>
+            <Btn onClick={handleSave} disabled={saving}><Plus size={14} /> {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Create Event'}</Btn>
           </div>
         </div>
       </Modal>
