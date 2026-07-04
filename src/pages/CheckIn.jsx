@@ -17,9 +17,10 @@ import { supabase } from '../supabaseClient'
   CREATE INDEX checkins_lookup ON checkins (parent_id, kid_name, checked_in_at);
 */
 
-const BG    = '#060d18'
-const CARD  = '#0d1827'
-const BORD  = 'rgba(255,255,255,0.09)'
+// Light theme (Phase 2 / Step 3): surfaces via tokens, vibrant status colors kept.
+const BG    = 'var(--navy)'    // light page bg
+const CARD  = 'var(--navy2)'   // white card surface
+const BORD  = 'var(--border)'  // dark hairline
 const RED   = '#ff3355'
 const GREEN = '#22C56E'
 const AMBER = '#f39c12'
@@ -126,8 +127,8 @@ export default function CheckIn() {
         padding: '20px 0 0',
       }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 20, letterSpacing: '0.08em', color: '#fff', lineHeight: 1 }}>TORQUE</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>PERFORMANCE</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 20, letterSpacing: '0.08em', color: 'var(--text)', lineHeight: 1 }}>TORQUE</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.18em', color: 'rgba(13,27,42,0.4)', textTransform: 'uppercase' }}>PERFORMANCE</div>
         </div>
         <UserButton />
       </div>
@@ -138,20 +139,20 @@ export default function CheckIn() {
         {step === 'select' && (
           <>
             <div style={{ marginBottom: 28 }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 6vw, 30px)', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 6vw, 30px)', fontWeight: 800, color: 'var(--text)', lineHeight: 1.1 }}>
                 Check In
               </div>
-              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginTop: 6 }}>
+              <div style={{ fontSize: 14, color: 'rgba(13,27,42,0.45)', marginTop: 6 }}>
                 Select who is training today
               </div>
             </div>
 
             {loading ? (
-              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 14, padding: '48px 0', fontFamily: 'var(--font-display)', fontStyle: 'italic' }}>
+              <div style={{ textAlign: 'center', color: 'rgba(13,27,42,0.35)', fontSize: 14, padding: '48px 0', fontFamily: 'var(--font-display)', fontStyle: 'italic' }}>
                 Loading…
               </div>
             ) : players.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: 14, padding: '48px 0' }}>
+              <div style={{ textAlign: 'center', color: 'rgba(13,27,42,0.35)', fontSize: 14, padding: '48px 0' }}>
                 No players registered on this account.
               </div>
             ) : (
@@ -174,20 +175,20 @@ export default function CheckIn() {
                     >
                       <div style={{
                         width: 48, height: 48, borderRadius: '50%',
-                        background: isSelected ? RED : 'rgba(255,255,255,0.07)',
+                        background: isSelected ? RED : 'var(--navy4)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: '#fff',
+                        fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: isSelected ? '#fff' : 'var(--text)',
                         flexShrink: 0, transition: 'background 0.15s',
                       }}>
                         {initials}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', fontFamily: 'var(--font-display)' }}>
+                        <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>
                           {p.kid_name}
                         </div>
-                        {p.age && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{p.age} yrs</div>}
+                        {p.age && <div style={{ fontSize: 12, color: 'rgba(13,27,42,0.4)', marginTop: 2 }}>{p.age} yrs</div>}
                       </div>
-                      <ChevronRight size={18} color={isSelected ? RED : 'rgba(255,255,255,0.2)'} />
+                      <ChevronRight size={18} color={isSelected ? RED : 'rgba(13,27,42,0.2)'} />
                     </button>
                   )
                 })}
@@ -199,9 +200,9 @@ export default function CheckIn() {
               disabled={!selected || checking}
               style={{
                 width: '100%', padding: '16px 0',
-                background: selected ? RED : 'rgba(255,255,255,0.06)',
+                background: selected ? RED : 'var(--navy4)',
                 border: 'none', borderRadius: 12,
-                color: selected ? '#fff' : 'rgba(255,255,255,0.25)',
+                color: selected ? '#fff' : 'var(--text3)',
                 fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16,
                 letterSpacing: '0.06em', textTransform: 'uppercase',
                 cursor: selected && !checking ? 'pointer' : 'not-allowed',
@@ -219,7 +220,7 @@ export default function CheckIn() {
             <div style={{ marginBottom: 24 }}>
               <CheckCircle size={80} color={GREEN} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto' }} />
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(26px, 7vw, 36px)', fontWeight: 900, color: '#fff', lineHeight: 1.1, marginBottom: 8 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(26px, 7vw, 36px)', fontWeight: 900, color: 'var(--text)', lineHeight: 1.1, marginBottom: 8 }}>
               Check-in Confirmed ✅
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: GREEN, marginBottom: 24 }}>
@@ -229,19 +230,19 @@ export default function CheckIn() {
               background: 'rgba(34,197,110,0.08)', border: '1px solid rgba(34,197,110,0.2)',
               borderRadius: 12, padding: '20px 24px', marginBottom: 32,
             }}>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--font-display)', marginBottom: 4 }}>
+              <div style={{ fontSize: 12, color: 'rgba(13,27,42,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--font-display)', marginBottom: 4 }}>
                 Sessions remaining
               </div>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: 48, fontWeight: 900, color: result.remaining <= 2 ? AMBER : GREEN, lineHeight: 1 }}>
                 {result.remaining}
               </div>
               {result.packageName && (
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>Package {result.packageName}</div>
+                <div style={{ fontSize: 12, color: 'rgba(13,27,42,0.35)', marginTop: 4 }}>Package {result.packageName}</div>
               )}
             </div>
             <button onClick={reset} style={{
-              padding: '14px 32px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${BORD}`,
-              borderRadius: 10, color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700,
+              padding: '14px 32px', background: 'rgba(13,27,42,0.07)', border: `1px solid ${BORD}`,
+              borderRadius: 10, color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 700,
               fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
             }}>
               Another player
@@ -255,16 +256,16 @@ export default function CheckIn() {
             <div style={{ marginBottom: 24 }}>
               <Clock size={72} color={AMBER} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto' }} />
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 12 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 800, color: 'var(--text)', lineHeight: 1.2, marginBottom: 12 }}>
               Already checked in today
             </div>
-            <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', marginBottom: 32, lineHeight: 1.5 }}>
-              Already checked in today for <strong style={{ color: '#fff' }}>{selected}</strong>.
+            <div style={{ fontSize: 15, color: 'rgba(13,27,42,0.5)', marginBottom: 32, lineHeight: 1.5 }}>
+              Already checked in today for <strong style={{ color: 'var(--text)' }}>{selected}</strong>.
               Only one check-in per day is allowed.
             </div>
             <button onClick={reset} style={{
-              padding: '14px 32px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${BORD}`,
-              borderRadius: 10, color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700,
+              padding: '14px 32px', background: 'rgba(13,27,42,0.07)', border: `1px solid ${BORD}`,
+              borderRadius: 10, color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 700,
               fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
             }}>
               Go back
@@ -278,15 +279,15 @@ export default function CheckIn() {
             <div style={{ marginBottom: 24 }}>
               <AlertCircle size={72} color={RED} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto' }} />
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 800, color: '#fff', lineHeight: 1.2, marginBottom: 12 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 800, color: 'var(--text)', lineHeight: 1.2, marginBottom: 12 }}>
               No sessions available
             </div>
-            <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', marginBottom: 32, lineHeight: 1.5 }}>
-              You have no sessions available. Contact <strong style={{ color: '#fff' }}>Torque Performance</strong> to renew your membership.
+            <div style={{ fontSize: 15, color: 'rgba(13,27,42,0.5)', marginBottom: 32, lineHeight: 1.5 }}>
+              You have no sessions available. Contact <strong style={{ color: 'var(--text)' }}>Torque Performance</strong> to renew your membership.
             </div>
             <button onClick={reset} style={{
-              padding: '14px 32px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${BORD}`,
-              borderRadius: 10, color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700,
+              padding: '14px 32px', background: 'rgba(13,27,42,0.07)', border: `1px solid ${BORD}`,
+              borderRadius: 10, color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 700,
               fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
             }}>
               Go back
@@ -300,15 +301,15 @@ export default function CheckIn() {
             <div style={{ marginBottom: 24 }}>
               <AlertCircle size={72} color={RED} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto' }} />
             </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 12 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text)', marginBottom: 12 }}>
               Error
             </div>
             <div style={{ fontSize: 13, color: 'rgba(255,100,100,0.8)', marginBottom: 32, fontFamily: 'var(--font-mono)' }}>
               {errorMsg}
             </div>
             <button onClick={reset} style={{
-              padding: '14px 32px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${BORD}`,
-              borderRadius: 10, color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700,
+              padding: '14px 32px', background: 'rgba(13,27,42,0.07)', border: `1px solid ${BORD}`,
+              borderRadius: 10, color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 700,
               fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
             }}>
               Try again

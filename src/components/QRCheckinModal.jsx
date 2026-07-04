@@ -146,21 +146,21 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
   const kidName = player.kid_name
 
   const CloseBtn = () => (
-    <button onClick={onClose} style={{ padding: '12px 28px', borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+    <button onClick={onClose} style={{ padding: '12px 28px', borderRadius: 10, background: 'rgba(13,27,42,0.07)', border: '1px solid rgba(13,27,42,0.15)', color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
       Close
     </button>
   )
 
   return createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: '#060d18', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-body)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'var(--navy)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-body)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 0', flexShrink: 0 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, letterSpacing: '0.08em', color: '#fff', lineHeight: 1 }}>TORQUE</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 9, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' }}>PERFORMANCE</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, letterSpacing: '0.08em', color: 'var(--text)', lineHeight: 1 }}>TORQUE</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 9, letterSpacing: '0.18em', color: 'rgba(13,27,42,0.35)', textTransform: 'uppercase' }}>PERFORMANCE</div>
         </div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.45)', padding: 8, display: 'flex', alignItems: 'center' }}>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(13,27,42,0.45)', padding: 8, display: 'flex', alignItems: 'center' }}>
           <X size={22} />
         </button>
       </div>
@@ -172,14 +172,14 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
         {step === 'scanning' && (
           <>
             <div style={{ marginBottom: 22, textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>
                 Scan QR
               </div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>
+              <div style={{ fontSize: 13, color: 'rgba(13,27,42,0.4)', marginTop: 6 }}>
                 Point at the academy QR code
               </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.28)', marginTop: 3 }}>
-                Checking in <strong style={{ color: '#fff' }}>{kidName}</strong>
+              <div style={{ fontSize: 12, color: 'rgba(13,27,42,0.28)', marginTop: 3 }}>
+                Checking in <strong style={{ color: 'var(--text)' }}>{kidName}</strong>
               </div>
             </div>
 
@@ -203,7 +203,7 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
               ))}
             </div>
 
-            <button onClick={handleFallback} style={{ padding: '12px 28px', borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.65)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+            <button onClick={handleFallback} style={{ padding: '12px 28px', borderRadius: 10, background: 'rgba(13,27,42,0.07)', border: '1px solid rgba(13,27,42,0.14)', color: 'rgba(13,27,42,0.65)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
               Check in without QR
             </button>
           </>
@@ -212,7 +212,7 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
         {/* ── PROCESSING ── */}
         {step === 'processing' && (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 18, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.05em' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 18, fontWeight: 700, color: 'rgba(13,27,42,0.5)', letterSpacing: '0.05em' }}>
               Processing…
             </div>
           </div>
@@ -222,26 +222,26 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
         {step === 'success' && result && (
           <div style={{ textAlign: 'center', width: '100%', maxWidth: 360 }}>
             <CheckCircle size={76} color={GREEN} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 22px' }} />
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 6vw, 32px)', fontWeight: 900, color: '#fff', lineHeight: 1.1, marginBottom: 6 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(24px, 6vw, 32px)', fontWeight: 900, color: 'var(--text)', lineHeight: 1.1, marginBottom: 6 }}>
               Check-in Confirmed ✅
             </div>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, color: GREEN, marginBottom: 24 }}>
               {result.kidName}
             </div>
             <div style={{ background: 'rgba(34,197,110,0.08)', border: '1px solid rgba(34,197,110,0.18)', borderRadius: 14, padding: '22px 24px', marginBottom: 24 }}>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--font-display)', marginBottom: 4 }}>
+              <div style={{ fontSize: 11, color: 'rgba(13,27,42,0.38)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--font-display)', marginBottom: 4 }}>
                 Sessions remaining
               </div>
               <div className="num" style={{ fontSize: 56, fontWeight: 500, color: result.remaining <= 2 ? AMBER : GREEN, lineHeight: 1 }}>
                 {result.remaining}
               </div>
               {result.nextPayment && (
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                  Next payment: <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{result.nextPayment}</span>
+                <div style={{ fontSize: 12, color: 'rgba(13,27,42,0.38)', marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(13,27,42,0.07)' }}>
+                  Next payment: <span style={{ color: 'rgba(13,27,42,0.7)', fontWeight: 600 }}>{result.nextPayment}</span>
                 </div>
               )}
             </div>
-            <button onClick={onClose} style={{ padding: '14px 40px', borderRadius: 10, background: '#fff', color: '#060d18', border: 'none', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+            <button onClick={onClose} style={{ padding: '14px 40px', borderRadius: 10, background: 'var(--ink)', color: 'var(--white)', border: 'none', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
               Close
             </button>
           </div>
@@ -251,11 +251,11 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
         {step === 'already' && (
           <div style={{ textAlign: 'center', maxWidth: 340 }}>
             <Clock size={68} color={AMBER} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 22px' }} />
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: '#fff', marginBottom: 10 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
               Already checked in today
             </div>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginBottom: 28, lineHeight: 1.6 }}>
-              Only one check-in per day for <strong style={{ color: '#fff' }}>{kidName}</strong>.
+            <div style={{ fontSize: 14, color: 'rgba(13,27,42,0.45)', marginBottom: 28, lineHeight: 1.6 }}>
+              Only one check-in per day for <strong style={{ color: 'var(--text)' }}>{kidName}</strong>.
             </div>
             <CloseBtn />
           </div>
@@ -265,11 +265,11 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
         {step === 'no-sessions' && (
           <div style={{ textAlign: 'center', maxWidth: 340 }}>
             <AlertCircle size={68} color={RED} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 22px' }} />
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: '#fff', marginBottom: 10 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
               No sessions available
             </div>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginBottom: 28, lineHeight: 1.6 }}>
-              Contact <strong style={{ color: '#fff' }}>Torque Performance</strong> to renew your membership.
+            <div style={{ fontSize: 14, color: 'rgba(13,27,42,0.45)', marginBottom: 28, lineHeight: 1.6 }}>
+              Contact <strong style={{ color: 'var(--text)' }}>Torque Performance</strong> to renew your membership.
             </div>
             <CloseBtn />
           </div>
@@ -279,17 +279,17 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
         {step === 'wrong-qr' && (
           <div style={{ textAlign: 'center', maxWidth: 340 }}>
             <AlertCircle size={68} color={AMBER} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 22px' }} />
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: '#fff', marginBottom: 10 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
               Invalid QR
             </div>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginBottom: 28, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 14, color: 'rgba(13,27,42,0.45)', marginBottom: 28, lineHeight: 1.6 }}>
               No valid Torque QR detected. Make sure to scan the code at the academy entrance.
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button onClick={() => setStep('scanning')} style={{ padding: '12px 24px', borderRadius: 10, background: '#fff', color: '#060d18', border: 'none', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+              <button onClick={() => setStep('scanning')} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--ink)', color: 'var(--white)', border: 'none', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
                 Retry
               </button>
-              <button onClick={handleFallback} style={{ padding: '12px 24px', borderRadius: 10, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+              <button onClick={handleFallback} style={{ padding: '12px 24px', borderRadius: 10, background: 'rgba(13,27,42,0.07)', border: '1px solid rgba(13,27,42,0.15)', color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
                 No QR
               </button>
             </div>
@@ -300,13 +300,13 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
         {step === 'no-permission' && (
           <div style={{ textAlign: 'center', maxWidth: 340 }}>
             <Camera size={68} color={AMBER} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 22px' }} />
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: '#fff', marginBottom: 10 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 26px)', fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
               Camera unavailable
             </div>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginBottom: 28, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 14, color: 'rgba(13,27,42,0.45)', marginBottom: 28, lineHeight: 1.6 }}>
               Could not access camera. You can check in directly.
             </div>
-            <button onClick={handleFallback} style={{ padding: '14px 32px', borderRadius: 10, background: '#fff', color: '#060d18', border: 'none', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+            <button onClick={handleFallback} style={{ padding: '14px 32px', borderRadius: 10, background: 'var(--ink)', color: 'var(--white)', border: 'none', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
               Check in without QR
             </button>
           </div>
@@ -316,7 +316,7 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
         {step === 'error' && (
           <div style={{ textAlign: 'center', maxWidth: 340 }}>
             <AlertCircle size={68} color={RED} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 22px' }} />
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 24px)', fontWeight: 800, color: '#fff', marginBottom: 10 }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px, 5vw, 24px)', fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
               Error
             </div>
             {errorMsg && (
@@ -325,7 +325,7 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
               </div>
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button onClick={() => setStep('scanning')} style={{ padding: '12px 24px', borderRadius: 10, background: '#fff', color: '#060d18', border: 'none', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+              <button onClick={() => setStep('scanning')} style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--ink)', color: 'var(--white)', border: 'none', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
                 Retry
               </button>
               <CloseBtn />
