@@ -13,7 +13,7 @@ const PRICE_TABLE = {
   AAA: { monthly: 440, m6: 396, m12: 374, annual: 4224 },
   MLB: { monthly: 600, m6: 540, m12: 510, annual: 5760 },
 }
-const SEL = { width:'100%', margin:0, background:'var(--navy3)', color:'var(--white)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }
+const SEL = { width:'100%', margin:0, background:'var(--navy3)', color:'var(--text)', border:'1px solid var(--border2)', borderRadius:8, padding:'10px 12px', fontSize:13 }
 const LBL = { fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', display:'block', marginBottom:5 }
 
 // Stable key to match a player across tables (parent + case-insensitive kid name)
@@ -310,7 +310,7 @@ export default function Families() {
               {t.label}
               <span style={{
                 fontSize:11, fontWeight:800, padding:'1px 7px', borderRadius:20,
-                background: isActive ? 'rgba(79,168,255,0.22)' : 'rgba(255,255,255,0.07)',
+                background: isActive ? 'rgba(79,168,255,0.22)' : 'rgba(13,27,42,0.07)',
                 color: isActive ? '#4fa8ff' : 'var(--text3)',
               }}>
                 {counts[t.id]}
@@ -369,7 +369,7 @@ export default function Families() {
               <div
                 onClick={() => toggleFamily(family.parent_id)}
                 style={{ display:'flex', alignItems:'center', gap:14, padding:'16px 20px', cursor:'pointer', transition:'background 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.03)'}
+                onMouseEnter={e => e.currentTarget.style.background='rgba(13,27,42,0.03)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
               >
                 <Avatar initials={initials} size={42} color="var(--navy4)" />
@@ -597,7 +597,7 @@ export default function Families() {
                 </div>
               </div>
             )}
-            <div style={{ background:'rgba(255,255,255,0.04)', borderRadius:8, padding:'10px 14px', fontSize:12, color:'var(--text3)' }}>
+            <div style={{ background:'rgba(13,27,42,0.04)', borderRadius:8, padding:'10px 14px', fontSize:12, color:'var(--text3)' }}>
               Sessions will be assigned automatically when the parent completes payment via Stripe.
             </div>
             <div style={{ display:'flex', justifyContent:'flex-end' }}>
@@ -688,7 +688,7 @@ export default function Families() {
                 + Add Second Player (Sibling)
               </button>
             ) : (
-              <div style={{ border:'1px solid var(--border2)', borderRadius:10, padding:'16px 16px 12px', background:'rgba(255,255,255,0.02)' }}>
+              <div style={{ border:'1px solid var(--border2)', borderRadius:10, padding:'16px 16px 12px', background:'rgba(13,27,42,0.02)' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
                   <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'#4fa8ff' }}>Second Player — Sibling</span>
                   <button type="button" onClick={() => { setShowPlayer2(false); setForm(f => ({ ...f, kidName2:'', package2:'A', planType2:'monthly' })) }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, lineHeight:1 }}>✕</button>
@@ -760,7 +760,7 @@ export default function Families() {
                 ))}
               </div>
               {form.paymentMethod === 'stripe' && (
-                <div style={{ marginTop:8, background:'rgba(79,168,255,0.06)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'rgba(255,255,255,0.55)' }}>
+                <div style={{ marginTop:8, background:'rgba(79,168,255,0.06)', border:'1px solid rgba(79,168,255,0.2)', borderRadius:7, padding:'8px 12px', fontSize:12, color:'rgba(13,27,42,0.55)' }}>
                   Creates the account & player, returns a payment link to share. Sessions assigned automatically when payment is confirmed.
                 </div>
               )}
@@ -782,7 +782,7 @@ export default function Families() {
                   onChange={e => setForm(f => ({ ...f, specialPriceEnabled: e.target.checked, specialPrice: '' }))}
                   style={{ accentColor:'#ff3355', width:16, height:16, cursor:'pointer', flexShrink:0 }}
                 />
-                <span style={{ fontSize:13, fontWeight:600, color:'var(--white)' }}>Special price / Returning client</span>
+                <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>Special price / Returning client</span>
               </label>
               {form.specialPriceEnabled && (
                 <div style={{ marginTop:10 }}>
@@ -793,9 +793,9 @@ export default function Families() {
                     placeholder="e.g. 200"
                     value={form.specialPrice}
                     onChange={e => setForm(f => ({ ...f, specialPrice: e.target.value }))}
-                    style={{ width:'100%', margin:0, border:'2px solid #f39c12', borderRadius:8, background:'rgba(243,156,18,0.06)', color:'var(--white)' }}
+                    style={{ width:'100%', margin:0, border:'2px solid #f39c12', borderRadius:8, background:'rgba(243,156,18,0.06)', color:'var(--text)' }}
                   />
-                  <div style={{ marginTop:5, fontSize:11, color:'rgba(255,255,255,0.4)' }}>
+                  <div style={{ marginTop:5, fontSize:11, color:'rgba(13,27,42,0.4)' }}>
                     This price replaces the selected package price
                   </div>
                 </div>

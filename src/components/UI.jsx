@@ -60,17 +60,22 @@ export function Avatar({ initials, size = 36, color = 'var(--navy4)' }) {
   )
 }
 
-export function StatCard({ label, value, sub, trend, icon }) {
+// `block` = { bg, fg } renders a solid vibrant KPI block (mockup style); omit for a plain white card.
+export function StatCard({ label, value, sub, trend, icon, block }) {
+  const b = block
+  const cardStyle = b
+    ? { background: b.bg, border: 'none', padding: 'var(--space-6)', boxShadow: '0 8px 24px rgba(13,27,42,0.10)' }
+    : undefined
   return (
-    <Card>
+    <Card style={cardStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-4)' }}>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text2)', fontWeight: 600, letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', fontFamily: 'var(--font-display)' }}>{label}</div>
-        {icon && <span style={{ fontSize: 18 }}>{icon}</span>}
+        <div style={{ fontSize: 'var(--text-xs)', color: b ? b.fg : 'var(--text2)', opacity: b ? 0.85 : 1, fontWeight: 600, letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', fontFamily: 'var(--font-display)' }}>{label}</div>
+        {icon && <span style={{ fontSize: 18, opacity: b ? 0.9 : 1 }}>{icon}</span>}
       </div>
-      <div className="num" style={{ fontSize: 'clamp(2rem, 5vw, 2.75rem)', fontWeight: 500, color: 'var(--text)', letterSpacing: 'var(--tracking-tight)', lineHeight: 'var(--leading-tight)' }}>{value}</div>
+      <div style={{ fontFamily: b ? 'var(--font-body)' : 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: 'clamp(2.1rem, 5vw, 2.9rem)', fontWeight: b ? 700 : 500, color: b ? b.fg : 'var(--text)', letterSpacing: 'var(--tracking-tight)', lineHeight: 'var(--leading-tight)' }}>{value}</div>
       {(sub || trend !== undefined) && (
-        <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          {trend !== undefined && <span style={{ color: trend >= 0 ? 'var(--green)' : '#ff4466', fontWeight: 600 }}>{trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%</span>}
+        <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-xs)', color: b ? b.fg : 'var(--text2)', opacity: b ? 0.8 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+          {trend !== undefined && <span style={{ color: b ? b.fg : (trend >= 0 ? 'var(--green)' : '#ff4466'), fontWeight: 600 }}>{trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%</span>}
           {sub}
         </div>
       )}
@@ -111,7 +116,7 @@ export function PageHeader({ title, subtitle, action, eyebrow }) {
     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 'var(--space-8)', flexWrap: 'wrap', gap: 12 }}>
       <div>
         {eyebrow && <div style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xs)', fontWeight: 600, letterSpacing: 'var(--tracking-widest)', color: 'var(--text2)', textTransform: 'uppercase', marginBottom: 'var(--space-2)' }}>{eyebrow}</div>}
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.75rem, 5vw, 2.25rem)', fontWeight: 600, color: 'var(--text)', letterSpacing: 'var(--tracking-tight)', lineHeight: 'var(--leading-tight)' }}>{title}</h1>
+        <h1 className="title-slant" style={{ fontSize: 'clamp(2rem, 5.5vw, 2.75rem)', color: 'var(--text)', lineHeight: 'var(--leading-tight)' }}>{title}</h1>
         {subtitle && <p style={{ color: 'var(--text2)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-2)' }}>{subtitle}</p>}
       </div>
       {action}

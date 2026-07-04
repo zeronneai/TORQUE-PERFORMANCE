@@ -70,7 +70,7 @@ export function Schedule() {
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
             <button onClick={() => { setViewDate(new Date(year,month-1,1)); setSelectedDay(null) }}
               style={{ background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:18, fontWeight:700 }}>‹</button>
-            <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:20, letterSpacing:'0.06em', color:'var(--white)', textTransform:'uppercase' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:20, letterSpacing:'0.06em', color:'var(--text)', textTransform:'uppercase' }}>
               {MONTH_NAMES[month]} {year}
             </div>
             <button onClick={() => { setViewDate(new Date(year,month+1,1)); setSelectedDay(null) }}
@@ -101,8 +101,8 @@ export function Schedule() {
                     alignItems:'center', justifyContent:'center', borderRadius:8,
                     cursor: hasB ? 'pointer' : 'default', transition:'all 0.15s',
                     overflow:'hidden', minWidth:0,
-                    background: isSelected ? 'rgba(34,197,110,0.18)' : hasB ? 'rgba(34,197,110,0.09)' : isToday ? 'rgba(255,255,255,0.07)' : 'transparent',
-                    border: isSelected ? '1.5px solid rgba(34,197,110,0.5)' : hasB ? '1px solid rgba(34,197,110,0.2)' : isToday ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                    background: isSelected ? 'rgba(34,197,110,0.18)' : hasB ? 'rgba(34,197,110,0.09)' : isToday ? 'rgba(13,27,42,0.07)' : 'transparent',
+                    border: isSelected ? '1.5px solid rgba(34,197,110,0.5)' : hasB ? '1px solid rgba(34,197,110,0.2)' : isToday ? '1px solid rgba(13,27,42,0.15)' : '1px solid transparent',
                   }}>
                   <span style={{ fontFamily:'var(--font-display)', fontWeight: hasB||isToday ? 800 : 500, fontSize:13, lineHeight:1,
                     color: isSelected ? 'var(--green2)' : hasB ? 'var(--green2)' : isToday ? 'var(--white)' : 'var(--text2)' }}>
@@ -137,10 +137,10 @@ export function Schedule() {
                 .map((b,i) => {
                   const pName = parentName(b.profile)
                   return (
-                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderTop: i>0 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderTop: i>0 ? '1px solid rgba(13,27,42,0.05)' : 'none' }}>
                       <div style={{ width:8, height:8, borderRadius:'50%', background: TYPE_COLORS[b.session_type]||'var(--green2)', flexShrink:0 }} />
                       <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--offwhite)', fontWeight:600, minWidth:65 }}>{b.session_time}</span>
-                      <span style={{ fontSize:12, color:'var(--white)', fontWeight:500 }}>{b.kid_name}</span>
+                      <span style={{ fontSize:12, color:'var(--text)', fontWeight:500 }}>{b.kid_name}</span>
                       {pName && <span style={{ fontSize:11, color:'var(--muted)' }}>· {pName}</span>}
                       <span style={{ marginLeft:'auto', fontSize:11, color: TYPE_COLORS[b.session_type]||'var(--green2)', fontFamily:'var(--font-display)', fontStyle:'italic', textAlign:'right' }}>{b.session_type}</span>
                     </div>
@@ -162,7 +162,7 @@ export function Schedule() {
 
         {/* ── UPCOMING LIST ── */}
         <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24 }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--white)', marginBottom:16, letterSpacing:'0.04em' }}>UPCOMING SESSIONS</div>
+          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--text)', marginBottom:16, letterSpacing:'0.04em' }}>UPCOMING SESSIONS</div>
           {upcoming.length === 0 ? (
             <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)', fontSize:13, lineHeight:1.7 }}>No sessions scheduled.</div>
           ) : (
@@ -174,11 +174,11 @@ export function Schedule() {
                 return (
                   <div key={b.id}
                     onClick={() => { setSelectedDay(iso); setViewDate(new Date(iso+'T12:00:00')) }}
-                    style={{ padding:'12px 14px', background:'rgba(255,255,255,0.03)', border:`1px solid ${iso===selectedDay?'rgba(34,197,110,0.3)':'var(--border)'}`, borderRadius:10, cursor:'pointer', transition:'all 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.06)'}
-                    onMouseLeave={e => e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
+                    style={{ padding:'12px 14px', background:'rgba(13,27,42,0.03)', border:`1px solid ${iso===selectedDay?'rgba(34,197,110,0.3)':'var(--border)'}`, borderRadius:10, cursor:'pointer', transition:'all 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(13,27,42,0.06)'}
+                    onMouseLeave={e => e.currentTarget.style.background='rgba(13,27,42,0.03)'}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--white)' }}>
+                      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, color:'var(--text)' }}>
                         {new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
                       </div>
                       <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:typeColor, fontWeight:600 }}>{b.session_time}</div>
@@ -256,7 +256,7 @@ export function Payments() {
                 return (
                   <tr key={m.id}
                     style={{ borderBottom:'1px solid var(--border)' }}
-                    onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.02)'}
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(13,27,42,0.02)'}
                     onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                     <td style={{ padding:'12px 16px' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>

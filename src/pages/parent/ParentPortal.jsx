@@ -277,7 +277,7 @@ const GLOBAL_CSS = `
 
   /* ── Section header ── */
   .section-eyebrow { font-family:var(--font-display); font-style:italic; font-weight:700; font-size:12px; color:var(--muted); letter-spacing:0.25em; text-transform:uppercase; margin-bottom:6px; }
-  .section-title { font-family:var(--font-display); font-style:italic; font-weight:900; font-size:48px; letter-spacing:0.06em; color:var(--text); line-height:1; }
+  .section-title { font-family:var(--font-title); font-weight:400; text-transform:uppercase; transform:skewX(-8deg); transform-origin:left bottom; display:inline-block; padding:0.06em 0.16em 0.06em 0; font-size:52px; letter-spacing:0.01em; color:var(--text); line-height:1; }
   .section-bar { margin-top:10px; width:40px; height:3px; background:var(--accent); border-radius:2px; margin-bottom:28px; }
 
   /* ── Responsive layout helpers ── */
@@ -1532,25 +1532,37 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
                 </div>
               </div>
 
-              {/* Sessions block */}
-              <div style={{ background:'rgba(0,0,0,0.25)', borderRadius:10, padding:'16px 18px', border:'1px solid var(--border2)' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                  <span style={{ fontSize:10, color:'var(--muted2)', fontWeight:600, letterSpacing:'0.18em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Sessions</span>
-                  {m ? (
-                    <span style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:24, letterSpacing:'0.04em', color: lowSessions ? '#E8A020' : 'var(--green2)' }}>
-                      {remaining}<span style={{ fontSize:13, color:'var(--muted)', fontWeight:400, marginLeft:3 }}>/ {total}</span>
-                    </span>
-                  ) : (
+              {/* Sessions block — Whoop-style radial ring (real data: remaining / total) */}
+              <div style={{ display:'flex', alignItems:'center', gap:16, background:'var(--navy)', borderRadius:12, padding:'16px 18px', border:'1px solid var(--border)' }}>
+                {m ? (
+                  <>
+                    {(() => {
+                      const R = 32, CIRC = 2 * Math.PI * R
+                      const prog = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0
+                      const ringColor = lowSessions ? '#FB8500' : '#06D6A0'
+                      return (
+                        <svg width="82" height="82" viewBox="0 0 82 82" style={{ flexShrink:0 }}>
+                          <circle cx="41" cy="41" r={R} fill="none" stroke="#E9ECF1" strokeWidth="7" />
+                          <circle cx="41" cy="41" r={R} fill="none" stroke={ringColor} strokeWidth="7" strokeLinecap="round"
+                            strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - prog)} transform="rotate(-90 41 41)"
+                            style={{ transition:'stroke-dashoffset 0.7s cubic-bezier(0.16,1,0.3,1)' }} />
+                          <text x="41" y="40" textAnchor="middle" style={{ fontFamily:'var(--font-mono)', fontSize:'21px', fontWeight:700, fill:'#0D1B2A' }}>{remaining}</text>
+                          <text x="41" y="55" textAnchor="middle" style={{ fontFamily:'var(--font-body)', fontSize:'10px', fill:'#66748A' }}>of {total}</text>
+                        </svg>
+                      )
+                    })()}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:10, color:'var(--muted2)', fontWeight:600, letterSpacing:'0.18em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic', marginBottom:8 }}>Sessions Remaining</div>
+                      <div style={{ display:'flex', gap:16, fontSize:11, color:'var(--muted)', fontFamily:'var(--font-mono)' }}>
+                        <span>{used} used</span>
+                        <span style={{ color: lowSessions ? '#FB8500' : 'var(--green2)', fontWeight:600 }}>{remaining} left</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', width:'100%' }}>
+                    <span style={{ fontSize:10, color:'var(--muted2)', fontWeight:600, letterSpacing:'0.18em', textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Sessions</span>
                     <button className="btn-ghost" onClick={() => onBuy(player)}>+ Get Plan</button>
-                  )}
-                </div>
-                <div className="sessions-bar">
-                  <div className="sessions-bar-fill" style={{ width:`${pct}%`, background: lowSessions ? 'linear-gradient(90deg, #E8A020, #F0C040)' : undefined }} />
-                </div>
-                {m && (
-                  <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, fontSize:10, color:'var(--muted2)', fontFamily:'var(--font-mono)' }}>
-                    <span>{used} used</span>
-                    <span>{remaining} remaining</span>
                   </div>
                 )}
               </div>

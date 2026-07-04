@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
 import { StatCard, Card, Badge, Avatar, PageHeader, ProgressBar } from '../../components/UI'
-import { useAdminData, normDate, PACK_INFO, TYPE_COLORS, parentName, daysUntil, expiryColor, expiryLabel } from '../../hooks/useAdminData'
+import { useAdminData, normDate, PACK_INFO, PKG_VIBRANT, VIBRANT, TYPE_COLORS, parentName, daysUntil, expiryColor, expiryLabel } from '../../hooks/useAdminData'
 import { supabase } from '../../supabaseClient'
 import { Check } from 'lucide-react'
 
@@ -20,7 +20,35 @@ export default function AdminDashboard() {
   const today = new Date().toISOString().split('T')[0]
 
   const [todayCheckins, setTodayCheckins] = useState([])
+  const [weeklyCheckins, setWeeklyCheckins] = useState([])
   const [toast, setToast] = useState(null)
+
+  // Weekly Check-ins chart — real data: count of checkins per day, last 7 days.
+  useEffect(() => {
+    const since = new Date(Date.now() - 6 * 86400000)
+    since.setHours(0, 0, 0, 0)
+    supabase
+      .from('checkins')
+      .select('checked_in_at')
+      .gte('checked_in_at', since.toISOString())
+      .then(({ data }) => {
+        const days = []
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(Date.now() - i * 86400000)
+          days.push({
+            key: d.toISOString().split('T')[0],
+            day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+            checkins: 0,
+          })
+        }
+        const byKey = Object.fromEntries(days.map(d => [d.key, d]))
+        ;(data || []).forEach(c => {
+          const k = new Date(c.checked_in_at).toISOString().split('T')[0]
+          if (byKey[k]) byKey[k].checkins++
+        })
+        setWeeklyCheckins(days)
+      })
+  }, [])
   const [manualCheckinLoading, setManualCheckinLoading] = useState({})
   const [renewalModal, setRenewalModal] = useState(null) // { player, membership }
   const [renewalLoading, setRenewalLoading] = useState(false)
@@ -257,10 +285,10 @@ export default function AdminDashboard() {
                   const time = new Date(c.checked_in_at).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', hour12:true })
                   const remaining = c.sessions_remaining_after
                   return (
-                    <tr key={c.id || i} style={{ borderBottom:'1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
+                    <tr key={c.id || i} style={{ borderBottom:'1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(13,27,42,0.015)' }}>
                       <td style={{ padding:'10px 10px', fontWeight:600, whiteSpace:'nowrap' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--navy4)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'#fff', flexShrink:0 }}>
+                          <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--navy4)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'var(--text)', flexShrink:0 }}>
                             {(c.kid_name||'?')[0].toUpperCase()}
                           </div>
                           {c.kid_name}
@@ -289,13 +317,13 @@ export default function AdminDashboard() {
         )}
       </Card>
 
-      {/* KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:14, marginBottom:24 }}>
-        <StatCard label="Active Players"    value={memberships.length}              sub="active memberships"      icon="⚾" />
-        <StatCard label="Today's Sessions"  value={todayBookings.length}            sub="confirmed for today"     icon="📅" />
-        <StatCard label="Monthly Revenue"   value={`$${monthlyRevenue.toLocaleString()}`} sub="active memberships" icon="💰" />
-        <StatCard label="Low Sessions"      value={expiringSoon}                    sub="≤ 2 sessions left"       icon="⚠️" />
-        <StatCard label="Expiring ≤30 Days" value={expiringByDate.length}           sub="by expiry date"          icon="⏳" />
+      {/* KPIs — vibrant color blocks */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'var(--space-4)', marginBottom:'var(--space-8)' }}>
+        <StatCard label="Active Players"    value={memberships.length}              sub="active memberships"  icon="⚾" block={VIBRANT.green} />
+        <StatCard label="Today's Check-ins" value={todayCheckins.length}            sub="so far today"        icon="✅" block={VIBRANT.blue} />
+        <StatCard label="Monthly Revenue"   value={`$${monthlyRevenue.toLocaleString()}`} sub="active memberships" icon="💰" block={VIBRANT.red} />
+        <StatCard label="Low Sessions"      value={expiringSoon}                    sub="≤ 2 sessions left"   icon="⚠️" block={VIBRANT.amber} />
+        <StatCard label="Expiring ≤30 Days" value={expiringByDate.length}           sub="by expiry date"      icon="⏳" block={VIBRANT.orange} />
       </div>
 
       {/* Expiring Soon (by date) — renewals at risk in the next 30 days */}
@@ -318,7 +346,7 @@ export default function AdminDashboard() {
               const expDate = new Date(normDate(m.expires_at) + 'T00:00:00')
                 .toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
               return (
-                <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'rgba(255,255,255,0.03)', border:`1px solid ${color}33`, borderRadius:8, flexWrap:'wrap' }}>
+                <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'rgba(13,27,42,0.03)', border:`1px solid ${color}33`, borderRadius:8, flexWrap:'wrap' }}>
                   <div style={{ width:8, height:8, borderRadius:'50%', background:color, flexShrink:0 }} />
                   <span style={{ fontSize:13, fontWeight:600 }}>{m.kid_name}</span>
                   {pName && <span style={{ fontSize:12, color:'var(--muted)' }}>· {pName}</span>}
@@ -336,44 +364,56 @@ export default function AdminDashboard() {
         </Card>
       )}
 
-      {/* Charts */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:14, marginBottom:24 }}>
+      {/* Charts — real Supabase data */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:'var(--space-4)', marginBottom:'var(--space-8)' }}>
+        {/* Weekly Check-ins — real: count from checkins table, last 7 days */}
         <Card>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'var(--space-5)' }}>
             <div>
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>Sessions by Day</div>
-              <div style={{ fontSize:12, color:'var(--text3)' }}>Total booked sessions by day</div>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16 }}>Weekly Check-ins</div>
+              <div style={{ fontSize:12, color:'var(--text3)' }}>Check-ins per day · last 7 days</div>
             </div>
-            <Badge color="green">{bookings.length} total</Badge>
+            <Badge color="blue">{weeklyCheckins.reduce((s,d)=>s+d.checkins,0)} total</Badge>
           </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={sessionsByDay} margin={{ top:4, right:4, left:-10, bottom:0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-              <XAxis dataKey="day" tick={{ fill:'#4a5a70', fontSize:11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill:'#4a5a70', fontSize:10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip content={<CT />} />
-              <Bar dataKey="sessions" fill="rgba(255,255,255,0.7)" radius={[4,4,0,0]} name="sessions" />
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={weeklyCheckins} margin={{ top:4, right:4, left:-14, bottom:0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(13,27,42,0.07)" vertical={false} />
+              <XAxis dataKey="day" tick={{ fill:'#5A6B84', fontSize:11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill:'#97A3B4', fontSize:10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip content={<CT />} cursor={{ fill:'rgba(13,27,42,0.04)' }} />
+              <Bar dataKey="checkins" fill={VIBRANT.blue.bg} radius={[6,6,0,0]} name="check-ins" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
 
+        {/* Members by Package — real: memberships grouped by package */}
         <Card>
-          <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16, marginBottom:4 }}>Active Packages</div>
-          <div style={{ fontSize:12, color:'var(--text3)', marginBottom:16 }}>Memberships by package</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {pkgDist.map(pkg => (
-              <div key={pkg.name}>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:5 }}>
-                  <span style={{ color:'var(--text2)', fontSize:12 }}>{pkg.name}</span>
-                  <span style={{ fontFamily:'var(--font-display)', fontWeight:700, color:pkg.color }}>{pkg.count} players</span>
-                </div>
-                <div style={{ height:6, background:'var(--navy4)', borderRadius:6, overflow:'hidden' }}>
-                  <div style={{ height:'100%', borderRadius:6, background:pkg.color,
-                    width: memberships.length > 0 ? `${(pkg.count / memberships.length) * 100}%` : '0%' }} />
-                </div>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:16, marginBottom:2 }}>Members by Package</div>
+          <div style={{ fontSize:12, color:'var(--text3)', marginBottom:'var(--space-4)' }}>Active memberships distribution</div>
+          {memberships.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'40px 0', color:'var(--muted)', fontSize:13 }}>No active memberships yet</div>
+          ) : (
+            <div style={{ display:'flex', alignItems:'center', gap:'var(--space-4)', flexWrap:'wrap' }}>
+              <ResponsiveContainer width={180} height={180}>
+                <PieChart>
+                  <Pie data={pkgDist.filter(p=>p.count>0)} dataKey="count" nameKey="name" cx="50%" cy="50%"
+                       innerRadius={52} outerRadius={82} paddingAngle={2} stroke="none">
+                    {pkgDist.filter(p=>p.count>0).map(p => <Cell key={p.name} fill={PKG_VIBRANT[p.name] || p.color} />)}
+                  </Pie>
+                  <Tooltip content={<CT />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-2)', flex:1, minWidth:120 }}>
+                {pkgDist.map(pkg => (
+                  <div key={pkg.name} style={{ display:'flex', alignItems:'center', gap:8, fontSize:13 }}>
+                    <div style={{ width:10, height:10, borderRadius:3, background:PKG_VIBRANT[pkg.name] || pkg.color, flexShrink:0 }} />
+                    <span style={{ color:'var(--text2)' }}>{pkg.name}</span>
+                    <span style={{ marginLeft:'auto', fontFamily:'var(--font-mono)', fontWeight:600, color:'var(--text)' }}>{pkg.count}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -391,9 +431,9 @@ export default function AdminDashboard() {
                 const pName = parentName(profile)
                 const typeColor = TYPE_COLORS[b.session_type] || 'var(--green2)'
                 return (
-                  <div key={b.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)', borderRadius:8 }}>
+                  <div key={b.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'rgba(13,27,42,0.03)', border:'1px solid var(--border)', borderRadius:8 }}>
                     <div style={{ width:8, height:8, borderRadius:'50%', background:typeColor, flexShrink:0 }} />
-                    <span style={{ fontFamily:'var(--font-mono)', fontSize:13, fontWeight:600, color:'var(--white)', minWidth:70 }}>{b.session_time}</span>
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:13, fontWeight:600, color:'var(--text)', minWidth:70 }}>{b.session_time}</span>
                     <span style={{ fontSize:13, fontWeight:500 }}>{b.kid_name}</span>
                     {pName && <span style={{ fontSize:12, color:'var(--muted)' }}>· {pName}</span>}
                     <span style={{ marginLeft:'auto', fontSize:11, color:typeColor, fontFamily:'var(--font-display)', fontStyle:'italic' }}>{b.session_type}</span>
@@ -439,7 +479,7 @@ export default function AdminDashboard() {
                       title="Manual check-in"
                       style={{
                         padding:'5px 10px',
-                        background: remaining <= 0 ? 'rgba(255,255,255,0.03)' : 'rgba(79,168,255,0.1)',
+                        background: remaining <= 0 ? 'rgba(13,27,42,0.03)' : 'rgba(79,168,255,0.1)',
                         border: `1px solid ${remaining <= 0 ? 'var(--border)' : 'rgba(79,168,255,0.25)'}`,
                         borderRadius:6, color: remaining <= 0 ? 'var(--text3)' : '#4fa8ff',
                         fontSize:10, fontFamily:'var(--font-display)', fontWeight:700,

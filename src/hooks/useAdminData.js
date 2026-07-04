@@ -68,6 +68,19 @@ export const PACK_INFO = {
   'MLB': { sessions: 20, price: 600, color: '#a78bfa' },
 }
 
+// Vibrant palette for KPI blocks / charts (light theme). fg = text color that
+// meets contrast on that block (dark navy on light-ish blocks, white on dark-enough).
+export const VIBRANT = {
+  red:    { bg: '#E63946', fg: '#FFFFFF' },
+  blue:   { bg: '#118AB2', fg: '#FFFFFF' },
+  green:  { bg: '#06D6A0', fg: '#0D1B2A' },
+  amber:  { bg: '#FFB703', fg: '#0D1B2A' },
+  orange: { bg: '#FB8500', fg: '#0D1B2A' },
+  purple: { bg: '#7C3AED', fg: '#FFFFFF' },
+}
+// Package → vibrant chart color
+export const PKG_VIBRANT = { A: '#118AB2', AA: '#06D6A0', AAA: '#FFB703', MLB: '#E63946' }
+
 export const TYPE_COLORS = {
   'Speed & Agility':    '#4fa8ff',
   'Fielding / Defense': '#22C56E',

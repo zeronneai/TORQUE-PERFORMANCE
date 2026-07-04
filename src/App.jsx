@@ -136,14 +136,10 @@ export default function App() {
               style={{ width: '180px', marginBottom: '24px', auto: 'height' }} 
             />
             
-            <h1 style={{
-              fontFamily: 'var(--font-display)',
+            <h1 className="title-slant" style={{
               color: 'white',
               marginBottom: 'var(--space-10)',
-              fontSize: 'clamp(1.75rem, 6vw, 2.25rem)',
-              letterSpacing: 'var(--tracking-wide)',
-              fontWeight: 600,
-              textTransform: 'uppercase'
+              fontSize: 'clamp(2rem, 7vw, 2.75rem)',
             }}>
               TORQUE PERFORMANCE
             </h1>
