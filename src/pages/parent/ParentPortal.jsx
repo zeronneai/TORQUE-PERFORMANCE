@@ -328,6 +328,7 @@ export default function ParentPortal() {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
   const [players, setPlayers] = useState([])
+  const [checkinStats, setCheckinStats] = useState({}) // kid_name(lower) -> { monthCount, lastVisit }
   const [showAddPlayer, setShowAddPlayer] = useState(false)
   const [showBuyPack, setShowBuyPack] = useState(false)
   const [waiverData, setWaiverData]     = useState(null)
@@ -376,6 +377,27 @@ export default function ParentPortal() {
     ;(data || []).forEach(b => { counts[b.session_time] = (counts[b.session_time] || 0) + 1 })
     setSlotCounts(counts)
   }
+
+  // Real check-in stats for this parent's players: count this month + last visit (motivational).
+  useEffect(() => {
+    if (!user?.id) return
+    const since = new Date(Date.now() - 60 * 86400000).toISOString()
+    supabase.from('checkins').select('kid_name, checked_in_at').eq('parent_id', user.id).gte('checked_in_at', since)
+      .then(({ data, error }) => {
+        if (error) return
+        const now = new Date()
+        const monthTag = `${now.getFullYear()}-${now.getMonth()}`
+        const stats = {}
+        for (const c of (data || [])) {
+          const k = (c.kid_name || '').toLowerCase().trim()
+          if (!stats[k]) stats[k] = { monthCount: 0, lastVisit: null }
+          const d = new Date(c.checked_in_at)
+          if (`${d.getFullYear()}-${d.getMonth()}` === monthTag) stats[k].monthCount++
+          if (!stats[k].lastVisit || d > stats[k].lastVisit) stats[k].lastVisit = d
+        }
+        setCheckinStats(stats)
+      })
+  }, [user?.id])
 
   useEffect(() => {
     if (user) {
@@ -1566,6 +1588,28 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
                   </div>
                 )}
               </div>
+
+              {/* Motivational: check-ins this month + gentle positive nudge (real data) */}
+              {m && (() => {
+                const stat = checkinStats[player.kid_name?.toLowerCase().trim()] || { monthCount: 0, lastVisit: null }
+                const daysSince = stat.lastVisit ? Math.floor((Date.now() - stat.lastVisit.getTime()) / 86400000) : null
+                const needsNudge = daysSince == null || daysSince >= 8
+                return (
+                  <div style={{ marginTop:14 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:12, color:'var(--muted)' }}>
+                      <span className="num" style={{ color:'var(--green2)', fontSize:15 }}>{stat.monthCount}</span>
+                      <span>check-in{stat.monthCount === 1 ? '' : 's'} this month</span>
+                    </div>
+                    {needsNudge && (
+                      <div onClick={() => { setBookingPlayer(player); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }}
+                        style={{ marginTop:8, padding:'10px 12px', borderRadius:8, background:'rgba(6,214,160,0.08)', border:'1px solid rgba(6,214,160,0.22)', cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ fontSize:16, flexShrink:0 }}>💪</span>
+                        <span style={{ fontSize:12, color:'var(--text)', fontWeight:600, lineHeight:1.35 }}>Time to get back at it — <span style={{ color:'#06D6A0' }}>book your next session →</span></span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               <div style={{ display:'flex', flexDirection:'column', gap:8, marginTop:14 }}>
                 <button

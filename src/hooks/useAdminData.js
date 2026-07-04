@@ -84,6 +84,22 @@ export const PKG_VIBRANT = { A: '#118AB2', AA: '#06D6A0', AAA: '#FFB703', MLB: '
 export const pkgKey = (name) => (name || '').replace(/^Package\s+/i, '').trim()
 export const pkgColor = (name) => PKG_VIBRANT[pkgKey(name)] || '#5A6B84'
 
+// ── Attendance health (Torque Pulse) ────────────────────────────────────────
+// Thresholds (days since last check-in): healthy ≤7, at_risk 8–14, churn 15+ or never.
+export const HEALTH = {
+  healthy: { color: '#06D6A0', label: 'Healthy',     rank: 2 },
+  at_risk: { color: '#FFB703', label: 'At Risk',     rank: 1 },
+  churn:   { color: '#E63946', label: 'Churn Risk',  rank: 0 },
+}
+export function healthBucket(daysSince) {
+  if (daysSince == null) return 'churn'   // active member, never checked in
+  if (daysSince <= 7)  return 'healthy'
+  if (daysSince <= 14) return 'at_risk'
+  return 'churn'
+}
+// Stable player key across tables (parent + case-insensitive kid name)
+export const playerKey = (pid, kid) => `${pid}::${(kid || '').toLowerCase().trim()}`
+
 // Status → palette color (green=active/paid, amber=expiring, red=expired/overdue, blue=info)
 export const STATUS = {
   active: '#06D6A0', paid: '#06D6A0',
