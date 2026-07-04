@@ -33,7 +33,7 @@ export default function AdminSidebar({ active, onNav, open, onClose }) {
           <div style={{ fontSize: 28 }}>⚾</div>
           <div>
             <div className="title-slant" style={{ fontSize: 22, color: '#ffffff', lineHeight: 1 }}>TORQUE</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, letterSpacing: '0.15em', color: 'var(--text2)', lineHeight: 1 }}>PERFORMANCE</div>
+            <div style={{ fontFamily: 'var(--font-title)', fontWeight: 400, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', transform: 'skewX(-8deg)', transformOrigin: 'left bottom', display: 'inline-block', color: 'var(--text2)', lineHeight: 1.3, paddingRight: '0.15em' }}>PERFORMANCE</div>
           </div>
         </div>
         {onClose && (
@@ -45,7 +45,7 @@ export default function AdminSidebar({ active, onNav, open, onClose }) {
 
       {/* Role badge */}
       <div style={{ padding: '10px 20px', background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <div style={{ fontSize: 10, fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text2)', textTransform: 'uppercase' }}>Admin Panel</div>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-title)', fontWeight: 400, letterSpacing: '0.16em', color: 'var(--text2)', textTransform: 'uppercase', transform: 'skewX(-8deg)', transformOrigin: 'left bottom', display: 'inline-block', lineHeight: 1.3, paddingRight: '0.15em' }}>Admin Panel</div>
       </div>
 
       {/* Nav */}
@@ -66,9 +66,9 @@ export default function AdminSidebar({ active, onNav, open, onClose }) {
               onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'var(--text)' } }}
               onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text2)' } }}
             >
-              <Icon size={15} strokeWidth={isActive ? 2.5 : 1.8} />
-              <span style={{ flex: 1 }}>{label}</span>
-              {isActive && <ChevronRight size={12} />}
+              <Icon size={15} strokeWidth={isActive ? 2.5 : 1.8} style={{ flexShrink: 0 }} />
+              <span style={{ flex: 1, fontFamily: 'var(--font-title)', fontWeight: 400, fontSize: 15, letterSpacing: '0.05em', textTransform: 'uppercase', transform: 'skewX(-8deg)', transformOrigin: 'left bottom', display: 'inline-block', lineHeight: 1.15, paddingRight: '0.12em' }}>{label}</span>
+              {isActive && <ChevronRight size={12} style={{ flexShrink: 0 }} />}
             </button>
           )
         })}
@@ -87,8 +87,8 @@ export default function AdminSidebar({ active, onNav, open, onClose }) {
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,51,85,0.18)'; e.currentTarget.style.borderColor = 'rgba(255,51,85,0.5)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,51,85,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,51,85,0.25)' }}
         >
-          <LogOut size={14} />
-          <span>Sign Out</span>
+          <LogOut size={14} style={{ flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-title)', fontWeight: 400, fontSize: 14, letterSpacing: '0.05em', textTransform: 'uppercase', transform: 'skewX(-8deg)', transformOrigin: 'left bottom', display: 'inline-block', lineHeight: 1.15, paddingRight: '0.12em' }}>Sign Out</span>
         </button>
       </div>
     </aside>
