@@ -11,6 +11,7 @@ import { Menu } from 'lucide-react';
 
 import { AppProvider, useApp } from './context/AppContext'
 import AdminSidebar from './components/AdminSidebar'
+import ErrorBoundary from './components/ErrorBoundary'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Families from './pages/admin/Families'
 import EntranceQR from './pages/admin/EntranceQR'
@@ -61,7 +62,7 @@ function AdminShell({ initialPage = 'dashboard' }) {
         <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 10 }}>
           <UserButton afterSignOutUrl="/" />
         </div>
-        <div className="fade-in"><Page /></div>
+        <div className="fade-in"><ErrorBoundary label="this page"><Page /></ErrorBoundary></div>
       </main>
     </div>
   )

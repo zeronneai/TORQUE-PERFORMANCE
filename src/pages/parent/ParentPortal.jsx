@@ -5,6 +5,7 @@ import { useUser, useClerk, useSession } from "@clerk/clerk-react"
 import { supabase, getAuthClient } from "../../supabaseClient"
 import { API_BASE } from '../../lib/apiBase'
 import QRCheckinModal from '../../components/QRCheckinModal'
+import ErrorBoundary from '../../components/ErrorBoundary'
 
 // ── PAQUETES ──────────────────────────────────────────────────────────────────
 const PACKS = [
@@ -1197,7 +1198,7 @@ export default function ParentPortal() {
             </div>
           )}
 
-          {PAGE_MAP[page]}
+          <ErrorBoundary label="this page">{PAGE_MAP[page]}</ErrorBoundary>
         </main>
       </div>
 

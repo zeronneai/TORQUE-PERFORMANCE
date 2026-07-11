@@ -5,6 +5,7 @@ import './index.css'
 import { ClerkProvider } from '@clerk/clerk-react';
 import { dark } from '@clerk/themes';
 import { Capacitor } from '@capacitor/core'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -20,7 +21,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       routerReplace={(to) => { window.location.hash = to }}
       appearance={{ baseTheme: dark }}
     >
-      <App />
+      <ErrorBoundary full label="app">
+        <App />
+      </ErrorBoundary>
     </ClerkProvider>
   </React.StrictMode>,
 )
