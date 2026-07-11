@@ -929,7 +929,7 @@ export default function ParentPortal() {
   )
 
   const PAGE_MAP = {
-    home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} onEditSave={handleEditPlayerName} parentId={user?.id} />,
+    home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} onEditSave={handleEditPlayerName} parentId={user?.id} checkinStats={checkinStats} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} />,
     sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     schedule: <SchedulePage bookings={bookings} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     billing:  <BillingPage players={players} />,
@@ -1519,7 +1519,7 @@ export default function ParentPortal() {
 }
 
 // ── PARENT HOME ───────────────────────────────────────────────────────────────
-function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
+function ParentHome({ players, onAdd, onBuy, onEditSave, parentId, checkinStats = {}, onBook }) {
   const [editModal, setEditModal] = useState({ open: false, player: null, name: '' })
   const [editSaving, setEditSaving] = useState(false)
   const [attendanceModal, setAttendanceModal] = useState({ open: false, kidName: null, checkins: [], loading: false })
@@ -1637,7 +1637,7 @@ function ParentHome({ players, onAdd, onBuy, onEditSave, parentId }) {
                       <span>check-in{stat.monthCount === 1 ? '' : 's'} this month</span>
                     </div>
                     {needsNudge && (
-                      <div onClick={() => { setBookingPlayer(player); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }}
+                      <div onClick={() => onBook && onBook(player)}
                         style={{ marginTop:8, padding:'10px 12px', borderRadius:8, background:'rgba(6,214,160,0.08)', border:'1px solid rgba(6,214,160,0.22)', cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
                         <span style={{ fontSize:16, flexShrink:0 }}>💪</span>
                         <span style={{ fontSize:12, color:'var(--text)', fontWeight:600, lineHeight:1.35 }}>Time to get back at it — <span style={{ color:'#06D6A0' }}>book your next session →</span></span>
