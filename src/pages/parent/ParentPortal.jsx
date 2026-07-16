@@ -2036,6 +2036,29 @@ function SchedulePage({ bookings, onCancel, onReschedule }) {
 function BillingPage({ players }) {
   const memberships = players.flatMap(p => p.active_membership ? [{ ...p.active_membership, kid_name: p.kid_name }] : [])
 
+  const [portalBusy, setPortalBusy] = useState(null)     // membership id currently opening
+  const [portalErr, setPortalErr]   = useState({})       // membership id -> error message
+
+  // Update saved card via Stripe's hosted Customer Portal (recurring subs only).
+  async function openBillingPortal(m) {
+    if (!m?.stripe_payment_id) return
+    setPortalBusy(m.id)
+    setPortalErr(prev => ({ ...prev, [m.id]: null }))
+    try {
+      const res = await fetch(`${API_BASE}/api/create-billing-portal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: m.stripe_payment_id, sessionId: m.stripe_session_id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.url) throw new Error(data?.error || 'Could not open the billing portal. Please try again.')
+      window.location.href = data.url   // redirect to Stripe (page unloads)
+    } catch (err) {
+      setPortalErr(prev => ({ ...prev, [m.id]: err?.message || 'Something went wrong.' }))
+      setPortalBusy(null)
+    }
+  }
+
   function nextPayment(purchasedAt, total) {
     if (!purchasedAt) return '—'
     const d = new Date(purchasedAt)
@@ -2109,6 +2132,21 @@ function BillingPage({ players }) {
                   <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text2)' }}>{m.stripe_payment_id?.slice(0,24)}…</span>
                 </div>
               )}
+
+              {/* Manage billing — only recurring subscriptions have a saved card / autopay */}
+              {m.stripe_payment_id?.startsWith('sub_') ? (
+                <div style={{ marginTop:14 }}>
+                  <button onClick={() => openBillingPortal(m)} disabled={portalBusy === m.id}
+                    className="btn-primary" style={{ width:'100%', opacity: portalBusy === m.id ? 0.7 : 1, cursor: portalBusy === m.id ? 'wait' : 'pointer' }}>
+                    {portalBusy === m.id ? 'Opening…' : '💳 Update Payment Method'}
+                  </button>
+                  {portalErr[m.id] && (
+                    <div style={{ marginTop:8, fontSize:12, color:'#E63946', lineHeight:1.4 }}>{portalErr[m.id]}</div>
+                  )}
+                </div>
+              ) : m.stripe_payment_id?.startsWith('pi_') ? (
+                <div style={{ marginTop:12, fontSize:11, color:'var(--muted)' }}>One-time plan — no card on file.</div>
+              ) : null}
             </div>
           ))}
         </div>
