@@ -36,8 +36,10 @@ const SATURDAY_TIMES = ['12:00 PM', '1:00 PM', '2:00 PM']
 const MAX_CAPACITY = 16
 
 // Días festivos completamente bloqueados para reservar (sin slots disponibles).
-// 4 de julio — feriado nacional de EE. UU. (se bloquea cada año).
-const isBlockedHoliday = (d) => d.getMonth() === 6 && d.getDate() === 4
+// Academy-closed days — no bookings. July 4th (every year) + specific one-off closures.
+const EXTRA_CLOSED_DATES = new Set(['2026-07-24', '2026-07-25'])
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const isBlockedHoliday = (d) => (d.getMonth() === 6 && d.getDate() === 4) || EXTRA_CLOSED_DATES.has(ymd(d))
 
 function parseSessionDateTime(dateStr, timeStr) {
   const [hm, period] = timeStr.split(' ')
@@ -550,7 +552,7 @@ export default function ParentPortal() {
     if (!bookingPlayer || !bookingForm.date || !bookingForm.time) return
     // Salvaguarda: bloquear feriados (4 de julio) aunque la fecha llegue por otra vía
     if (isBlockedHoliday(new Date(bookingForm.date + 'T12:00:00'))) {
-      alert('July 4th is a holiday — bookings are closed that day. Please choose another date.')
+      alert('The academy is closed that day — bookings are closed. Please choose another date.')
       return
     }
     setBookingLoading(true)
