@@ -11,10 +11,15 @@ const clamp = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
 // Public lead-capture endpoint for the static landing forms. Additive to the
 // existing Google Apps Script (Sheet + email). Inserts with the service-role key.
 export default async function handler(req, res) {
+  // CORS — set on every response, before any early return, so the landing
+  // (torquebaseball.us) can POST cross-origin. The preflight MUST allow the
+  // Content-Type header or the browser blocks the real POST.
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400');
   res.setHeader('Content-Type', 'application/json');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
