@@ -13,6 +13,15 @@
 //           means each milestone fires once (no dedup table needed). Requires
 //           RESEND_API_KEY; skips silently if unset (so it's inert until
 //           configured). If the cron misses a day, that day's cohort is skipped.
+//
+// Task D — Autopay safety net: for active 'sub_' memberships whose expires_at is
+//           past or near (within 2 days), retrieve the subscription from Stripe;
+//           if it's still active, push expires_at to current_period_end (paid-
+//           through date) and, if a NEW billing period started (period_start >
+//           our purchased_at), replay the renewal (reset sessions). This catches
+//           any missed invoice.payment_succeeded webhook so members never get
+//           blocked. Requires STRIPE_SECRET_KEY; skips if unset. Runs BEFORE
+//           Task B so genuinely-active subs are rescued before B zeroes expired.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -87,6 +96,20 @@ async function sendExpiryEmail(opts: {
   }
 }
 
+// Retrieve a Stripe subscription via the REST API (no SDK dependency in Deno).
+async function stripeGetSubscription(subId: string, key: string): Promise<any | null> {
+  try {
+    const r = await fetch(`https://api.stripe.com/v1/subscriptions/${subId}`, {
+      headers: { Authorization: `Bearer ${key}` },
+    })
+    if (!r.ok) { console.error('[monthly-reset] Task D — Stripe HTTP', r.status, 'for', subId); return null }
+    return await r.json()
+  } catch (e) {
+    console.error('[monthly-reset] Task D — retrieve failed', subId, (e as Error).message)
+    return null
+  }
+}
+
 serve(async (_req) => {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -149,6 +172,65 @@ serve(async (_req) => {
   }
 
   console.log(`[monthly-reset] Task A — Day ${todayDay}: checked ${memberships?.length ?? 0} active annual members, reset ${updated}`)
+
+  // ── TASK D: Autopay safety net — sync sub_ memberships from Stripe ───────────
+  // (Runs BEFORE Task B so active subs are rescued before B zeroes the expired.)
+  const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY')
+  let dSynced = 0, dReset = 0
+  const dErrors: string[] = []
+
+  if (!STRIPE_KEY) {
+    console.warn('[monthly-reset] Task D — STRIPE_SECRET_KEY not set; skipping safety net')
+  } else {
+    // Active autopay memberships at/near expiry (past, or within the next 2 days).
+    const cutoff = new Date(Date.now() + 2 * 86_400_000).toISOString()
+    const { data: subs, error: subFetchErr } = await supabase
+      .from('player_memberships')
+      .select('id, kid_name, package_name, purchased_at, expires_at, sessions_total, sessions_used, stripe_payment_id')
+      .eq('status', 'active')
+      .like('stripe_payment_id', 'sub_%')
+      .lte('expires_at', cutoff)
+
+    if (subFetchErr) {
+      dErrors.push(`Fetch error: ${subFetchErr.message}`)
+    } else {
+      for (const m of (subs ?? [])) {
+        const sub = await stripeGetSubscription(m.stripe_payment_id, STRIPE_KEY)
+        if (!sub) { dErrors.push(`retrieve failed for ${m.kid_name} (${m.stripe_payment_id})`); continue }
+        // Only rescue genuinely-active subs; cancelled/unpaid ones are left for Task B.
+        if (sub.status !== 'active' && sub.status !== 'trialing') continue
+
+        const cpe = sub.current_period_end   ? new Date(sub.current_period_end   * 1000).toISOString() : null
+        const cps = sub.current_period_start ? new Date(sub.current_period_start * 1000).toISOString() : null
+        if (!cpe) continue
+
+        const update: Record<string, unknown> = {}
+
+        // A new billing period started that our webhook missed → replay the renewal.
+        if (cps && m.purchased_at && new Date(cps).getTime() > new Date(m.purchased_at).getTime()) {
+          const pkgSessions = SESSIONS_BY_PACKAGE[m.package_name]
+          if (pkgSessions) {
+            update.sessions_total = pkgSessions
+            update.sessions_used  = 0
+            update.purchased_at   = cps
+            dReset++
+          }
+        }
+        // Always keep expires_at in sync with the paid-through date.
+        if (new Date(cpe).getTime() > new Date(m.expires_at).getTime()) update.expires_at = cpe
+
+        if (Object.keys(update).length > 0) {
+          const { error: upErr } = await supabase.from('player_memberships').update(update).eq('id', m.id)
+          if (upErr) dErrors.push(`update failed ${m.kid_name}: ${upErr.message}`)
+          else {
+            dSynced++
+            console.log(`[monthly-reset] Task D — synced ${m.kid_name} → expires ${update.expires_at || m.expires_at}${update.sessions_total ? ` (sessions reset to ${update.sessions_total})` : ''}`)
+          }
+        }
+      }
+    }
+  }
+  console.log(`[monthly-reset] Task D — synced ${dSynced}, session resets ${dReset}`)
 
   // ── TASK B: Zero out sessions for expired memberships ───────────────────────
 
@@ -232,6 +314,7 @@ serve(async (_req) => {
     JSON.stringify({
       ok: true,
       taskA: { today_day: todayDay, candidates: toReset.length, updated, errors },
+      taskD: { stripe_configured: !!STRIPE_KEY, synced: dSynced, session_resets: dReset, errors: dErrors },
       taskB: { expired_found: expired?.length ?? 0, zeroed, errors: expireErrors },
       taskC: { resend_configured: resendConfigured, due: dueForAlert.length, sent: emailsSent, errors: emailErrors },
     }),

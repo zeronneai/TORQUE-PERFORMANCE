@@ -236,8 +236,22 @@ export default async function handler(req, res) {
       if (!invoice.subscription) return res.status(200).json({ received: true });
 
       const subId  = invoice.subscription;
-      const priceId = invoice.lines?.data?.[0]?.price?.id;
-      const info   = PRICE_INFO[priceId];
+
+      // Resolve price + paid-through date from the SUBSCRIPTION itself (an API call
+      // that uses the library's pinned version), which is immune to invoice-object
+      // shape changes when the account's webhook API version bumps. Only fall back
+      // to the invoice line-item price if the retrieve fails.
+      let priceId = null;
+      let periodEndTs = null;   // Unix seconds — the actual paid-through date
+      try {
+        const sub = await stripe.subscriptions.retrieve(subId);
+        priceId     = sub.items?.data?.[0]?.price?.id ?? null;
+        periodEndTs = sub.current_period_end ?? null;
+      } catch (e) {
+        console.error('[webhook] subscription retrieve failed:', subId, e.message);
+      }
+      if (!priceId) priceId = invoice.lines?.data?.[0]?.price?.id ?? null;  // secondary fallback
+      const info = PRICE_INFO[priceId];
 
       const { data: existing } = await supabase
         .from('player_memberships')
@@ -278,9 +292,22 @@ export default async function handler(req, res) {
       _alertCtx = { kidName: record.kid_name, priceId, sessionId: subId };
 
       if (!info) {
-        console.error('[webhook] Unknown price ID from invoice:', priceId);
-        return res.status(200).json({ received: true });
+        // Don't fail silently — alert so any future price/shape break surfaces immediately.
+        console.error('[webhook] renewal — unresolved price for sub', subId, '— priceId:', priceId);
+        await sendAlert({
+          subject:  `⚠️ Torque renewal — unresolved price for ${record.kid_name || subId}`,
+          kidName:  record.kid_name, priceId, sessionId: subId,
+          errorMsg: `Could not resolve PRICE_INFO on a renewal (priceId="${priceId}"). Sessions/expiry were NOT updated — review this member manually.`,
+        }).catch(() => {});
+        return res.status(200).json({ received: true });  // 200 AFTER alerting (avoid endless Stripe retries)
       }
+
+      // Paid-through date straight from Stripe (current_period_end) — immune to
+      // billing-interval and invoice-shape changes. Fall back to +1 month only if
+      // the subscription retrieve didn't yield a period end.
+      const expiresAt = periodEndTs
+        ? new Date(periodEndTs * 1000).toISOString()
+        : addMonths(invoice.created, 1);
 
       const { error } = await supabase.from('player_memberships').update({
         sessions_total:    info.sessions,
@@ -288,11 +315,11 @@ export default async function handler(req, res) {
         status:            'active',
         stripe_payment_id: subId,
         purchased_at:      new Date(invoice.created * 1000).toISOString(),
-        expires_at:        addMonths(invoice.created, 1),
+        expires_at:        expiresAt,
       }).eq('id', record.id);
 
       if (error) throw error;
-      console.log(`✅ Renewal${existing ? '' : ' (fallback)'} — ${info.sessions} sessions reset → ${record.kid_name}`);
+      console.log(`✅ Renewal${existing ? '' : ' (fallback)'} — ${info.sessions} sessions reset, expires ${expiresAt} → ${record.kid_name}`);
     }
 
   } catch (err) {
