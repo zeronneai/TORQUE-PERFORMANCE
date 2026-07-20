@@ -14,6 +14,7 @@ import AdminSidebar from './components/AdminSidebar'
 import ErrorBoundary from './components/ErrorBoundary'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Families from './pages/admin/Families'
+import Leads from './pages/admin/Leads'
 import EntranceQR from './pages/admin/EntranceQR'
 import TorquePulse from './pages/admin/TorquePulse'
 import { Schedule, Payments, Events } from './pages/admin/AdminPages'
@@ -24,6 +25,7 @@ import CheckIn from './pages/CheckIn'
 const ADMIN_PAGES = {
   dashboard:    AdminDashboard,
   families:     Families,
+  leads:        Leads,
   pulse:        TorquePulse,
   schedule:     Schedule,
   payments:     Payments,
