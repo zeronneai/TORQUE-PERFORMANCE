@@ -945,8 +945,8 @@ export default function ParentPortal() {
       {/* Logo area */}
       <div style={{ padding:'28px 22px 0', position:'relative' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:30, letterSpacing:'0.1em', lineHeight:1 }}>
-            TOR<span style={{ color:'var(--white)' }}>QUE</span>
+          <div className="title-slant" style={{ fontSize:30, letterSpacing:'0.05em', lineHeight:1, color:'var(--white)' }}>
+            TORQUE
           </div>
           {sidebarOpen && (
             <button onClick={() => setSidebarOpen(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', padding:4, display:'flex' }}>
@@ -1126,8 +1126,8 @@ export default function ParentPortal() {
           padding:'0 20px 12px', paddingTop:'env(safe-area-inset-top)',
           zIndex:200, display:'none'
         }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:26, letterSpacing:'0.1em', lineHeight:1 }}>
-            TOR<span style={{ color:'var(--white)' }}>QUE</span>
+          <div className="title-slant" style={{ fontSize:26, letterSpacing:'0.05em', lineHeight:1, color:'var(--white)' }}>
+            TORQUE
           </div>
           <button onClick={() => setSidebarOpen(true)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--white)', padding:6 }}>
             <Menu size={22} />
