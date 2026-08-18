@@ -1,5 +1,6 @@
 // Supabase Edge Function — monthly-session-reset
-// Schedule: cron "5 0 * * *" (00:05 AM every day)
+// Invoked daily at 00:05 UTC by a pg_cron + pg_net job (see supabase/schedule.sql).
+// Deploying this function does NOT schedule it — the cron job must exist in the DB.
 //
 // Task A — Monthly reset: resets sessions for annual-plan members whose
 //           purchased_at day-of-month matches today.

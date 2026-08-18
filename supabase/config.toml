@@ -1,3 +1,5 @@
 [functions.monthly-session-reset]
-# Runs daily at 00:05 AM — resets sessions for members whose purchase anniversary is today
-schedule = "5 0 * * *"
+# NOTE: Supabase does NOT read a `schedule` key here — deploying the function does
+# not schedule it. The daily invocation is a pg_cron + pg_net job registered in the
+# database (see supabase/schedule.sql). Keep that job in sync with this function.
+verify_jwt = true
