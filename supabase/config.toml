@@ -1,5 +1,6 @@
 [functions.monthly-session-reset]
 # NOTE: Supabase does NOT read a `schedule` key here — deploying the function does
 # not schedule it. The daily invocation is a pg_cron + pg_net job registered in the
-# database (see supabase/schedule.sql). Keep that job in sync with this function.
+# database (cron.job name 'monthly-session-reset-daily'; see supabase/schedule.sql).
+# Keep that job in sync with this function.
 verify_jwt = true
