@@ -157,7 +157,7 @@ export default function QRCheckinModal({ open, onClose, player, parentId }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 0', flexShrink: 0 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, letterSpacing: '0.08em', color: 'var(--text)', lineHeight: 1 }}>TORQUE</div>
+          <div className="title-slant" style={{ fontSize: 18, letterSpacing: '0.05em', color: 'var(--text)', lineHeight: 1 }}>TORQUE</div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 9, letterSpacing: '0.18em', color: 'rgba(13,27,42,0.35)', textTransform: 'uppercase' }}>PERFORMANCE</div>
         </div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(13,27,42,0.45)', padding: 8, display: 'flex', alignItems: 'center' }}>

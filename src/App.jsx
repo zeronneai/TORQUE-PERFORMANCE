@@ -44,7 +44,7 @@ function AdminShell({ initialPage = 'dashboard' }) {
 
       {/* Topbar mobile */}
       <div className="admin-topbar">
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 22, letterSpacing: '0.08em', color: '#fff' }}>
+        <div className="title-slant" style={{ fontSize: 22, letterSpacing: '0.05em', color: '#fff' }}>
           TORQUE
         </div>
         <button onClick={() => setSidebarOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 6, display: 'flex', alignItems: 'center' }}>

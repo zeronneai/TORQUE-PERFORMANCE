@@ -38,7 +38,7 @@ export default function EntranceQR() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <div style={{ fontSize: 28 }}>⚾</div>
             <div>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 22, letterSpacing: '0.06em', color: '#060d18', lineHeight: 1 }}>TORQUE</div>
+              <div className="title-slant" style={{ fontSize: 22, letterSpacing: '0.05em', color: '#060d18', lineHeight: 1 }}>TORQUE</div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.18em', color: '#666', textTransform: 'uppercase' }}>PERFORMANCE</div>
             </div>
           </div>

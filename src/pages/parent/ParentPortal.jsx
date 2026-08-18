@@ -831,7 +831,7 @@ export default function ParentPortal() {
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--navy)', flexDirection:'column', gap:20 }}>
       <style>{GLOBAL_CSS}</style>
-      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(36px, 10vw, 56px)', letterSpacing:'0.1em', color:'var(--text)' }}>
+      <div className="title-slant" style={{ fontSize:'clamp(36px, 10vw, 56px)', letterSpacing:'0.05em', color:'var(--white)' }}>
         TORQUE
       </div>
       <div style={{ width:48, height:3, background:'var(--navy4)', borderRadius:2, overflow:'hidden' }}>
@@ -847,7 +847,7 @@ export default function ParentPortal() {
       <style>{GLOBAL_CSS}</style>
       <div style={{ width:'100%', maxWidth:460 }} className="animate-fade-up">
         <div style={{ textAlign:'center', marginBottom:36 }}>
-          <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:'clamp(36px, 12vw, 60px)', letterSpacing:'0.1em', lineHeight:1 }}>
+          <div className="title-slant" style={{ fontSize:'clamp(36px, 12vw, 60px)', letterSpacing:'0.05em', lineHeight:1, color:'var(--white)' }}>
             TORQUE
           </div>
           <div style={{ fontSize:11, color:'var(--muted)', letterSpacing:'0.3em', marginTop:6, textTransform:'uppercase', fontFamily:'var(--font-display)', fontStyle:'italic' }}>Performance Training</div>

@@ -127,7 +127,7 @@ export default function CheckIn() {
         padding: '20px 0 0',
       }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 20, letterSpacing: '0.08em', color: 'var(--text)', lineHeight: 1 }}>TORQUE</div>
+          <div className="title-slant" style={{ fontSize: 20, letterSpacing: '0.05em', color: 'var(--text)', lineHeight: 1 }}>TORQUE</div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.18em', color: 'rgba(13,27,42,0.4)', textTransform: 'uppercase' }}>PERFORMANCE</div>
         </div>
         <UserButton />
