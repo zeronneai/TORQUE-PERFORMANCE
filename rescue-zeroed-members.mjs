@@ -85,6 +85,13 @@ const PACKAGE_SESSIONS = {
   'MLB': 20, 'Package MLB': 20,
 };
 
+// MANUAL-OVERRIDE EXCLUSIONS — never touched, regardless of Stripe state.
+// Keyed by stripe_payment_id OR membership id. These reflect deliberate manual
+// arrangements that must NOT be overwritten by an automated Stripe-based restore.
+const EXCLUDE = new Set([
+  'sub_1Tgdy2APTWbxe0Yy349NP64h',  // Oscar — manual MLB→AA downgrade (total 8 / used 6, expires 2026-08-18). Stripe still shows MLB, so an auto-restore would wrongly give 8 fresh sessions + a Sep date. Leave as-is.
+]);
+
 function confirm(question) {
   return new Promise(res => {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -126,8 +133,12 @@ async function main() {
   console.error(`\nChecking ${candidates.length} candidate(s) against Stripe...`);
   const rescue = [];     // rows we will restore
   const skipped = [];    // rows left untouched, with a reason
+  const excluded = [];   // rows on the manual-override list — never touched
 
   for (const m of candidates) {
+    // Manual-override list wins over everything — skip before touching Stripe.
+    if (EXCLUDE.has(m.stripe_payment_id) || EXCLUDE.has(m.id)) { excluded.push(m); continue; }
+
     let sub = null;
     try {
       sub = await stripe.subscriptions.retrieve(m.stripe_payment_id);
@@ -176,7 +187,12 @@ async function main() {
     );
   }
   console.log('='.repeat(110));
-  console.log(`${rescue.length} to restore, ${skipped.length} skipped (left untouched).`);
+  console.log(`${rescue.length} to restore, ${skipped.length} skipped, ${excluded.length} excluded (manual override).`);
+
+  if (excluded.length) {
+    console.log('\nExcluded (manual override — left EXACTLY as-is):');
+    for (const e of excluded) console.log(`  · ${e.kid_name} (${e.stripe_payment_id}) — sessions ${e.sessions_used}/${e.sessions_total}, expires ${dayOf(e.expires_at)} [UNCHANGED]`);
+  }
 
   if (skipped.length) {
     console.log('\nSkipped (NOT modified) — review manually if any look wrong:');
