@@ -124,6 +124,11 @@ serve(async (_req) => {
   const nowISO   = now.toISOString()
   const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
 
+  // Build marker — bump on every deploy so the logs prove which version is live.
+  // If the "Task D" lines never appear below, a stale pre-safety-net build is
+  // deployed (run `supabase functions deploy monthly-session-reset` again).
+  console.log('[monthly-reset] START build 2026-08-19a — order A → D → B → C')
+
   // ── TASK A: Monthly session reset for annual plans ──────────────────────────
 
   // Fetch all active memberships that have not yet expired.
@@ -197,6 +202,7 @@ serve(async (_req) => {
     if (subFetchErr) {
       dErrors.push(`Fetch error: ${subFetchErr.message}`)
     } else {
+      console.log(`[monthly-reset] Task D — start; ${subs?.length ?? 0} sub_ candidate(s) at/near expiry`)
       for (const m of (subs ?? [])) {
         const sub = await stripeGetSubscription(m.stripe_payment_id, STRIPE_KEY)
         if (!sub) { dErrors.push(`retrieve failed for ${m.kid_name} (${m.stripe_payment_id})`); continue }
@@ -239,32 +245,54 @@ serve(async (_req) => {
 
   const { data: expired, error: expFetchErr } = await supabase
     .from('player_memberships')
-    .select('id')
+    .select('id, kid_name, stripe_payment_id')
     .eq('status', 'active')
     .lt('expires_at', nowISO)
     .gt('sessions_total', 0)
 
   let zeroed = 0
+  let bSkipped = 0
   const expireErrors: string[] = []
 
   if (expFetchErr) {
     expireErrors.push(`Fetch expired error: ${expFetchErr.message}`)
   } else if (expired && expired.length > 0) {
-    const ids = expired.map(m => m.id)
-    const { error: zeroErr } = await supabase
-      .from('player_memberships')
-      .update({ sessions_total: 0, sessions_used: 0 })
-      .in('id', ids)
+    // SAFETY GUARD: never zero a 'sub_' membership whose Stripe subscription is
+    // still active and paid through a FUTURE date. Independent of Task D — even
+    // if D didn't run (older build deployed) or Stripe was unreachable during D,
+    // this stops Task B from destroying a paying member's sessions.
+    const idsToZero: string[] = []
+    for (const m of expired) {
+      const pid = m.stripe_payment_id || ''
+      if (pid.startsWith('sub_') && STRIPE_KEY) {
+        const sub = await stripeGetSubscription(pid, STRIPE_KEY)
+        const stillActive = sub && (sub.status === 'active' || sub.status === 'trialing')
+        const paidThru = sub?.current_period_end ? sub.current_period_end * 1000 : 0
+        if (stillActive && paidThru > Date.now()) {
+          bSkipped++
+          console.warn(`[monthly-reset] Task B — SKIP zero (active sub paid thru ${new Date(paidThru).toISOString().slice(0,10)}) → ${m.kid_name} (${pid})`)
+          continue
+        }
+      }
+      idsToZero.push(m.id)
+    }
 
-    if (zeroErr) {
-      expireErrors.push(`Zero update error: ${zeroErr.message}`)
-    } else {
-      zeroed = ids.length
-      console.log(`[monthly-reset] Task B — Zeroed sessions for ${zeroed} expired memberships`)
+    if (idsToZero.length > 0) {
+      const { error: zeroErr } = await supabase
+        .from('player_memberships')
+        .update({ sessions_total: 0, sessions_used: 0 })
+        .in('id', idsToZero)
+
+      if (zeroErr) {
+        expireErrors.push(`Zero update error: ${zeroErr.message}`)
+      } else {
+        zeroed = idsToZero.length
+        console.log(`[monthly-reset] Task B — Zeroed sessions for ${zeroed} expired memberships`)
+      }
     }
   }
 
-  console.log(`[monthly-reset] Task B — Found ${expired?.length ?? 0} expired-with-sessions, zeroed ${zeroed}`)
+  console.log(`[monthly-reset] Task B — Found ${expired?.length ?? 0} expired-with-sessions, zeroed ${zeroed}, skipped ${bSkipped} active paid sub(s)`)
 
   // ── TASK C: Expiry reminder emails at 30 / 14 / 7 days ──────────────────────
 
@@ -318,7 +346,7 @@ serve(async (_req) => {
       ok: true,
       taskA: { today_day: todayDay, candidates: toReset.length, updated, errors },
       taskD: { stripe_configured: !!STRIPE_KEY, synced: dSynced, session_resets: dReset, errors: dErrors },
-      taskB: { expired_found: expired?.length ?? 0, zeroed, errors: expireErrors },
+      taskB: { expired_found: expired?.length ?? 0, zeroed, skipped_active_subs: bSkipped, errors: expireErrors },
       taskC: { resend_configured: resendConfigured, due: dueForAlert.length, sent: emailsSent, errors: emailErrors },
     }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }
