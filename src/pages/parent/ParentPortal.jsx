@@ -28,8 +28,13 @@ const NAV_ITEMS = [
   { id: 'sessions', label: 'Sessions'  },
   { id: 'schedule', label: 'Schedule'  },
   { id: 'billing',  label: 'Billing'   },
+  { id: 'promos',   label: 'Promos'    },
   { id: 'events',   label: 'Events'    },
 ]
+
+// Master switch for the (ended) Summer MLB promo modal. Left in place so the
+// whole modal can be reactivated later by flipping this to true — do NOT delete.
+const SHOW_SUMMER_PROMO = false
 
 const WEEKDAY_TIMES  = ['4:00 PM', '5:00 PM', '6:00 PM']
 const SATURDAY_TIMES = ['12:00 PM', '1:00 PM', '2:00 PM']
@@ -353,7 +358,7 @@ export default function ParentPortal() {
   const [cancelModal, setCancelModal] = useState({ open: false, booking: null })
   const [cancelLoading, setCancelLoading] = useState(false)
   const [rescheduleBooking, setRescheduleBooking] = useState(null)
-  const [showPromo, setShowPromo] = useState(() => !sessionStorage.getItem('promoDismissed'))
+  const [showPromo, setShowPromo] = useState(() => SHOW_SUMMER_PROMO && !sessionStorage.getItem('promoDismissed'))
 
   function dismissPromo() {
     sessionStorage.setItem('promoDismissed', '1')
@@ -375,6 +380,58 @@ export default function ParentPortal() {
   function dismissEventAnnounce() {
     if (eventAnnounce) sessionStorage.setItem('torque_event_seen', String(eventAnnounce.id))
     setEventAnnounce(null)
+  }
+
+  // ── Active paid promo (e.g. Labor Day camp): status + flyer announcement. ──
+  const [activePromo, setActivePromo]   = useState(null)   // { event, spotsRemaining, soldOut }
+  const [showFlyer, setShowFlyer]       = useState(false)
+  const [campRegistering, setCampRegistering] = useState(null)  // kid_name in flight
+  const refreshPromo = () =>
+    fetch(`${API_BASE}/api/event-status`).then(r => r.json()).then(d => { if (d?.event) setActivePromo(d); return d }).catch(() => null)
+  useEffect(() => {
+    refreshPromo().then(d => {
+      if (d?.event && sessionStorage.getItem('promo_flyer_seen') !== String(d.event.id)) setShowFlyer(true)
+    })
+  }, [])
+  function dismissFlyer() {
+    if (activePromo?.event) sessionStorage.setItem('promo_flyer_seen', String(activePromo.event.id))
+    setShowFlyer(false)
+  }
+  // A kid is camp-age if within the active promo's [min_age, max_age].
+  const inCampAge = (age) => {
+    const ev = activePromo?.event
+    if (!ev || age == null) return false
+    if (ev.min_age != null && age < ev.min_age) return false
+    if (ev.max_age != null && age > ev.max_age) return false
+    return true
+  }
+  // Start the one-time camp checkout for a specific (camp-age) kid.
+  const handleCampRegister = async (kid) => {
+    const ev = activePromo?.event
+    if (!ev || activePromo.soldOut || !inCampAge(kid.age)) return
+    setCampRegistering(kid.kid_name)
+    try {
+      const res = await fetch(`${API_BASE}/api/create-event-checkout`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId:    ev.id,
+          parentId:   user.id,
+          parentName: profile?.full_name || user.fullName || '',
+          playerName: kid.kid_name,
+          playerAge:  kid.age,
+          email:      user.primaryEmailAddress?.emailAddress || '',
+          phone:      profile?.phone || '',
+        }),
+      })
+      const data = await res.json()
+      if (res.status === 409) { alert('Sorry — the camp just sold out.'); refreshPromo(); return }
+      if (!res.ok) throw new Error(data.error || 'Checkout failed')
+      window.location.href = data.url
+    } catch (e) {
+      alert('Could not start camp checkout: ' + (e.message || e))
+    } finally {
+      setCampRegistering(null)
+    }
   }
 
   useEffect(() => {
@@ -687,6 +744,9 @@ export default function ParentPortal() {
 
   const openWaiver = (pack, billingType, stripeUrl, priceId, price) => {
     if (!selectedPlayer) return
+    // Camp-age kids (4–7) don't buy regular memberships — the buttons are
+    // disabled in the UI; this is the belt-and-suspenders guard.
+    if (inCampAge(selectedPlayer.age)) return
     setWaiverForm({ dob: '', phone: '', signedName: '', agreed: false })
     setWaiverData({ pack, billingType, billingLabel: BILLING_LABELS[billingType], stripeUrl, priceId, price })
   }
@@ -936,6 +996,7 @@ export default function ParentPortal() {
     sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     schedule: <SchedulePage bookings={bookings} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     billing:  <BillingPage players={players} />,
+    promos:   <PromosPage players={players} promo={activePromo} inCampAge={inCampAge} onRegister={handleCampRegister} onAddPlayer={() => setShowAddPlayer(true)} registering={campRegistering} />,
     events:   <EventsPage user={user} players={players} parentDisplayName={profile?.full_name || user?.fullName || ''} />,
   }
 
@@ -1090,8 +1151,41 @@ export default function ParentPortal() {
         </div>
       )}
 
+      {/* ── PROMO FLYER ANNOUNCEMENT (active paid promo, once per session per promo) ── */}
+      {showFlyer && activePromo?.event && (
+        <div onClick={dismissFlyer} style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.72)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}>
+          <div data-theme="dark" onClick={e => e.stopPropagation()} style={{ background:'var(--navy2)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:20, maxWidth:440, width:'100%', position:'relative', boxShadow:'0 24px 80px rgba(0,0,0,0.6)', overflow:'hidden' }}>
+            <button onClick={dismissFlyer} style={{ position:'absolute', top:14, right:14, zIndex:2, background:'rgba(0,0,0,0.45)', border:'none', borderRadius:8, width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#fff' }}>
+              <X size={16} />
+            </button>
+            {activePromo.event.flyer_url && (
+              <img src={activePromo.event.flyer_url} alt={activePromo.event.title}
+                style={{ display:'block', width:'100%', maxHeight:'52vh', objectFit:'cover' }} />
+            )}
+            <div style={{ padding:'20px 24px 24px' }}>
+              <div className="title-slant" style={{ fontSize:24, color:'var(--white)', lineHeight:1.1, marginBottom:6 }}>{activePromo.event.title}</div>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, color:'var(--accent)', marginBottom:10 }}>
+                {activePromo.event.event_date}{activePromo.event.event_time ? ` · ${activePromo.event.event_time}` : ''}
+                {activePromo.event.age_range ? ` · Ages ${activePromo.event.age_range}` : ''}
+              </div>
+              <div style={{ marginBottom:16 }}>
+                {activePromo.soldOut
+                  ? <span style={{ fontFamily:'var(--font-display)', fontWeight:900, letterSpacing:'0.1em', color:'#E05555' }}>SOLD OUT</span>
+                  : <span style={{ fontSize:13, color:'var(--text2)' }}>{activePromo.spotsRemaining} of {activePromo.event.capacity} spots left · ${(activePromo.event.price_cents/100).toFixed(0)}</span>}
+              </div>
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={() => { dismissFlyer(); setPage('promos') }} className="btn-primary" style={{ flex:1 }} disabled={activePromo.soldOut}>
+                  {activePromo.soldOut ? 'Sold Out' : 'Register →'}
+                </button>
+                <button onClick={dismissFlyer} className="btn-ghost" style={{ padding:'0 18px' }}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── EVENT ANNOUNCEMENT POPUP (soonest upcoming event, once per session) ── */}
-      {eventAnnounce && !showPromo && (
+      {eventAnnounce && !showPromo && !showFlyer && (
         <div onClick={dismissEventAnnounce} style={{ position:'fixed', inset:0, zIndex:9998, background:'rgba(13,27,42,0.55)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'var(--navy2)', border:'1px solid var(--border2)', borderRadius:20, padding:'32px 28px', maxWidth:420, width:'100%', position:'relative', boxShadow:'0 24px 80px rgba(13,27,42,0.25)' }}>
             <button onClick={dismissEventAnnounce} style={{ position:'absolute', top:14, right:14, background:'var(--accent-soft)', border:'none', borderRadius:8, width:30, height:30, cursor:'pointer', color:'var(--muted)', fontSize:16 }}>✕</button>
@@ -1216,7 +1310,17 @@ export default function ParentPortal() {
           </div>
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:14 }} className="stagger">
+        {inCampAge(selectedPlayer?.age) && (
+          <div style={{ marginBottom:16, padding:'12px 16px', borderRadius:10, background:'rgba(224,85,85,0.08)', border:'1px solid rgba(224,85,85,0.25)' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'#E05555', letterSpacing:'0.04em', marginBottom:4 }}>Too young for regular training</div>
+            <div style={{ fontSize:13, color:'var(--text2)', lineHeight:1.5 }}>
+              {selectedPlayer?.kid_name} is in the camp age range ({activePromo?.event?.age_range || '4–7'}). Regular memberships are for older players — check out the camp instead.
+            </div>
+            <button onClick={() => { setShowBuyPack(false); setPage('promos') }} className="btn-primary" style={{ marginTop:10 }}>View the camp →</button>
+          </div>
+        )}
+
+        <div className="stagger" style={{ display:'grid', gridTemplateColumns:'1fr', gap:14, ...(inCampAge(selectedPlayer?.age) ? { opacity:0.4, pointerEvents:'none', filter:'grayscale(0.6)' } : {}) }}>
           {PACKS.map(pack => {
             const p6  = (pack.price * 0.90).toFixed(0)
             const p12 = (pack.price * 0.85).toFixed(0)
@@ -2321,4 +2425,96 @@ const sidebarStyle = {
   position: 'fixed', top: 0, left: 0, bottom: 0,
   display: 'flex', flexDirection: 'column', zIndex: 100,
   boxShadow: '4px 0 32px rgba(0,0,0,0.5)',
+}
+
+// ── PROMOS PAGE — paid special events (e.g. Labor Day camp) with per-kid age gating ──
+function PromosPage({ players = [], promo, inCampAge, onRegister, onAddPlayer, registering }) {
+  const ev = promo?.event
+  if (!ev) {
+    return (
+      <div>
+        <div className="section-title">Promos</div>
+        <Card style={{ marginTop: 16 }}>
+          <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--muted)' }}>
+            No special events right now. Check back soon!
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  const soldOut       = promo.soldOut
+  const eligibleKids  = players.filter(p => inCampAge(p.age))
+  const price         = (ev.price_cents / 100).toFixed(0)
+
+  return (
+    <div>
+      <div className="section-title">Promos</div>
+
+      <Card style={{ marginTop: 16, overflow: 'hidden' }}>
+        {ev.flyer_url && (
+          <img src={ev.flyer_url} alt={ev.title}
+            style={{ display: 'block', width: '100%', maxHeight: 320, objectFit: 'cover' }} />
+        )}
+        <div style={{ padding: '20px 22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div className="title-slant" style={{ fontSize: 26, color: 'var(--text)', lineHeight: 1.1 }}>{ev.title}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: 'var(--accent)', marginTop: 4 }}>
+                {ev.event_date}{ev.event_time ? ` · ${ev.event_time}` : ''}{ev.age_range ? ` · Ages ${ev.age_range}` : ''}
+              </div>
+              {ev.description && <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6, marginTop: 8, maxWidth: 460 }}>{ev.description}</p>}
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontWeight: 900, fontSize: 34, color: 'var(--text)', lineHeight: 1 }}>${price}</div>
+              <div style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 2 }}>per player</div>
+              <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: soldOut ? '#E05555' : 'var(--green2)' }}>
+                {soldOut ? 'SOLD OUT' : `${promo.spotsRemaining} / ${ev.capacity} spots left`}
+              </div>
+            </div>
+          </div>
+
+          {/* Per-kid registration */}
+          <div style={{ marginTop: 20, borderTop: '1px solid var(--border2)', paddingTop: 16 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--muted)', fontFamily: 'var(--font-display)', fontStyle: 'italic', marginBottom: 10 }}>Register a player</div>
+
+            {players.length === 0 && (
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Add a player to register.</div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {players.map(kid => {
+                const eligible = inCampAge(kid.age)
+                const busy = registering === kid.kid_name
+                const disabled = !eligible || soldOut || busy
+                return (
+                  <div key={kid.kid_name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--navy3)' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: 'var(--text)' }}>{kid.kid_name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>Age {kid.age ?? '—'}</div>
+                    </div>
+                    <button
+                      onClick={() => { if (!disabled) onRegister(kid) }}
+                      disabled={disabled}
+                      className="btn-primary"
+                      style={{ minWidth: 150, ...(disabled ? { opacity: 0.4, pointerEvents: 'none', filter: 'grayscale(0.6)' } : {}) }}
+                    >
+                      {busy ? 'Redirecting…' : soldOut ? 'Sold Out' : eligible ? `Register — $${price}` : `Ages ${ev.age_range || '4–7'} only`}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* No camp-age kid → prompt to add one. */}
+            {eligibleKids.length === 0 && !soldOut && (
+              <button onClick={onAddPlayer} className="btn-ghost" style={{ marginTop: 14 }}>
+                + Add a player ({ev.age_range || '4–7'}) to register
+              </button>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
+  )
 }
