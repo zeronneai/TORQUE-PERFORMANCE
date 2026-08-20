@@ -176,6 +176,27 @@ export default async function handler(req, res) {
     // ── Initial checkout (one-time or first subscription payment) ──
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
+
+      // ── PROMO / EVENT PAYMENT — handled FIRST and returned, so an event payment
+      //    NEVER falls through into the membership (client_reference_id) logic below.
+      //    Keyed on metadata.type set by api/create-event-checkout.js.
+      if (session.metadata?.type === 'promo_event') {
+        const regId = session.metadata.registration_id;
+        _alertCtx = { sessionId: session.id, kidName: `promo:${regId}` };
+        const { error: pErr } = await supabase
+          .from('promo_registrations')
+          .update({
+            status:            'paid',
+            stripe_payment_id: session.payment_intent,
+            paid_at:           new Date().toISOString(),
+          })
+          .eq('id', regId)
+          .neq('status', 'paid');            // idempotent — duplicate webhooks are no-ops
+        if (pErr) { console.error('[webhook] promo_event mark-paid failed:', regId, pErr.message); throw pErr; }
+        console.log(`✅ Promo registration paid — ${regId} (session ${session.id})`);
+        return res.status(200).json({ received: true });
+      }
+
       const ref   = decodeURIComponent(session.client_reference_id || '');
       const parts = ref.split('__');
 
@@ -320,6 +341,31 @@ export default async function handler(req, res) {
 
       if (error) throw error;
       console.log(`✅ Renewal${existing ? '' : ' (fallback)'} — ${info.sessions} sessions reset, expires ${expiresAt} → ${record.kid_name}`);
+    }
+
+    // ── Promo checkout expired → release the held (pending) spot. ──
+    else if (event.type === 'checkout.session.expired') {
+      const session = event.data.object;
+      if (session.metadata?.type === 'promo_event') {
+        await supabase.from('promo_registrations')
+          .update({ status: 'expired' })
+          .eq('stripe_session_id', session.id)
+          .eq('status', 'pending');
+        console.log(`⌛ Promo reservation released (session expired) — ${session.id}`);
+      }
+    }
+
+    // ── Refund on a paid promo seat → free the spot (only touches promo_registrations). ──
+    else if (event.type === 'charge.refunded') {
+      const charge = event.data.object;
+      if (charge.refunded === true && charge.payment_intent) {
+        const { data: freed } = await supabase.from('promo_registrations')
+          .update({ status: 'refunded' })
+          .eq('stripe_payment_id', charge.payment_intent)
+          .eq('status', 'paid')
+          .select('id');
+        if (freed?.length) console.log(`↩️ Promo spot freed (refund) — ${freed.length} row(s), PI ${charge.payment_intent}`);
+      }
     }
 
   } catch (err) {
