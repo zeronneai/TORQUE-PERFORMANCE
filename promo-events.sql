@@ -140,17 +140,18 @@ drop policy if exists promo_reg_select on public.promo_registrations;
 create policy promo_reg_select on public.promo_registrations for select using (true);
 
 -- ============================================================
--- SEED (owner runs manually) — the first camp. Adjust as needed.
+-- SEED — the first camp. Safe to re-run (on conflict does nothing).
 -- ============================================================
--- insert into public.promo_events
---   (slug, title, description, flyer_url, price_cents, stripe_price_id,
---    event_date, event_time, age_range, min_age, max_age, capacity, one_time, active)
--- values
---   ('labor-day-camp-2026',
---    'Labor Day Baseball Camp',
---    'One-day beginner camp for ages 4–7. Monday Sept 7, 10am–12pm.',
---    'https://res.cloudinary.com/dsprn0ew4/image/upload/v1787264816/Creating_youth_baseball_camp_flyer_202608201625_iy6lkc.jpg',
---    5000,
---    'price_1U6eiWAPTWbxe0YyPWvCnaDk',
---    '2026-09-07', '10:00 AM – 12:00 PM',
---    '4–7', 4, 7, 40, true, true);
+insert into public.promo_events
+  (slug, title, description, flyer_url, price_cents, stripe_price_id,
+   event_date, event_time, age_range, min_age, max_age, capacity, one_time, active)
+values
+  ('labor-day-camp-2026',
+   'Labor Day Baseball Camp',
+   'One-day beginner camp for ages 4–7. Monday Sept 7, 10am–12pm.',
+   'https://res.cloudinary.com/dsprn0ew4/image/upload/v1787264816/Creating_youth_baseball_camp_flyer_202608201625_iy6lkc.jpg',
+   5000,
+   'price_1U6eiWAPTWbxe0YyPWvCnaDk',
+   '2026-09-07', '10:00 AM – 12:00 PM',
+   '4–7', 4, 7, 40, true, true)
+on conflict (slug) do nothing;
