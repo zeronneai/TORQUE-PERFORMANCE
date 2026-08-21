@@ -162,7 +162,7 @@ export default function Leads() {
             <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr>
-                  {['Date', 'Parent', 'Player', 'Preferred', 'Source', 'Status', 'Notes', ''].map(h => (
+                  {['Date', 'Parent', 'Player', 'Day & Time', 'Source', 'Status', 'Notes', ''].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text3)', fontFamily: 'var(--font-display)', fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '1px solid var(--border)', fontWeight: 700, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
