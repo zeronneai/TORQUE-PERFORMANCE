@@ -95,7 +95,7 @@ async function main() {
     for (const p of (profs || [])) emailById.set(p.id, p.email);
   }
 
-  const rescue = [], excluded = [], needsManual = [];
+  const rescue = [], excluded = [], needsManual = [], usedUpCurrent = [];
   const skip = { notActive: 0, alreadyOk: 0, noPeriod: 0, retrieveErr: 0 };
   const notActiveByStatus = {};
 
@@ -115,16 +115,36 @@ async function main() {
       continue;
     }
 
-    // 3) Blocked? sessions_total = 0 OR expires_at in the past.
-    const zero    = (m.sessions_total || 0) === 0;
-    const expired = m.expires_at && Date.parse(m.expires_at) < now;
-    if (!zero && !expired) { skip.alreadyOk++; continue; }   // 7) already correct → skip
-
-    // 4) Restore values from Stripe.
+    // Period info from Stripe — needed both for case (c) detection and for restore.
     const cpeMs = sub.current_period_end   ? sub.current_period_end   * 1000 : 0;
     const cpsMs = sub.current_period_start ? sub.current_period_start * 1000 : 0;
-    if (!cpeMs) { skip.noPeriod++; continue; }
 
+    // 3) Blocked? (a) sessions_total=0, (b) expired date, or
+    //    (c) 0 remaining AND in a NEW paid period the DB hasn't reflected.
+    const zero    = (m.sessions_total || 0) === 0;
+    const expired = !!(m.expires_at && Date.parse(m.expires_at) < now);
+    const usedUp  = (m.sessions_total || 0) > 0 && (m.sessions_used || 0) >= (m.sessions_total || 0);
+    // SAFEGUARD for (c): only if Stripe's current_period_start is AFTER the stored
+    // purchased_at → they renewed into a new cycle the app never reset. If not, they
+    // just spent their CURRENT period's sessions legitimately — NOT a bug.
+    const newPeriod = !!(cpsMs && m.purchased_at && cpsMs > Date.parse(m.purchased_at));
+    const caseC     = usedUp && newPeriod;
+
+    // Out of sessions within the CURRENT paid period (no new cycle) → normal usage. Don't rescue; list it.
+    if (usedUp && !newPeriod && !zero && !expired) {
+      usedUpCurrent.push({ ...m, email: emailById.get(m.parent_id) || '—',
+        cps: cpsMs ? dayOf(new Date(cpsMs).toISOString()) : '—' });
+      continue;
+    }
+
+    const cases = [];
+    if (zero)    cases.push('a:sessions=0');
+    if (expired) cases.push('b:expired');
+    if (caseC)   cases.push('c:new-period-used-up');
+    if (cases.length === 0) { skip.alreadyOk++; continue; }   // 7) already correct → skip
+
+    // 4) Restore values from Stripe.
+    if (!cpeMs) { skip.noPeriod++; continue; }
     const priceId  = sub.items?.data?.[0]?.price?.id;
     const sessions = PRICE_SESSIONS[priceId] ?? PACKAGE_SESSIONS[m.package_name] ?? null;
     if (!sessions) { needsManual.push({ ...m, reason: `unknown package (price ${priceId || '—'}, name '${m.package_name || '—'}')` }); continue; }
@@ -134,7 +154,7 @@ async function main() {
       newSessionsTotal: sessions,
       newExpires: new Date(cpeMs).toISOString(),
       newPurchased: cpsMs ? new Date(cpsMs).toISOString() : m.purchased_at,
-      reason: [zero ? 'sessions=0' : null, expired ? 'expired' : null].filter(Boolean).join(' + '),
+      cases: cases.join(' + '),
     });
   }
 
@@ -144,7 +164,7 @@ async function main() {
   console.log('='.repeat(112));
   for (const p of rescue) {
     console.log(
-      `• ${p.kid_name}  |  ${p.email}  |  ${p.package_name || '—'}  |  Stripe ${p.stripeStatus}  |  blocked: ${p.reason}\n` +
+      `• ${p.kid_name}  |  ${p.email}  |  ${p.package_name || '—'}  |  Stripe ${p.stripeStatus}  |  CASE ${p.cases}\n` +
       `    sub ${p.stripe_payment_id}  (price ${p.priceId || '—'})\n` +
       `    sessions:    ${p.sessions_used}/${p.sessions_total}  →  0/${p.newSessionsTotal}\n` +
       `    expires_at:  ${dayOf(p.expires_at)}  →  ${dayOf(p.newExpires)}\n` +
@@ -152,9 +172,14 @@ async function main() {
     );
   }
   console.log('='.repeat(112));
-  console.log(`To rescue: ${rescue.length}`);
+  const byCase = rescue.reduce((a, p) => { a[p.cases] = (a[p.cases] || 0) + 1; return a; }, {});
+  console.log(`To rescue: ${rescue.length}  ${JSON.stringify(byCase)}`);
   console.log(`Skipped — not active/trialing in Stripe: ${skip.notActive}  ${JSON.stringify(notActiveByStatus)}`);
   console.log(`Skipped — already correct (sessions + future date): ${skip.alreadyOk}`);
+  console.log(`NOT rescued — used-up-current-period (0 left, same paid cycle, normal usage): ${usedUpCurrent.length}`);
+  for (const u of usedUpCurrent) {
+    console.log(`  · ${u.kid_name}  |  ${u.email}  |  ${u.sessions_used}/${u.sessions_total}  |  expires ${dayOf(u.expires_at)}  |  Stripe period start ${u.cps}  |  purchased_at ${dayOf(u.purchased_at)}`);
+  }
   console.log(`Skipped — excluded (manual override): ${excluded.length}${excluded.length ? '  → ' + excluded.map(e => `${e.kid_name} (${e.stripe_payment_id})`).join(', ') : ''}`);
   if (skip.noPeriod)    console.log(`Skipped — active but no current_period_end: ${skip.noPeriod}`);
   if (skip.retrieveErr) console.log(`Skipped — Stripe retrieve error: ${skip.retrieveErr}`);
