@@ -40,6 +40,11 @@ if (!STRIPE_KEY || !SUPABASE_URL || !SUPABASE_KEY) {
 }
 const APPLY = process.argv.includes('--apply');
 
+// Case (c): a genuine NEW billing cycle advances the paid-through date by ~1 month.
+// Require Stripe's current_period_end to be at least this far beyond the stored
+// expires_at so a 1–2 day date skew within the SAME cycle never counts as a renewal.
+const NEW_CYCLE_MARGIN_MS = 20 * 86400000;   // 20 days
+
 const stripe   = new Stripe(STRIPE_KEY);
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const dayOf = (iso) => (iso || '').split('T')[0];
@@ -124,16 +129,18 @@ async function main() {
     const zero    = (m.sessions_total || 0) === 0;
     const expired = !!(m.expires_at && Date.parse(m.expires_at) < now);
     const usedUp  = (m.sessions_total || 0) > 0 && (m.sessions_used || 0) >= (m.sessions_total || 0);
-    // SAFEGUARD for (c): only if Stripe's current_period_start is AFTER the stored
-    // purchased_at → they renewed into a new cycle the app never reset. If not, they
-    // just spent their CURRENT period's sessions legitimately — NOT a bug.
-    const newPeriod = !!(cpsMs && m.purchased_at && cpsMs > Date.parse(m.purchased_at));
+    // SAFEGUARD for (c): a genuine NEW cycle means Stripe's paid-through date
+    // (current_period_end) is WELL beyond the app's recorded expires_at — a full
+    // renewal (~+1 month). Comparing period END vs stored expires_at with a margin
+    // is robust against the 1–2 day date skew that a period_start comparison tripped on.
+    const newPeriod = !!(cpeMs && m.expires_at && cpeMs > Date.parse(m.expires_at) + NEW_CYCLE_MARGIN_MS);
     const caseC     = usedUp && newPeriod;
 
     // Out of sessions within the CURRENT paid period (no new cycle) → normal usage. Don't rescue; list it.
     if (usedUp && !newPeriod && !zero && !expired) {
       usedUpCurrent.push({ ...m, email: emailById.get(m.parent_id) || '—',
-        cps: cpsMs ? dayOf(new Date(cpsMs).toISOString()) : '—' });
+        cps: cpsMs ? dayOf(new Date(cpsMs).toISOString()) : '—',
+        cpe: cpeMs ? dayOf(new Date(cpeMs).toISOString()) : '—' });
       continue;
     }
 
@@ -178,7 +185,7 @@ async function main() {
   console.log(`Skipped — already correct (sessions + future date): ${skip.alreadyOk}`);
   console.log(`NOT rescued — used-up-current-period (0 left, same paid cycle, normal usage): ${usedUpCurrent.length}`);
   for (const u of usedUpCurrent) {
-    console.log(`  · ${u.kid_name}  |  ${u.email}  |  ${u.sessions_used}/${u.sessions_total}  |  expires ${dayOf(u.expires_at)}  |  Stripe period start ${u.cps}  |  purchased_at ${dayOf(u.purchased_at)}`);
+    console.log(`  · ${u.kid_name}  |  ${u.email}  |  ${u.sessions_used}/${u.sessions_total}  |  Stripe period ${u.cps}→${u.cpe}  vs  stored expires ${dayOf(u.expires_at)} / purchased ${dayOf(u.purchased_at)}`);
   }
   console.log(`Skipped — excluded (manual override): ${excluded.length}${excluded.length ? '  → ' + excluded.map(e => `${e.kid_name} (${e.stripe_payment_id})`).join(', ') : ''}`);
   if (skip.noPeriod)    console.log(`Skipped — active but no current_period_end: ${skip.noPeriod}`);
