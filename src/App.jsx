@@ -17,6 +17,7 @@ import Families from './pages/admin/Families'
 import Leads from './pages/admin/Leads'
 import Promos from './pages/admin/Promos'
 import Contracts from './pages/admin/Contracts'
+import Cancellations from './pages/admin/Cancellations'
 import EntranceQR from './pages/admin/EntranceQR'
 import TorquePulse from './pages/admin/TorquePulse'
 import { Schedule, Payments, Events } from './pages/admin/AdminPages'
@@ -30,6 +31,7 @@ const ADMIN_PAGES = {
   leads:        Leads,
   promos:       Promos,
   contracts:    Contracts,
+  cancellations: Cancellations,
   pulse:        TorquePulse,
   schedule:     Schedule,
   payments:     Payments,

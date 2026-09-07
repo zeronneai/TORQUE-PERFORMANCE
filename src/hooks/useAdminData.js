@@ -105,6 +105,7 @@ export const STATUS = {
   active: '#06D6A0', paid: '#06D6A0',
   expiring: '#FFB703',
   expired: '#E63946', overdue: '#E63946', inactive: '#E63946',
+  canceled: '#8B5CF6',   // member-initiated cancellation (distinct from inactive/expired)
   info: '#118AB2',
 }
 
