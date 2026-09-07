@@ -38,41 +38,192 @@ const NAV_ITEMS = [
 const SHOW_SUMMER_PROMO = false
 
 // ── CONTRACT TEXT — single source used by BOTH the waiver modal and the re-sign gate ──
-// To swap in updated wording, edit CONTRACT_TERMS[variant] (one edit per variant) and/or
-// CommonClauses below, then bump CONTRACT_VERSION in src/lib/contract.js so everyone re-signs.
-const CONTRACT_TERMS = {
-  stand:  <p><b>TERM:</b> This Agreement is effective upon signing and continues on a month-to-month basis until terminated. Client must provide written notice at least 30 days in advance to cancel. One additional billing cycle will be charged after notice is received.</p>,
-  m6:     <p><b>TERM:</b> This Agreement is for a six (6) month commitment, billed monthly. Early cancellation requires written notice at least 30 days in advance AND payment of one (1) additional monthly billing cycle following notice. No refunds for services rendered or unused sessions.</p>,
-  m12:    <p><b>TERM:</b> This Agreement is for a twelve (12) month commitment, billed monthly. Early termination requires payment of the remaining balance OR a two (2) month cancellation fee, whichever is less. No refunds for services rendered or unused sessions.</p>,
-  annual: <p><b>TERM:</b> This Agreement is for a twelve (12) month term, paid in full at enrollment. All payments are NON-REFUNDABLE under any circumstances. No prorated refunds, credits, or partial reimbursements will be issued for any reason.</p>,
+// Numbering: §1–2 shared (ContractIntro), §3–5 per variant (CONTRACT_TERMS), §6–17 shared
+// (CommonClauses). (Paper-form §2 PARTICIPANT INFORMATION dropped — the app already has it.)
+// To update wording, edit the relevant block below, then bump CONTRACT_VERSION in
+// src/lib/contract.js so everyone must re-sign.
+const CONTRACT_TITLES = {
+  stand:  'Month-to-Month Agreement',
+  m6:     '6-Month Agreement',
+  m12:    '12-Month Agreement',
+  annual: '12-Month Paid-In-Full Agreement',
 }
 
-function CommonClauses() {
+// §3 TERM · §4 PAYMENT TERMS (incl. Chargeback Protection) · §5 CANCELLATION — vary per plan.
+const CONTRACT_TERMS = {
+  stand: (
+    <>
+      <p><b>3. TERM OF AGREEMENT</b></p>
+      <p>This Agreement is for a one (1) month term with no long-term commitment. Client is enrolled only for the month purchased.</p>
+      <p>This membership does NOT renew automatically. There is no recurring or automatic billing on this plan. At the end of each paid month, access ends unless Client chooses to purchase another month.</p>
+      <p>To continue training, Client must manually purchase a new month through the Torque app each time. Torque will not charge Client's payment method without Client initiating a new purchase.</p>
+      <p><b>4. PAYMENT TERMS</b></p>
+      <ul>
+        <li>All fees are due in advance, in full, at the time of each monthly purchase</li>
+        <li>No payment method is stored or charged automatically for this plan</li>
+        <li>Sessions must be used within the month purchased and do not roll over</li>
+        <li>Missed sessions are forfeited and non-refundable</li>
+        <li>Rescheduling requires a minimum of 12-hour notice</li>
+      </ul>
+      <p><b>Chargeback Protection:</b></p>
+      <p>Client agrees not to dispute or initiate chargebacks for valid charges. Any chargeback or payment dispute will result in immediate termination of services and Client agrees to reimburse Torque for all associated fees, including collection costs and legal expenses.</p>
+      <p><b>5. CANCELLATION POLICY</b></p>
+      <p>Because this plan has no commitment period and no automatic billing, no cancellation notice or cancellation fee is required.</p>
+      <p>Client simply does not purchase the following month. Access ends at the conclusion of the month already paid for.</p>
+      <ul>
+        <li>No refunds will be issued for services rendered or unused sessions</li>
+        <li>No prorated refunds or partial credits will be given</li>
+        <li>If Client chooses not to attend during a month already purchased, that month remains non-refundable</li>
+      </ul>
+    </>
+  ),
+  m6: (
+    <>
+      <p><b>3. TERM OF AGREEMENT</b></p>
+      <p>This Agreement is for a six (6) month commitment, billed monthly. Client agrees to remain enrolled for the full term unless canceled in accordance with this Agreement.</p>
+      <p>This membership does NOT renew automatically. At the end of the six (6) month term, billing stops and access ends. To continue training, Client must enroll again and sign a new agreement.</p>
+      <p><b>4. PAYMENT TERMS</b></p>
+      <ul>
+        <li>All fees are due in advance and billed monthly</li>
+        <li>Payments may be processed automatically using the payment method on file</li>
+        <li>Sessions must be used within the billing period and do not roll over</li>
+        <li>Missed sessions are forfeited and non-refundable</li>
+        <li>Rescheduling requires a minimum of 12-hour notice</li>
+      </ul>
+      <p><b>Chargeback Protection:</b></p>
+      <p>Client agrees not to dispute or initiate chargebacks for valid charges. Any chargeback or payment dispute will result in immediate termination of services and Client agrees to reimburse Torque for all associated fees, including collection costs and legal expenses.</p>
+      <p><b>5. CANCELLATION POLICY</b></p>
+      <p>Client understands this is a 6-month commitment agreement.</p>
+      <p>Early cancellation requires:</p>
+      <ul>
+        <li>Written notice at least 30 days in advance, AND</li>
+        <li>Payment of remaining months of contract following notice</li>
+      </ul>
+      <p>Cancellation becomes effective only after the final billing cycle has been completed.</p>
+      <ul>
+        <li>No refunds will be issued for services rendered or unused sessions</li>
+        <li>No prorated refunds or partial credits will be given</li>
+      </ul>
+      <p>Failure to follow cancellation procedures does not relieve Client of financial obligation.</p>
+    </>
+  ),
+  m12: (
+    <>
+      <p><b>3. TERM OF AGREEMENT</b></p>
+      <p>This Agreement is for a twelve (12) month commitment, billed monthly. Client agrees to remain enrolled for the full term.</p>
+      <p>This membership does NOT renew automatically. At the end of the twelve (12) month term, billing stops and access ends. To continue training, Client must enroll again and sign a new agreement.</p>
+      <p><b>4. PAYMENT TERMS</b></p>
+      <ul>
+        <li>All fees are due in advance and billed monthly</li>
+        <li>Payments may be processed automatically using the payment method on file</li>
+        <li>Sessions must be used within the billing period and do not roll over</li>
+        <li>Missed sessions are forfeited and non-refundable</li>
+        <li>Rescheduling requires a minimum of 12-hour notice</li>
+      </ul>
+      <p><b>Chargeback Protection:</b></p>
+      <p>Client agrees not to dispute or initiate chargebacks for valid charges. Any chargeback or payment dispute will result in immediate termination of services and Client agrees to reimburse Torque for all associated fees, including collection costs and legal expenses.</p>
+      <p><b>5. CANCELLATION POLICY</b></p>
+      <p>Client understands this is a 12-month commitment agreement.</p>
+      <p>Early termination requires payment of:</p>
+      <ul>
+        <li>The remaining balance of the Agreement, OR</li>
+        <li>A three (3) month cancellation fee, whichever is less</li>
+      </ul>
+      <p>No refunds will be issued for services rendered or unused sessions.</p>
+      <p>Failure to complete the term or follow cancellation terms does not relieve Client of financial obligation.</p>
+    </>
+  ),
+  annual: (
+    <>
+      <p><b>3. TERM OF AGREEMENT</b></p>
+      <p>This Agreement is for a twelve (12) month term, paid in full at the time of enrollment. Client agrees to remain enrolled for the full term.</p>
+      <p>This membership does NOT renew automatically. At the end of the twelve (12) month term, access ends and no further charges will be made. To continue training, Client must enroll again and sign a new agreement.</p>
+      <p><b>4. PAYMENT TERMS</b></p>
+      <ul>
+        <li>The full twelve (12) month fee is due in one payment at enrollment</li>
+        <li>This plan carries the largest available discount in exchange for full prepayment and the full-term commitment</li>
+        <li>Training sessions are made available monthly throughout the term</li>
+        <li>Sessions must be used within each month and do not roll over</li>
+        <li>Missed sessions are forfeited and non-refundable</li>
+        <li>Rescheduling requires a minimum of 12-hour notice</li>
+      </ul>
+      <p><b>Chargeback Protection:</b></p>
+      <p>Client agrees not to dispute or initiate chargebacks for valid charges. Any chargeback or payment dispute will result in immediate termination of services and Client agrees to reimburse Torque for all associated fees, including collection costs and legal expenses.</p>
+      <p><b>5. CANCELLATION POLICY</b></p>
+      <p>Client understands and agrees that this is a prepaid twelve (12) month agreement offered at the maximum available discount in exchange for payment in full and a full-term commitment.</p>
+      <p><b>THIS AGREEMENT IS NON-CANCELLABLE AND ALL PAYMENTS ARE NON-REFUNDABLE.</b></p>
+      <ul>
+        <li>Client may not cancel this Agreement prior to the end of the twelve (12) month term</li>
+        <li>No refunds will be issued under any circumstances, including for services rendered, unused sessions, or non-attendance</li>
+        <li>No prorated refunds, credits, partial reimbursements, or transfers to another term will be given</li>
+        <li>Membership access continues through the end of the paid term and then ends automatically</li>
+      </ul>
+      <p>Client acknowledges that the discounted rate for this plan is expressly conditioned on the non-refundable, non-cancellable nature of this Agreement.</p>
+    </>
+  ),
+}
+
+// §1–2 shared intro (before the per-variant sections).
+function ContractIntro() {
   return (
     <>
-      <p><b>PAYMENT:</b> All fees are due in advance. Sessions must be used within the billing period and do not roll over. Missed sessions are forfeited and non-refundable. Rescheduling requires a minimum of 12-hour notice.</p>
-      <p><b>CHARGEBACK PROTECTION:</b> Client agrees not to dispute or initiate chargebacks for valid charges. Any chargeback will result in immediate termination of services and Client agrees to reimburse Torque for all associated fees.</p>
-      <p><b>ASSUMPTION OF RISK:</b> Client acknowledges that participation involves inherent risks including being struck by baseballs, bats, or training equipment; use of pitching machines, weights, and training devices; physical exertion, collisions, and facility-related hazards. Client voluntarily assumes all risks, whether known or unknown.</p>
-      <p><b>RELEASE OF LIABILITY:</b> To the fullest extent permitted by Texas law, Client releases and holds harmless Torque Performance LLC, its owners, members, managers, employees, coaches, and affiliates from any and all claims arising from negligence related to participation or use of facilities.</p>
-      <p><b>INDEMNIFICATION:</b> Client agrees to indemnify and hold harmless Torque from any claims, damages, liabilities, or expenses (including attorney fees) arising out of participation or breach of this Agreement.</p>
-      <p><b>MINOR RESPONSIBILITY:</b> If the participant is a minor, the parent/guardian assumes full responsibility for the minor's participation, behavior, and any injuries or damages caused.</p>
-      <p><b>MEDICAL AUTHORIZATION:</b> Client certifies participant is physically capable of participation and authorizes emergency medical treatment if necessary. Client accepts full financial responsibility for all medical expenses. Torque does not provide medical insurance.</p>
-      <p><b>MEDIA RELEASE:</b> Client grants permission for Torque to use photographs and/or video for marketing and promotional purposes without compensation.</p>
-      <p><b>NON-TRANSFERABILITY:</b> Memberships are non-transferable and may not be shared or used by any other individual.</p>
-      <p><b>GOVERNING LAW:</b> This Agreement shall be governed by the laws of the State of Texas.</p>
+      <p><b>1. BUSINESS INFORMATION</b></p>
+      <p>Torque Performance LLC<br/>El Paso, Texas</p>
+      <p><b>2. SERVICES PROVIDED</b></p>
+      <p>Torque provides structured baseball development services including, but not limited to, baseball instruction, strength and conditioning, camps, clinics, and private and group training sessions based on the selected membership package.</p>
+      <p>Torque reserves the right to modify programming, scheduling, coaches, or training structure at its sole discretion.</p>
     </>
   )
 }
 
-// Full contract body for a given plan (title + opening + variant TERM + common clauses).
+// §6–17 shared clauses (identical across all variants).
+function CommonClauses() {
+  return (
+    <>
+      <p><b>6. NON-TRANSFERABILITY</b></p>
+      <p>Memberships are non-transferable and may not be shared or used by any other individual.</p>
+      <p><b>7. CODE OF CONDUCT & FACILITY RULES</b></p>
+      <p>All participants and spectators must:</p>
+      <ul>
+        <li>Follow all posted and verbal instructions</li>
+        <li>Use equipment only as directed and under supervision</li>
+        <li>Refrain from unsafe, reckless, or disruptive behavior</li>
+      </ul>
+      <p>Torque reserves the right to suspend or terminate participation without refund for violations of rules, misconduct, or behavior deemed unsafe or detrimental to the facility.</p>
+      <p><b>8. ASSUMPTION OF RISK</b></p>
+      <p>Client acknowledges that participation involves inherent risks including being struck by baseballs, bats, or training equipment; use of pitching machines, weights, and training devices; physical exertion, collisions, and facility-related hazards. Client voluntarily assumes all risks, whether known or unknown.</p>
+      <p><b>9. RELEASE OF LIABILITY</b></p>
+      <p>To the fullest extent permitted by Texas law, Client releases and holds harmless Torque Performance LLC, its owners, members, managers, employees, coaches, and affiliates from any and all claims arising from negligence related to participation or use of facilities.</p>
+      <p><b>10. INDEMNIFICATION</b></p>
+      <p>Client agrees to indemnify and hold harmless Torque from any claims, damages, liabilities, or expenses (including attorney fees) arising out of participation or breach of this Agreement.</p>
+      <p><b>11. MINOR RESPONSIBILITY</b></p>
+      <p>If the participant is a minor, the parent/guardian assumes full responsibility for the minor's participation, behavior, and any injuries or damages caused.</p>
+      <p><b>12. MEDICAL AUTHORIZATION</b></p>
+      <p>Client certifies participant is physically capable of participation and authorizes emergency medical treatment if necessary. Client accepts full financial responsibility for all medical expenses.</p>
+      <p><b>13. INSURANCE ACKNOWLEDGMENT</b></p>
+      <p>Client understands that Torque does not provide medical insurance and is solely responsible for maintaining personal health insurance coverage.</p>
+      <p><b>14. MEDIA RELEASE</b></p>
+      <p>Client grants permission for Torque to use photographs and/or video for marketing and promotional purposes without compensation.</p>
+      <p><b>15. FORCE MAJEURE</b></p>
+      <p>Torque shall not be liable for delays, interruptions, or inability to provide services due to events beyond its control, including but not limited to weather, facility issues, or emergencies.</p>
+      <p><b>16. GOVERNING LAW</b></p>
+      <p>This Agreement shall be governed by the laws of the State of Texas.</p>
+      <p><b>17. ACKNOWLEDGMENT</b></p>
+      <p>Client acknowledges that they have read, understood, and voluntarily agree to all terms of this Agreement.</p>
+    </>
+  )
+}
+
+// Full contract body for a plan: title + preamble + §1–2 + §3–5 (variant) + §6–17.
 function ContractText({ billingType }) {
   return (
     <>
       <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'var(--text)', marginBottom:12, textAlign:'center' }}>
         TORQUE PERFORMANCE LLC — TRAINING SERVICES CONTRACT<br/>
-        <span style={{ fontSize:11, fontWeight:400, color:'var(--muted)' }}>({PLAN_LABELS[billingType] || ''} Agreement)</span>
+        <span style={{ fontSize:11, fontWeight:400, color:'var(--muted)' }}>({CONTRACT_TITLES[billingType] || 'Training Agreement'})</span>
       </div>
       <p>This Training Services Contract ("Agreement") is entered into by and between Torque Performance LLC ("Torque") and the undersigned parent/guardian or adult participant ("Client").</p>
+      <ContractIntro />
       {CONTRACT_TERMS[billingType] || null}
       <CommonClauses />
     </>
