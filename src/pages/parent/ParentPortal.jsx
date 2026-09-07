@@ -4,6 +4,7 @@ import { Card, Avatar, Btn, Modal, ProgressBar, Label } from '../../components/U
 import { useUser, useClerk, useSession } from "@clerk/clerk-react"
 import { supabase, getAuthClient } from "../../supabaseClient"
 import { API_BASE } from '../../lib/apiBase'
+import { CONTRACT_VERSION, PLAN_LABELS } from '../../lib/contract'
 import QRCheckinModal from '../../components/QRCheckinModal'
 import ErrorBoundary from '../../components/ErrorBoundary'
 
@@ -35,6 +36,54 @@ const NAV_ITEMS = [
 // Master switch for the (ended) Summer MLB promo modal. Left in place so the
 // whole modal can be reactivated later by flipping this to true — do NOT delete.
 const SHOW_SUMMER_PROMO = false
+
+// ── CONTRACT TEXT — single source used by BOTH the waiver modal and the re-sign gate ──
+// To swap in updated wording, edit CONTRACT_TERMS[variant] (one edit per variant) and/or
+// CommonClauses below, then bump CONTRACT_VERSION in src/lib/contract.js so everyone re-signs.
+const CONTRACT_TERMS = {
+  stand:  <p><b>TERM:</b> This Agreement is effective upon signing and continues on a month-to-month basis until terminated. Client must provide written notice at least 30 days in advance to cancel. One additional billing cycle will be charged after notice is received.</p>,
+  m6:     <p><b>TERM:</b> This Agreement is for a six (6) month commitment, billed monthly. Early cancellation requires written notice at least 30 days in advance AND payment of one (1) additional monthly billing cycle following notice. No refunds for services rendered or unused sessions.</p>,
+  m12:    <p><b>TERM:</b> This Agreement is for a twelve (12) month commitment, billed monthly. Early termination requires payment of the remaining balance OR a two (2) month cancellation fee, whichever is less. No refunds for services rendered or unused sessions.</p>,
+  annual: <p><b>TERM:</b> This Agreement is for a twelve (12) month term, paid in full at enrollment. All payments are NON-REFUNDABLE under any circumstances. No prorated refunds, credits, or partial reimbursements will be issued for any reason.</p>,
+}
+
+function CommonClauses() {
+  return (
+    <>
+      <p><b>PAYMENT:</b> All fees are due in advance. Sessions must be used within the billing period and do not roll over. Missed sessions are forfeited and non-refundable. Rescheduling requires a minimum of 12-hour notice.</p>
+      <p><b>CHARGEBACK PROTECTION:</b> Client agrees not to dispute or initiate chargebacks for valid charges. Any chargeback will result in immediate termination of services and Client agrees to reimburse Torque for all associated fees.</p>
+      <p><b>ASSUMPTION OF RISK:</b> Client acknowledges that participation involves inherent risks including being struck by baseballs, bats, or training equipment; use of pitching machines, weights, and training devices; physical exertion, collisions, and facility-related hazards. Client voluntarily assumes all risks, whether known or unknown.</p>
+      <p><b>RELEASE OF LIABILITY:</b> To the fullest extent permitted by Texas law, Client releases and holds harmless Torque Performance LLC, its owners, members, managers, employees, coaches, and affiliates from any and all claims arising from negligence related to participation or use of facilities.</p>
+      <p><b>INDEMNIFICATION:</b> Client agrees to indemnify and hold harmless Torque from any claims, damages, liabilities, or expenses (including attorney fees) arising out of participation or breach of this Agreement.</p>
+      <p><b>MINOR RESPONSIBILITY:</b> If the participant is a minor, the parent/guardian assumes full responsibility for the minor's participation, behavior, and any injuries or damages caused.</p>
+      <p><b>MEDICAL AUTHORIZATION:</b> Client certifies participant is physically capable of participation and authorizes emergency medical treatment if necessary. Client accepts full financial responsibility for all medical expenses. Torque does not provide medical insurance.</p>
+      <p><b>MEDIA RELEASE:</b> Client grants permission for Torque to use photographs and/or video for marketing and promotional purposes without compensation.</p>
+      <p><b>NON-TRANSFERABILITY:</b> Memberships are non-transferable and may not be shared or used by any other individual.</p>
+      <p><b>GOVERNING LAW:</b> This Agreement shall be governed by the laws of the State of Texas.</p>
+    </>
+  )
+}
+
+// Full contract body for a given plan (title + opening + variant TERM + common clauses).
+function ContractText({ billingType }) {
+  return (
+    <>
+      <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'var(--text)', marginBottom:12, textAlign:'center' }}>
+        TORQUE PERFORMANCE LLC — TRAINING SERVICES CONTRACT<br/>
+        <span style={{ fontSize:11, fontWeight:400, color:'var(--muted)' }}>({PLAN_LABELS[billingType] || ''} Agreement)</span>
+      </div>
+      <p>This Training Services Contract ("Agreement") is entered into by and between Torque Performance LLC ("Torque") and the undersigned parent/guardian or adult participant ("Client").</p>
+      {CONTRACT_TERMS[billingType] || null}
+      <CommonClauses />
+    </>
+  )
+}
+
+// Neutral summary of what changed, shown at the top of the re-sign gate.
+const CONTRACT_CHANGE_SUMMARY = [
+  'What changed: your plan no longer auto-renews at the end of its term — when the term ends, you choose whether to continue.',
+  'Early cancellation terms are now spelled out for your specific plan (see the TERM section below), and cancellation/refund conditions have been clarified.',
+]
 
 const WEEKDAY_TIMES  = ['4:00 PM', '5:00 PM', '6:00 PM']
 const SATURDAY_TIMES = ['12:00 PM', '1:00 PM', '2:00 PM']
@@ -888,6 +937,68 @@ export default function ParentPortal() {
     setLoading(false)
   }
 
+  // ── CONTRACT RE-SIGN GATE ────────────────────────────────────────────────
+  // Every parent must sign the current contract version (CONTRACT_VERSION) for each
+  // of their classifiable kids before using the app. null = not checked yet.
+  const [resignQueue, setResignQueue]   = useState(null)
+  const [resignForm, setResignForm]     = useState({ signedName: '', agreed: false })
+  const [resignSaving, setResignSaving] = useState(false)
+
+  useEffect(() => {
+    if (!profile || !user) return
+    if (profile.contract_exempt) { setResignQueue([]); return }   // admin escape hatch
+    let cancelled = false
+    ;(async () => {
+      const [{ data: mems }, { data: wv }] = await Promise.all([
+        supabase.from('player_memberships').select('kid_name, package_name, billing_type').eq('parent_id', user.id).eq('status', 'active'),
+        supabase.from('waivers').select('kid_name, contract_version, agreed_at').eq('parent_id', user.id).order('agreed_at', { ascending: false }),
+      ])
+      const latest = new Map()
+      for (const w of (wv || [])) { const k = (w.kid_name || '').toLowerCase().trim(); if (!latest.has(k)) latest.set(k, w.contract_version) }
+      const queue = []; const seen = new Set(); let unclassified = 0
+      for (const m of (mems || [])) {
+        const k = (m.kid_name || '').toLowerCase().trim()
+        if (seen.has(k)) continue; seen.add(k)
+        if (!m.billing_type) { unclassified++; continue }   // exempt-until-classified — never guess a variant
+        if (latest.get(k) !== CONTRACT_VERSION) queue.push({ kid_name: m.kid_name, billing_type: m.billing_type, package_name: m.package_name })
+      }
+      if (unclassified) console.log(`[Torque] re-sign: skipped ${unclassified} kid(s) with unclassified plan (no billing_type)`)
+      if (!cancelled) setResignQueue(queue)
+    })().catch(e => {
+      // Fail-open: never hard-lock the whole app on a transient check error; re-prompted next load.
+      console.error('[Torque] re-sign check failed:', e)
+      if (!cancelled) setResignQueue([])
+    })
+    return () => { cancelled = true }
+  }, [profile, user])
+
+  async function handleReSignSubmit() {
+    const item = resignQueue?.[0]
+    if (!item || !resignForm.signedName.trim() || !resignForm.agreed) return
+    setResignSaving(true)
+    try {
+      const sb = await getAuthClient(session)
+      const { error } = await sb.from('waivers').insert({
+        parent_id:        user.id,
+        kid_name:         item.kid_name,
+        parent_name:      profile?.full_name || user.fullName || '',
+        email:            user.primaryEmailAddress?.emailAddress,
+        package_name:     item.package_name,
+        billing_type:     item.billing_type,
+        signed_name:      resignForm.signedName.trim(),
+        contract_version: CONTRACT_VERSION,
+        agreed_at:        new Date().toISOString(),
+      })
+      if (error) throw error
+      setResignForm({ signedName: '', agreed: false })
+      setResignQueue(q => q.slice(1))   // advance to next kid; empty queue → app unlocks
+    } catch (e) {
+      alert('Could not save your signature: ' + (e.message || e))
+    } finally {
+      setResignSaving(false)
+    }
+  }
+
   // ── LOADING ──
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--navy)', flexDirection:'column', gap:20 }}>
@@ -991,6 +1102,68 @@ export default function ParentPortal() {
       </div>
     </div>
   )
+
+  // Wait for the re-sign check before rendering anything (prevents a flash of the portal).
+  if (resignQueue === null) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'var(--navy)' }}>
+      <style>{GLOBAL_CSS}</style>
+      <div className="title-slant" style={{ fontSize:'clamp(36px, 10vw, 56px)', letterSpacing:'0.05em', color:'var(--white)' }}>TORQUE</div>
+    </div>
+  )
+
+  // ── CONTRACT RE-SIGN GATE — full-screen, NON-DISMISSABLE ──
+  // Returned in place of the app: no X, no overlay-click close, no Esc handler, and no
+  // portal rendered underneath. The only ways out are signing or signing out (which does
+  // NOT grant access). One kid at a time; the queue shifts as each is signed.
+  if (resignQueue.length > 0) {
+    const item = resignQueue[0]
+    const remaining = resignQueue.length
+    return (
+      <div style={{ minHeight:'100vh', background:'var(--navy)', display:'flex', alignItems:'flex-start', justifyContent:'center', padding:'24px 16px', overflowY:'auto' }}>
+        <style>{GLOBAL_CSS}</style>
+        <div data-theme="dark" style={{ width:'100%', maxWidth:560, background:'var(--navy2)', border:'1px solid var(--border2)', borderRadius:16, padding:'clamp(20px,5vw,32px)', margin:'auto' }}>
+          <div className="title-slant" style={{ fontSize:26, color:'var(--white)', lineHeight:1.1, marginBottom:4 }}>Updated Training Agreement</div>
+          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:16 }}>
+            Signing for <b style={{ color:'var(--text)' }}>{item.kid_name}</b> · {PLAN_LABELS[item.billing_type] || ''}
+            {remaining > 1 ? `  ·  ${remaining} agreements remaining (one per player)` : ''}
+          </div>
+
+          {/* (a) Why */}
+          <p style={{ fontSize:13, color:'var(--text2)', lineHeight:1.6, marginBottom:12 }}>
+            We're updating our training agreements so we can keep investing in the facility, equipment, and coaching staff. This requires our plans to be more predictable, so we've updated our commitment and cancellation terms.
+          </p>
+          {/* (b) What changed */}
+          <div style={{ background:'rgba(79,168,255,0.08)', border:'1px solid rgba(79,168,255,0.25)', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
+            {CONTRACT_CHANGE_SUMMARY.map((line, i) => (
+              <p key={i} style={{ fontSize:12.5, color:'var(--text2)', lineHeight:1.55, margin: i ? '8px 0 0' : 0 }}>{line}</p>
+            ))}
+          </div>
+
+          {/* (c) Full contract for THEIR plan (scrollable) */}
+          <div style={{ maxHeight:300, overflowY:'auto', padding:'16px', background:'rgba(0,0,0,0.3)', borderRadius:8, border:'1px solid var(--border)', fontSize:11.5, lineHeight:1.7, color:'var(--text2)', marginBottom:18 }}>
+            <ContractText billingType={item.billing_type} />
+          </div>
+
+          {/* (d) Sign */}
+          <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.08em' }}>Electronic Signature — Type your full name</label>
+          <input value={resignForm.signedName} onChange={e => setResignForm(f => ({ ...f, signedName: e.target.value }))}
+            placeholder="Full legal name" style={{ width:'100%', margin:0, fontFamily:'cursive', fontSize:16, marginBottom:14 }} />
+          <label style={{ display:'flex', alignItems:'flex-start', gap:10, cursor:'pointer', marginBottom:18, fontSize:12, color:'var(--text2)', lineHeight:1.5 }}>
+            <input type="checkbox" checked={resignForm.agreed} onChange={e => setResignForm(f => ({ ...f, agreed: e.target.checked }))}
+              style={{ marginTop:2, flexShrink:0, width:16, height:16 }} />
+            I have read and fully understand this Agreement and Waiver. I voluntarily agree to all terms and acknowledge I am giving up substantial legal rights by signing.
+          </label>
+          <button onClick={handleReSignSubmit} disabled={resignSaving || !resignForm.signedName.trim() || !resignForm.agreed}
+            style={{ width:'100%', padding:'14px', background:(!resignForm.signedName.trim() || !resignForm.agreed) ? 'rgba(255,255,255,0.1)' : '#4fa8ff', border:'none', borderRadius:10, color:'var(--text)', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:16, letterSpacing:'0.05em', cursor:(!resignForm.signedName.trim() || !resignForm.agreed) ? 'not-allowed' : 'pointer' }}>
+            {resignSaving ? 'Saving…' : (remaining > 1 ? '✦ Sign & Continue' : '✦ Sign & Enter')}
+          </button>
+          <button onClick={() => signOut()} style={{ width:'100%', padding:'10px 0', marginTop:10, background:'transparent', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.35)', fontSize:12, fontFamily:'var(--font-body)' }}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const PAGE_MAP = {
     home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} onEditSave={handleEditPlayerName} parentId={user?.id} checkinStats={checkinStats} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} />,
@@ -1387,38 +1560,9 @@ export default function ParentPortal() {
               <div><span style={{ color:'var(--muted)' }}>Date: </span><span style={{ fontWeight:600 }}>{new Date().toLocaleDateString('en-US')}</span></div>
             </div>
 
-            {/* Contract text scroll box */}
+            {/* Contract text scroll box — single source (ContractText) */}
             <div style={{ maxHeight:280, overflowY:'auto', padding:'16px', background:'rgba(0,0,0,0.3)', borderRadius:8, border:'1px solid var(--border)', fontSize:11.5, lineHeight:1.7, color:'var(--text2)', marginBottom:20 }}>
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'var(--text)', marginBottom:12, textAlign:'center' }}>
-                TORQUE PERFORMANCE LLC — TRAINING SERVICES CONTRACT<br/>
-                <span style={{ fontSize:11, fontWeight:400, color:'var(--muted)' }}>({waiverData.billingLabel} Agreement)</span>
-              </div>
-
-              <p>This Training Services Contract ("Agreement") is entered into by and between Torque Performance LLC ("Torque") and the undersigned parent/guardian or adult participant ("Client").</p>
-
-              {waiverData.billingType === 'stand' && (
-                <p><b>TERM:</b> This Agreement is effective upon signing and continues on a month-to-month basis until terminated. Client must provide written notice at least 30 days in advance to cancel. One additional billing cycle will be charged after notice is received.</p>
-              )}
-              {waiverData.billingType === 'm6' && (
-                <p><b>TERM:</b> This Agreement is for a six (6) month commitment, billed monthly. Early cancellation requires written notice at least 30 days in advance AND payment of one (1) additional monthly billing cycle following notice. No refunds for services rendered or unused sessions.</p>
-              )}
-              {waiverData.billingType === 'm12' && (
-                <p><b>TERM:</b> This Agreement is for a twelve (12) month commitment, billed monthly. Early termination requires payment of the remaining balance OR a two (2) month cancellation fee, whichever is less. No refunds for services rendered or unused sessions.</p>
-              )}
-              {waiverData.billingType === 'annual' && (
-                <p><b>TERM:</b> This Agreement is for a twelve (12) month term, paid in full at enrollment. All payments are NON-REFUNDABLE under any circumstances. No prorated refunds, credits, or partial reimbursements will be issued for any reason.</p>
-              )}
-
-              <p><b>PAYMENT:</b> All fees are due in advance. Sessions must be used within the billing period and do not roll over. Missed sessions are forfeited and non-refundable. Rescheduling requires a minimum of 12-hour notice.</p>
-              <p><b>CHARGEBACK PROTECTION:</b> Client agrees not to dispute or initiate chargebacks for valid charges. Any chargeback will result in immediate termination of services and Client agrees to reimburse Torque for all associated fees.</p>
-              <p><b>ASSUMPTION OF RISK:</b> Client acknowledges that participation involves inherent risks including being struck by baseballs, bats, or training equipment; use of pitching machines, weights, and training devices; physical exertion, collisions, and facility-related hazards. Client voluntarily assumes all risks, whether known or unknown.</p>
-              <p><b>RELEASE OF LIABILITY:</b> To the fullest extent permitted by Texas law, Client releases and holds harmless Torque Performance LLC, its owners, members, managers, employees, coaches, and affiliates from any and all claims arising from negligence related to participation or use of facilities.</p>
-              <p><b>INDEMNIFICATION:</b> Client agrees to indemnify and hold harmless Torque from any claims, damages, liabilities, or expenses (including attorney fees) arising out of participation or breach of this Agreement.</p>
-              <p><b>MINOR RESPONSIBILITY:</b> If the participant is a minor, the parent/guardian assumes full responsibility for the minor's participation, behavior, and any injuries or damages caused.</p>
-              <p><b>MEDICAL AUTHORIZATION:</b> Client certifies participant is physically capable of participation and authorizes emergency medical treatment if necessary. Client accepts full financial responsibility for all medical expenses. Torque does not provide medical insurance.</p>
-              <p><b>MEDIA RELEASE:</b> Client grants permission for Torque to use photographs and/or video for marketing and promotional purposes without compensation.</p>
-              <p><b>NON-TRANSFERABILITY:</b> Memberships are non-transferable and may not be shared or used by any other individual.</p>
-              <p><b>GOVERNING LAW:</b> This Agreement shall be governed by the laws of the State of Texas.</p>
+              <ContractText billingType={waiverData.billingType} />
             </div>
 
             {/* Fields the parent fills in */}
