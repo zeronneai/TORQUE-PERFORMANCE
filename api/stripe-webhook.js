@@ -206,6 +206,58 @@ export default async function handler(req, res) {
         return res.status(200).json({ received: true });
       }
 
+      // ── CANCELLATION FEE PAID — handled FIRST and returned, isolated from membership/promo
+      //    logic. The subscription is cancelled ONLY here, AFTER the fee payment succeeded.
+      if (session.metadata?.type === 'cancellation') {
+        const md = session.metadata;
+        _alertCtx = { sessionId: session.id, kidName: `cancel:${md.kid_name || md.membership_id}` };
+
+        // Idempotency: cancel_effective_at is our "already processed" marker.
+        const { data: mrow } = await supabase.from('player_memberships')
+          .select('id, cancel_effective_at').eq('id', md.membership_id).maybeSingle();
+        if (!mrow) { console.error('[webhook] cancellation — membership not found', md.membership_id); return res.status(200).json({ received: true }); }
+        if (mrow.cancel_effective_at) { console.log('[webhook] cancellation already processed —', md.membership_id); return res.status(200).json({ received: true }); }
+
+        const feeCents = md.fee_cents ? parseInt(md.fee_cents, 10) : 0;
+        let effectiveIso = null;
+        try {
+          if (md.cancel_mode === 'immediate') {                       // m6 buyout → cancel now
+            await stripe.subscriptions.cancel(md.subscription_id);
+            effectiveIso = new Date().toISOString();
+          } else {                                                     // m12 → cancel at period end
+            const upd = await stripe.subscriptions.update(md.subscription_id, { cancel_at_period_end: true });
+            effectiveIso = upd.current_period_end ? new Date(upd.current_period_end * 1000).toISOString() : null;
+          }
+        } catch (cancelErr) {
+          const msg = cancelErr.message || '';
+          if (!/no such subscription|resource_missing|already.*cancel/i.test(msg)) {
+            // PAID but cancel failed → record the payment, alert the owner, do NOT mark
+            // effective (so Stripe's retry re-attempts the cancel). Never silent.
+            await supabase.from('player_memberships').update({
+              cancel_requested_at:     new Date().toISOString(),
+              cancel_fee_cents:        feeCents,
+              cancel_contract_version: md.contract_version || null,
+            }).eq('id', md.membership_id);
+            await sendAlert({
+              subject:  `⚠️ Torque cancellation — PAID but sub cancel FAILED (${md.kid_name || md.membership_id})`,
+              kidName:  md.kid_name, sessionId: session.id,
+              errorMsg: `Parent PAID the cancellation fee ($${(feeCents/100).toFixed(2)}) but cancelling subscription ${md.subscription_id} failed: ${msg}. Cancel it manually in Stripe.`,
+            }).catch(() => {});
+            throw cancelErr;   // 500 → Stripe retries this webhook
+          }
+          effectiveIso = new Date().toISOString();   // already gone → treat as cancelled now
+        }
+
+        await supabase.from('player_memberships').update({
+          cancel_requested_at:     new Date().toISOString(),
+          cancel_effective_at:     effectiveIso,
+          cancel_fee_cents:        feeCents,
+          cancel_contract_version: md.contract_version || null,
+        }).eq('id', md.membership_id);
+        console.log(`✅ Cancellation paid + scheduled (${md.cancel_mode}) — ${md.kid_name || md.membership_id}, effective ${effectiveIso}`);
+        return res.status(200).json({ received: true });
+      }
+
       const ref   = decodeURIComponent(session.client_reference_id || '');
       const parts = ref.split('__');
 
@@ -393,6 +445,30 @@ export default async function handler(req, res) {
           .eq('status', 'paid')
           .select('id');
         if (freed?.length) console.log(`↩️ Promo spot freed (refund) — ${freed.length} row(s), PI ${charge.payment_intent}`);
+      }
+    }
+
+    // ── Subscription actually ended → finalize the membership as 'canceled'. ──
+    // Fires for OUR cancellations (m6 immediate now; m12 at period end) AND for ANY
+    // subscription deletion done outside the app (Stripe dashboard/portal, failed-payment
+    // dunning). This is the safety net that stops canceled subs from lingering as ghosts.
+    else if (event.type === 'customer.subscription.deleted') {
+      const sub = event.data.object;
+      const nowIso = new Date().toISOString();
+      const { data: rows, error: delErr } = await supabase.from('player_memberships')
+        .update({ status: 'canceled', canceled_at: nowIso })
+        .eq('stripe_payment_id', sub.id)
+        .neq('status', 'canceled')                 // idempotent — re-delivery is a no-op
+        .select('id, cancel_effective_at');
+      if (delErr) { console.error('[webhook] subscription.deleted update failed:', sub.id, delErr.message); }
+      else if (rows?.length) {
+        // Externally-cancelled rows have no cancel_effective_at — backfill it to now.
+        for (const r of rows) {
+          if (!r.cancel_effective_at) await supabase.from('player_memberships').update({ cancel_effective_at: nowIso }).eq('id', r.id);
+        }
+        console.log(`✅ Subscription deleted — ${rows.length} membership(s) → canceled (sub ${sub.id})`);
+      } else {
+        console.log(`[webhook] subscription.deleted — no matching active membership for sub ${sub.id}`);
       }
     }
 

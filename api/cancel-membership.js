@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { computeCancellationQuote } from './_cancellation.js';
+import { getVerifiedUserId } from './_auth.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -22,15 +23,13 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const b = req.body || {};
-    const parentId = (b.parentId || '').trim();
-    const kidName = (b.kidName || '').trim();
-    const membershipId = (b.membershipId || '').trim();
-    if (!membershipId && (!parentId || !kidName)) {
-      return res.status(400).json({ error: 'Missing membershipId or (parentId + kidName).' });
-    }
+    // parentId comes from the verified token, NOT the body.
+    const parentId = await getVerifiedUserId(req);
+    if (!parentId) return res.status(401).json({ error: 'unauthorized' });
+    const kidName = ((req.body || {}).kidName || '').trim();
+    if (!kidName) return res.status(400).json({ error: 'Missing kidName.' });
 
-    const quote = await computeCancellationQuote({ stripe, supabase, parentId, kidName, membershipId });
+    const quote = await computeCancellationQuote({ stripe, supabase, parentId, kidName });
     if (!quote.ok && quote.error) return res.status(500).json({ error: quote.error });
 
     if (quote.decision === 'fee')     return res.status(409).json({ error: 'fee_required', reason: 'use create-cancellation-checkout' });
