@@ -23,31 +23,34 @@ async function getRawBody(readable) {
 //     annual (one-time lump sum)         → 12
 // NOTE: billing type is encoded by the priceId itself (each billing type has its own price ID),
 // so we no longer infer expiry from session.mode — see checkout.session.completed handler.
+// billing_type/term_months added so every membership can record its plan at write
+// time (see checkout.session.completed, invoice.payment_succeeded, verify-payment).
+//   stand  → month-to-month, term_months null   m6 → 6   m12 → 12   annual → 12 (prepaid)
 const PRICE_INFO = {
   // PACKAGE A (live)
-  'price_1Tk92RAPTWbxe0YyE8zgXLet': { sessions: 4,  name: 'Package A',   months: 1  }, // stand (one-time)
-  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Package A',   months: 1  }, // stand — legacy recurring — kept for existing subs
-  'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Package A',   months: 1  }, // m6
-  'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Package A',   months: 1  }, // m12
-  'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Package A',   months: 12 }, // annual
+  'price_1Tk92RAPTWbxe0YyE8zgXLet': { sessions: 4,  name: 'Package A',   months: 1,  billing_type: 'stand',  term_months: null }, // stand (one-time)
+  'price_1TLqDdAPTWbxe0YytEOlF7ZH': { sessions: 4,  name: 'Package A',   months: 1,  billing_type: 'stand',  term_months: null }, // stand — legacy recurring — kept for existing subs
+  'price_1TLqDmAPTWbxe0YyqbHEcuFr': { sessions: 4,  name: 'Package A',   months: 1,  billing_type: 'm6',     term_months: 6    }, // m6
+  'price_1TLqDmAPTWbxe0YysigUumPn': { sessions: 4,  name: 'Package A',   months: 1,  billing_type: 'm12',    term_months: 12   }, // m12
+  'price_1TLqDlAPTWbxe0YyljY5WD6Y': { sessions: 4,  name: 'Package A',   months: 12, billing_type: 'annual', term_months: 12   }, // annual
   // PACKAGE AA (live)
-  'price_1Tk92RAPTWbxe0Yy4zaPZkvx': { sessions: 8,  name: 'Package AA',  months: 1  }, // stand (one-time)
-  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Package AA',  months: 1  }, // stand — legacy recurring — kept for existing subs
-  'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Package AA',  months: 1  }, // m6
-  'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Package AA',  months: 1  }, // m12
-  'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Package AA',  months: 12 }, // annual
+  'price_1Tk92RAPTWbxe0Yy4zaPZkvx': { sessions: 8,  name: 'Package AA',  months: 1,  billing_type: 'stand',  term_months: null }, // stand (one-time)
+  'price_1TLqDgAPTWbxe0Yy7yaP3VX3': { sessions: 8,  name: 'Package AA',  months: 1,  billing_type: 'stand',  term_months: null }, // stand — legacy recurring — kept for existing subs
+  'price_1TLqDkAPTWbxe0YyZu4hFrI3': { sessions: 8,  name: 'Package AA',  months: 1,  billing_type: 'm6',     term_months: 6    }, // m6
+  'price_1TLqDjAPTWbxe0YyTsqaUdt5': { sessions: 8,  name: 'Package AA',  months: 1,  billing_type: 'm12',    term_months: 12   }, // m12
+  'price_1TLqDkAPTWbxe0YykcsrB50f': { sessions: 8,  name: 'Package AA',  months: 12, billing_type: 'annual', term_months: 12   }, // annual
   // PACKAGE AAA (live)
-  'price_1Tk92RAPTWbxe0YyM8hl6j9s': { sessions: 12, name: 'Package AAA', months: 1  }, // stand (one-time)
-  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Package AAA', months: 1  }, // stand — legacy recurring — kept for existing subs
-  'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Package AAA', months: 1  }, // m6
-  'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Package AAA', months: 1  }, // m12
-  'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Package AAA', months: 12 }, // annual
+  'price_1Tk92RAPTWbxe0YyM8hl6j9s': { sessions: 12, name: 'Package AAA', months: 1,  billing_type: 'stand',  term_months: null }, // stand (one-time)
+  'price_1TLqDhAPTWbxe0YyXXJQZrh7': { sessions: 12, name: 'Package AAA', months: 1,  billing_type: 'stand',  term_months: null }, // stand — legacy recurring — kept for existing subs
+  'price_1TLqDkAPTWbxe0YydXEB3YqT': { sessions: 12, name: 'Package AAA', months: 1,  billing_type: 'm6',     term_months: 6    }, // m6
+  'price_1TLqDjAPTWbxe0YyuyUujCu4': { sessions: 12, name: 'Package AAA', months: 1,  billing_type: 'm12',    term_months: 12   }, // m12
+  'price_1TLqDkAPTWbxe0Yy8UHtMvEJ': { sessions: 12, name: 'Package AAA', months: 12, billing_type: 'annual', term_months: 12   }, // annual
   // PACKAGE MLB (live)
-  'price_1Tk92SAPTWbxe0YyRaxsup9N': { sessions: 20, name: 'Package MLB', months: 1  }, // stand (one-time)
-  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Package MLB', months: 1  }, // stand — legacy recurring — kept for existing subs
-  'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Package MLB', months: 1  }, // m6
-  'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Package MLB', months: 1  }, // m12
-  'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Package MLB', months: 12 }, // annual
+  'price_1Tk92SAPTWbxe0YyRaxsup9N': { sessions: 20, name: 'Package MLB', months: 1,  billing_type: 'stand',  term_months: null }, // stand (one-time)
+  'price_1TLqDdAPTWbxe0YydO64XMLw': { sessions: 20, name: 'Package MLB', months: 1,  billing_type: 'stand',  term_months: null }, // stand — legacy recurring — kept for existing subs
+  'price_1TLqDlAPTWbxe0YyEIZi7YR5': { sessions: 20, name: 'Package MLB', months: 1,  billing_type: 'm6',     term_months: 6    }, // m6
+  'price_1TLqDjAPTWbxe0YyVQxRaHFs': { sessions: 20, name: 'Package MLB', months: 1,  billing_type: 'm12',    term_months: 12   }, // m12
+  'price_1TLqDjAPTWbxe0Yy6fRLwlFM': { sessions: 20, name: 'Package MLB', months: 12, billing_type: 'annual', term_months: 12   }, // annual
 };
 
 function addMonths(unixTs, months) {
@@ -143,6 +146,12 @@ async function upsertMembership({ parentId, kidName, priceId, ts, stripeSessionI
     status:            'active',
     purchased_at:      purchasedAt,
     expires_at:        expiresAt,
+    // ── Plan/term fields (first checkout = commitment start) ──
+    stripe_price_id:   priceId,
+    billing_type:      info.billing_type,
+    term_months:       info.term_months,
+    term_start:        info.term_months ? purchasedAt : null,
+    term_end:          info.term_months ? addMonths(ts, info.term_months) : null,
   };
 
   if (existing) {
@@ -263,11 +272,13 @@ export default async function handler(req, res) {
       // shape changes when the account's webhook API version bumps. Only fall back
       // to the invoice line-item price if the retrieve fails.
       let priceId = null;
-      let periodEndTs = null;   // Unix seconds — the actual paid-through date
+      let periodEndTs = null;    // Unix seconds — the actual paid-through date
+      let subCreatedTs = null;   // Unix seconds — commitment start (for term_start backfill only)
       try {
         const sub = await stripe.subscriptions.retrieve(subId);
-        priceId     = sub.items?.data?.[0]?.price?.id ?? null;
-        periodEndTs = sub.current_period_end ?? null;
+        priceId      = sub.items?.data?.[0]?.price?.id ?? null;
+        periodEndTs  = sub.current_period_end ?? null;
+        subCreatedTs = sub.created ?? null;
       } catch (e) {
         console.error('[webhook] subscription retrieve failed:', subId, e.message);
       }
@@ -276,7 +287,7 @@ export default async function handler(req, res) {
 
       const { data: existing } = await supabase
         .from('player_memberships')
-        .select('id, kid_name')
+        .select('id, kid_name, term_start')
         .eq('stripe_payment_id', subId)
         .maybeSingle();
 
@@ -293,7 +304,7 @@ export default async function handler(req, res) {
               const [parentId, kidName] = parts;
               const { data: byName } = await supabase
                 .from('player_memberships')
-                .select('id, kid_name')
+                .select('id, kid_name, term_start')
                 .eq('parent_id', parentId)
                 .ilike('kid_name', kidName)
                 .maybeSingle();
@@ -330,6 +341,22 @@ export default async function handler(req, res) {
         ? new Date(periodEndTs * 1000).toISOString()
         : addMonths(invoice.created, 1);
 
+      // ── Plan fields on renewal ──
+      // price/billing_type/term_months don't change between cycles → safe to refresh each time.
+      // term_start is FIXED at the commitment start and must NEVER be overwritten on a renewal.
+      // Only fill term_start/term_end when the row has none yet (rows that existed before this
+      // change), deriving the commitment start from the subscription's created date. If the row
+      // already has a term_start, both fields are omitted here and left exactly as they are.
+      const planUpdate = {
+        stripe_price_id: priceId,
+        billing_type:    info.billing_type,
+        term_months:     info.term_months,
+      };
+      if (!record.term_start && info.term_months && subCreatedTs) {
+        planUpdate.term_start = new Date(subCreatedTs * 1000).toISOString();
+        planUpdate.term_end   = addMonths(subCreatedTs, info.term_months);
+      }
+
       const { error } = await supabase.from('player_memberships').update({
         sessions_total:    info.sessions,
         sessions_used:     0,
@@ -337,6 +364,7 @@ export default async function handler(req, res) {
         stripe_payment_id: subId,
         purchased_at:      new Date(invoice.created * 1000).toISOString(),
         expires_at:        expiresAt,
+        ...planUpdate,
       }).eq('id', record.id);
 
       if (error) throw error;

@@ -111,6 +111,12 @@ export default async function handler(req, res) {
     status:            'active',
     purchased_at:      purchasedAt,
     expires_at:        expiresAt,
+    // ── Plan/term fields (first checkout = commitment start) ──
+    stripe_price_id:   priceId,
+    billing_type:      info.billing_type,
+    term_months:       info.term_months,
+    term_start:        info.term_months ? purchasedAt : null,
+    term_end:          info.term_months ? addMonths(session.created, info.term_months) : null,
   };
 
   // Update existing record (e.g. manual member paying via Stripe) or insert new
