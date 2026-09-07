@@ -37,6 +37,11 @@ const NAV_ITEMS = [
 // whole modal can be reactivated later by flipping this to true — do NOT delete.
 const SHOW_SUMMER_PROMO = false
 
+// KILL SWITCH for the in-app cancellation flow. Set to false + redeploy to hide the
+// "Cancel plan" button everywhere so no new cancellation can be started (already-scheduled
+// cancellations still show their note; the contract gate and everything else are unaffected).
+const CANCEL_ENABLED = true
+
 // ── CONTRACT TEXT — single source used by BOTH the waiver modal and the re-sign gate ──
 // Numbering: §1–2 shared (ContractIntro), §3–5 per variant (CONTRACT_TERMS), §6–17 shared
 // (CommonClauses). (Paper-form §2 PARTICIPANT INFORMATION dropped — the app already has it.)
@@ -2608,14 +2613,14 @@ function BillingPage({ players, onChanged }) {
                 <div style={{ marginTop:12, padding:'10px 14px', background:'rgba(255,183,3,0.07)', border:'1px solid rgba(255,183,3,0.2)', borderRadius:10, fontSize:12.5, color:'var(--text2)', lineHeight:1.5 }}>
                   Your plan is set to cancel. You keep full access until <b style={{ color:'var(--text)' }}>{longDate(m.cancel_effective_at)}</b>, then it ends and won’t renew.
                 </div>
-              ) : (
+              ) : CANCEL_ENABLED ? (
                 <div style={{ marginTop:10 }}>
                   <button onClick={() => openCancel(m)}
                     style={{ width:'100%', background:'transparent', border:'1px solid rgba(224,85,85,0.4)', color:'#E05555', borderRadius:10, padding:'11px', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, letterSpacing:'0.04em', cursor:'pointer' }}>
                     Cancel plan
                   </button>
                 </div>
-              )}
+              ) : null}
             </div>
           ))}
         </div>
