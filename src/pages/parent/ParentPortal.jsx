@@ -1320,7 +1320,7 @@ export default function ParentPortal() {
     home:     <ParentHome players={players} onAdd={() => setShowAddPlayer(true)} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} onEditSave={handleEditPlayerName} parentId={user?.id} checkinStats={checkinStats} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} />,
     sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     schedule: <SchedulePage bookings={bookings} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
-    billing:  <BillingPage players={players} />,
+    billing:  <BillingPage players={players} onChanged={quietRefresh} />,
     promos:   <PromosPage players={players} promo={activePromo} inCampAge={inCampAge} onRegister={handleCampRegister} onAddPlayer={() => setShowAddPlayer(true)} registering={campRegistering} />,
     events:   <EventsPage user={user} players={players} parentDisplayName={profile?.full_name || user?.fullName || ''} />,
   }
@@ -2435,11 +2435,60 @@ function SchedulePage({ bookings, onCancel, onReschedule }) {
 }
 
 // ── BILLING PAGE ──────────────────────────────────────────────────────────────
-function BillingPage({ players }) {
+function BillingPage({ players, onChanged }) {
   const memberships = players.flatMap(p => p.active_membership ? [{ ...p.active_membership, kid_name: p.kid_name }] : [])
 
+  const { session } = useSession()
   const [portalBusy, setPortalBusy] = useState(null)     // membership id currently opening
   const [portalErr, setPortalErr]   = useState({})       // membership id -> error message
+  // Cancellation flow state: { open, m, loading, quote, error, submitting }
+  const [cancel, setCancel] = useState({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })
+
+  const usd = (cents) => (Number(cents || 0) / 100).toLocaleString('en-US', { style:'currency', currency:'USD' })
+  const longDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }) : '—'
+  const shortDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '—'
+
+  // Every cancellation call carries the Clerk session token; the server derives the parent id from it.
+  async function authHeaders() {
+    const token = session ? await session.getToken() : null
+    return { 'Content-Type':'application/json', ...(token ? { Authorization:`Bearer ${token}` } : {}) }
+  }
+
+  async function openCancel(m) {
+    setCancel({ open:true, m, loading:true, quote:null, error:null, submitting:false })
+    try {
+      const res = await fetch(`${API_BASE}/api/cancel-quote`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ kidName: m.kid_name }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Could not load your cancellation details.')
+      setCancel(c => ({ ...c, loading:false, quote:data }))
+    } catch (e) {
+      setCancel(c => ({ ...c, loading:false, error: e.message || 'Something went wrong.' }))
+    }
+  }
+
+  // Confirm only ever fires for the two action decisions (fee → checkout, free_cancel → cancel now).
+  async function confirmCancel() {
+    const q = cancel.quote, m = cancel.m
+    if (!q || !m) return
+    setCancel(c => ({ ...c, submitting:true, error:null }))
+    try {
+      if (q.decision === 'fee') {
+        const res = await fetch(`${API_BASE}/api/create-cancellation-checkout`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ kidName: m.kid_name }) })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok || !data?.url) throw new Error(data?.error || 'Could not start the payment.')
+        window.location.href = data.url   // to Stripe; the webhook cancels only after payment
+        return
+      }
+      // free_cancel: cancel at period end, no fee
+      const res = await fetch(`${API_BASE}/api/cancel-membership`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ kidName: m.kid_name }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || 'Could not cancel.')
+      setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })
+      onChanged && onChanged()   // refresh so the "Cancels on {date}" state appears
+    } catch (e) {
+      setCancel(c => ({ ...c, submitting:false, error: e.message || 'Something went wrong.' }))
+    }
+  }
 
   // Update saved card via Stripe's hosted Customer Portal (recurring subs only).
   async function openBillingPortal(m) {
@@ -2496,7 +2545,11 @@ function BillingPage({ players }) {
                   <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:900, fontSize:22, color:'var(--text)' }}>{m.kid_name}</div>
                   <div style={{ fontSize:12, color:'var(--muted)', marginTop:3, fontFamily:'var(--font-display)', fontStyle:'italic', letterSpacing:'0.06em', textTransform:'uppercase' }}>{m.package_name} · {cycleLabel(m.sessions_total)}</div>
                 </div>
-                <div style={{ padding:'4px 12px', background:'rgba(34,197,110,0.1)', border:'1px solid rgba(34,197,110,0.25)', borderRadius:20, fontSize:11, fontFamily:'var(--font-display)', fontWeight:700, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase' }}>Active</div>
+                {m.cancel_effective_at ? (
+                  <div style={{ padding:'4px 12px', background:'rgba(255,183,3,0.12)', border:'1px solid rgba(255,183,3,0.3)', borderRadius:20, fontSize:11, fontFamily:'var(--font-display)', fontWeight:700, color:'#FFB703', letterSpacing:'0.08em', textTransform:'uppercase' }}>Cancels {shortDate(m.cancel_effective_at)}</div>
+                ) : (
+                  <div style={{ padding:'4px 12px', background:'rgba(34,197,110,0.1)', border:'1px solid rgba(34,197,110,0.25)', borderRadius:20, fontSize:11, fontFamily:'var(--font-display)', fontWeight:700, color:'var(--green2)', letterSpacing:'0.08em', textTransform:'uppercase' }}>Active</div>
+                )}
               </div>
 
               {/* Stats row */}
@@ -2549,10 +2602,118 @@ function BillingPage({ players }) {
               ) : m.stripe_payment_id?.startsWith('pi_') ? (
                 <div style={{ marginTop:12, fontSize:11, color:'var(--muted)' }}>One-time plan — no card on file.</div>
               ) : null}
+
+              {/* Cancel plan — or, if already scheduled, a clear note that access continues */}
+              {m.cancel_effective_at ? (
+                <div style={{ marginTop:12, padding:'10px 14px', background:'rgba(255,183,3,0.07)', border:'1px solid rgba(255,183,3,0.2)', borderRadius:10, fontSize:12.5, color:'var(--text2)', lineHeight:1.5 }}>
+                  Your plan is set to cancel. You keep full access until <b style={{ color:'var(--text)' }}>{longDate(m.cancel_effective_at)}</b>, then it ends and won’t renew.
+                </div>
+              ) : (
+                <div style={{ marginTop:10 }}>
+                  <button onClick={() => openCancel(m)}
+                    style={{ width:'100%', background:'transparent', border:'1px solid rgba(224,85,85,0.4)', color:'#E05555', borderRadius:10, padding:'11px', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:13, letterSpacing:'0.04em', cursor:'pointer' }}>
+                    Cancel plan
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
+
+      {/* ── CANCELLATION MODAL ── */}
+      <Modal open={cancel.open} onClose={() => !cancel.submitting && setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })} title={`Cancel — ${cancel.m?.kid_name || ''}`} width={520}>
+        {cancel.loading && <div style={{ padding:'28px 0', textAlign:'center', color:'var(--muted)' }}>Loading your cancellation details…</div>}
+        {cancel.error && <div style={{ padding:'12px 14px', background:'rgba(224,85,85,0.08)', border:'1px solid rgba(224,85,85,0.25)', borderRadius:10, color:'#E05555', fontSize:13, marginBottom:12 }}>{cancel.error}</div>}
+
+        {!cancel.loading && cancel.quote && (() => {
+          const q = cancel.quote
+          const label = PLAN_LABELS[q.billing_type] || q.billing_type || 'Plan'
+          const row = (k, v) => (
+            <div style={{ display:'flex', justifyContent:'space-between', gap:16, padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:13 }}>
+              <span style={{ color:'var(--muted)' }}>{k}</span><span style={{ color:'var(--text)', fontWeight:600, textAlign:'right' }}>{v}</span>
+            </div>
+          )
+
+          // ── ANNUAL — respectful refusal ──
+          if (q.decision === 'refuse' && q.reason === 'non_cancellable') return (
+            <div style={{ fontSize:13.5, color:'var(--text2)', lineHeight:1.65 }}>
+              <p>Your <b style={{ color:'var(--text)' }}>{label}</b> plan for {q.kid_name} was paid in full for the 12-month term, so under the agreement you signed it can’t be cancelled or refunded.</p>
+              <p style={{ marginTop:10 }}>The good news: your access runs through <b style={{ color:'var(--text)' }}>{longDate(q.term_end)}</b> and <b style={{ color:'var(--text)' }}>won’t renew</b> — nothing further will be charged. If something unusual is going on, reach out and we’ll help.</p>
+              <button onClick={() => setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })} className="btn-primary" style={{ width:'100%', marginTop:16 }}>Got it</button>
+            </div>
+          )
+
+          // ── No waiver / unknown version — route to the owner, no blame ──
+          if (q.decision === 'refuse') return (
+            <div style={{ fontSize:13.5, color:'var(--text2)', lineHeight:1.65 }}>
+              <p>We can’t process this cancellation online for {q.kid_name} just yet. Please contact Torque Performance and we’ll take care of it for you right away.</p>
+              <p style={{ marginTop:10, fontSize:12.5, color:'var(--muted)' }}>Reach us on WhatsApp or reply to your welcome email.</p>
+              <button onClick={() => setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })} className="btn-ghost" style={{ width:'100%', marginTop:16 }}>Close</button>
+            </div>
+          )
+
+          // ── Month-to-month one-time — nothing to cancel ──
+          if (q.decision === 'info_only') return (
+            <div style={{ fontSize:13.5, color:'var(--text2)', lineHeight:1.65 }}>
+              <p>You’re on a <b style={{ color:'var(--text)' }}>month-to-month</b> plan for {q.kid_name} — there’s nothing to cancel and no fee. This plan never auto-charges.</p>
+              <p style={{ marginTop:10 }}>Your current month stays active through <b style={{ color:'var(--text)' }}>{longDate(q.effective_at)}</b>. To stop, simply don’t purchase another month.</p>
+              <button onClick={() => setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })} className="btn-primary" style={{ width:'100%', marginTop:16 }}>Got it</button>
+            </div>
+          )
+
+          // ── Free cancel (legacy month-to-month sub, or past-term) ──
+          if (q.decision === 'free_cancel') return (
+            <div>
+              <p style={{ fontSize:13.5, color:'var(--text2)', lineHeight:1.65, marginBottom:12 }}>You can cancel {q.kid_name}’s <b style={{ color:'var(--text)' }}>{label}</b> plan now at <b style={{ color:'var(--text)' }}>no charge</b>. You’ll keep access through the end of your current paid period, then it ends and won’t renew.</p>
+              {row('Access continues until', longDate(q.effective_at))}
+              {row('Cancellation fee', 'None')}
+              <div style={{ display:'flex', gap:10, marginTop:18 }}>
+                <button onClick={() => setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })} className="btn-ghost" disabled={cancel.submitting} style={{ flex:1 }}>Keep my plan</button>
+                <button onClick={confirmCancel} disabled={cancel.submitting} style={{ flex:1, background:'#E05555', border:'none', borderRadius:10, color:'#fff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, cursor: cancel.submitting?'wait':'pointer' }}>{cancel.submitting ? 'Cancelling…' : 'Confirm cancellation'}</button>
+              </div>
+            </div>
+          )
+
+          // ── Fee path: m6 optional buyout, or m12 early-termination fee ──
+          if (q.decision === 'fee') {
+            const isBuyout = q.billing_type === 'm6'
+            return (
+              <div>
+                {isBuyout ? (
+                  <p style={{ fontSize:13.5, color:'var(--text2)', lineHeight:1.65, marginBottom:14 }}>
+                    Leaving early is <b style={{ color:'var(--text)' }}>optional</b>. To exit now, you can pay the remaining months of your commitment up front — this isn’t a new charge, it’s the balance of the plan you signed. <b style={{ color:'var(--text)' }}>If you’d rather not, just close this — nothing changes and you keep paying monthly as usual.</b>
+                  </p>
+                ) : (
+                  <p style={{ fontSize:13.5, color:'var(--text2)', lineHeight:1.65, marginBottom:14 }}>
+                    Per the agreement you signed, ending your {label} commitment early requires a one-time cancellation fee — the lesser of your remaining months or {q.cap_months} months of your rate.
+                  </p>
+                )}
+                {row('Plan', label)}
+                {row('Term started', longDate(q.term_start))}
+                {row('Months remaining', q.months_remaining)}
+                {row('Your monthly rate', usd(q.monthly_cents))}
+                {row(isBuyout ? 'Remaining months × rate' : `Lesser of remaining or ${q.cap_months} months`, `${isBuyout ? q.months_remaining : Math.min(q.months_remaining, q.cap_months)} × ${usd(q.monthly_cents)}`)}
+                <div style={{ display:'flex', justifyContent:'space-between', gap:16, padding:'12px 0 4px', fontSize:15 }}>
+                  <span style={{ color:'var(--text)', fontWeight:800 }}>{isBuyout ? 'Buyout total' : 'Cancellation fee'}</span>
+                  <span style={{ color:'var(--text)', fontWeight:900, fontFamily:'var(--font-display)', fontStyle:'italic' }}>{usd(q.fee_cents)}</span>
+                </div>
+                <p style={{ fontSize:12, color:'var(--muted)', lineHeight:1.5, marginTop:8 }}>
+                  {isBuyout
+                    ? 'After payment, your plan cancels immediately and monthly billing stops.'
+                    : `After payment, your plan cancels at the end of your current paid period (${longDate(q.effective_at)}) — you keep access until then.`}
+                  {' '}You’ll pay securely on Stripe; nothing is cancelled until the payment succeeds.
+                </p>
+                <div style={{ display:'flex', gap:10, marginTop:16 }}>
+                  <button onClick={() => setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })} className="btn-ghost" disabled={cancel.submitting} style={{ flex:1 }}>Keep my plan</button>
+                  <button onClick={confirmCancel} disabled={cancel.submitting} style={{ flex:1, background:'#E05555', border:'none', borderRadius:10, color:'#fff', fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:14, cursor: cancel.submitting?'wait':'pointer' }}>{cancel.submitting ? 'Starting…' : `Pay ${usd(q.fee_cents)} & cancel`}</button>
+                </div>
+              </div>
+            )
+          }
+          return null
+        })()}
+      </Modal>
     </div>
   )
 }
