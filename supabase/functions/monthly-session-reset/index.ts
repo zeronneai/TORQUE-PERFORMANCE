@@ -100,10 +100,15 @@ async function sendExpiryEmail(opts: {
 }
 
 // Retrieve a Stripe subscription via the REST API (no SDK dependency in Deno).
+// PIN the API version to 2023-10-16 (the version the webhook's Stripe SDK uses).
+// Without it this raw fetch uses the account's DEFAULT version, and on
+// 2025-03-31.basil+ Stripe moved current_period_start/end OFF the subscription
+// onto the subscription ITEM — which made every lookup return no period and
+// silently disabled Task D and Task B's guard.
 async function stripeGetSubscription(subId: string, key: string): Promise<any | null> {
   try {
     const r = await fetch(`https://api.stripe.com/v1/subscriptions/${subId}`, {
-      headers: { Authorization: `Bearer ${key}` },
+      headers: { Authorization: `Bearer ${key}`, 'Stripe-Version': '2023-10-16' },
     })
     if (!r.ok) { console.error('[monthly-reset] Task D — Stripe HTTP', r.status, 'for', subId); return null }
     return await r.json()
@@ -111,6 +116,16 @@ async function stripeGetSubscription(subId: string, key: string): Promise<any | 
     console.error('[monthly-reset] Task D — retrieve failed', subId, (e as Error).message)
     return null
   }
+}
+
+// Period end/start in Unix seconds, robust to the API-version move: prefer the
+// top-level field (present when the request is pinned above), fall back to the
+// subscription item (where 2025-03-31.basil+ puts it). Belt-and-suspenders.
+function periodEnd(sub: any): number | null {
+  return sub?.current_period_end ?? sub?.items?.data?.[0]?.current_period_end ?? null
+}
+function periodStart(sub: any): number | null {
+  return sub?.current_period_start ?? sub?.items?.data?.[0]?.current_period_start ?? null
 }
 
 serve(async (_req) => {
@@ -127,7 +142,7 @@ serve(async (_req) => {
   // Build marker — bump on every deploy so the logs prove which version is live.
   // If the "Task D" lines never appear below, a stale pre-safety-net build is
   // deployed (run `supabase functions deploy monthly-session-reset` again).
-  console.log('[monthly-reset] START build 2026-08-19a — order A → D → B → C')
+  console.log('[monthly-reset] START build 2026-09-09a — order A → D → B → C (Stripe-Version pinned)')
 
   // ── TASK A: Monthly session reset for annual plans ──────────────────────────
 
@@ -209,8 +224,10 @@ serve(async (_req) => {
         // Only rescue genuinely-active subs; cancelled/unpaid ones are left for Task B.
         if (sub.status !== 'active' && sub.status !== 'trialing') continue
 
-        const cpe = sub.current_period_end   ? new Date(sub.current_period_end   * 1000).toISOString() : null
-        const cps = sub.current_period_start ? new Date(sub.current_period_start * 1000).toISOString() : null
+        const cpeUnix = periodEnd(sub)
+        const cpsUnix = periodStart(sub)
+        const cpe = cpeUnix ? new Date(cpeUnix * 1000).toISOString() : null
+        const cps = cpsUnix ? new Date(cpsUnix * 1000).toISOString() : null
         if (!cpe) continue
 
         const update: Record<string, unknown> = {}
@@ -267,7 +284,8 @@ serve(async (_req) => {
       if (pid.startsWith('sub_') && STRIPE_KEY) {
         const sub = await stripeGetSubscription(pid, STRIPE_KEY)
         const stillActive = sub && (sub.status === 'active' || sub.status === 'trialing')
-        const paidThru = sub?.current_period_end ? sub.current_period_end * 1000 : 0
+        const pe = periodEnd(sub)
+        const paidThru = pe ? pe * 1000 : 0
         if (stillActive && paidThru > Date.now()) {
           bSkipped++
           console.warn(`[monthly-reset] Task B — SKIP zero (active sub paid thru ${new Date(paidThru).toISOString().slice(0,10)}) → ${m.kid_name} (${pid})`)
