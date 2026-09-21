@@ -195,6 +195,15 @@ export default function AdminDashboard() {
     memberships.filter(m => ((m.sessions_total || 0) - (m.sessions_used || 0)) <= 2).length
   , [memberships])
 
+  // Active members = distinct PLAYERS with an active membership — same definition as the
+  // Families "Active" tab (which counts players, not membership rows), so the two agree.
+  const activeMembers = useMemo(() =>
+    players.filter(p => memberships.some(m =>
+      m.parent_id === p.parent_id &&
+      (m.kid_name || '').toLowerCase().trim() === (p.kid_name || '').toLowerCase().trim()
+    )).length
+  , [players, memberships])
+
   // Active memberships whose expires_at falls within the next 30 days (soonest first).
   // Different metric from expiringSoon above, which counts sessions remaining.
   const expiringByDate = useMemo(() =>
@@ -319,7 +328,7 @@ export default function AdminDashboard() {
 
       {/* KPIs — vibrant color blocks */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'var(--space-4)', marginBottom:'var(--space-8)' }}>
-        <StatCard label="Active Players"    value={memberships.length}              sub="active memberships"  icon="⚾" block={VIBRANT.green} />
+        <StatCard label="Active Players"    value={activeMembers}                   sub="active members"     icon="⚾" block={VIBRANT.green} />
         <StatCard label="Today's Check-ins" value={todayCheckins.length}            sub="so far today"        icon="✅" block={VIBRANT.blue} />
         <StatCard label="Monthly Revenue"   value={`$${monthlyRevenue.toLocaleString()}`} sub="active memberships" icon="💰" block={VIBRANT.red} />
         <StatCard label="Low Sessions"      value={expiringSoon}                    sub="≤ 2 sessions left"   icon="⚠️" block={VIBRANT.amber} />

@@ -20,9 +20,12 @@ const LBL = { fontSize:11, color:'var(--text3)', fontWeight:600, letterSpacing:'
 const memberKey = (pid, kid) => `${pid}::${(kid || '').toLowerCase().trim()}`
 
 const TABS = [
-  { id: 'members',   label: 'Members'          },
-  { id: 'prospects', label: 'Prospects'        },
-  { id: 'expired',   label: 'Expired / Win-back' },
+  { id: 'active',   label: 'Active'    },
+  { id: 'inactive', label: 'Inactive'  },
+  { id: 'canceled', label: 'Canceled'  },
+  { id: 'noplan',   label: 'No plan'   },
+  { id: 'camp',     label: 'Camp'      },
+  { id: 'all',      label: 'All'       },
 ]
 
 export default function Families() {
@@ -42,26 +45,34 @@ export default function Families() {
   const [editParentName, setEditParentName]     = useState('')
   const [editParentSaving, setEditParentSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [tab, setTab] = useState('members')
-  // Set of memberKey() for every player that has EVER had a membership row (any status).
-  // Sourced separately from useAdminData (which is active-only) so we can tell
-  // never-members (prospects) apart from lapsed members (expired/win-back).
-  const [everMemberKeys, setEverMemberKeys] = useState(null)
+  const [tab, setTab] = useState('active')
+  // Per-kid membership statuses (ALL statuses, not just active) + camp registrations,
+  // loaded separately from useAdminData (which is active-only) so we can bucket players
+  // into active / inactive / canceled / no-plan / camp. null while still loading.
+  const [statusByKey, setStatusByKey] = useState(null)   // memberKey -> Set<status>
+  const [campKeys, setCampKeys]       = useState(null)    // Set<memberKey> with a promo registration
 
   useEffect(() => {
     let cancelled = false
-    supabase
-      .from('player_memberships')
-      .select('parent_id, kid_name') // no status filter — ALL rows, any status
-      .then(({ data, error }) => {
-        if (cancelled) return
-        if (error) {
-          console.error('[Families] ever-member fetch failed:', error)
-          setEverMemberKeys(new Set()) // fail open: classify all non-active as prospects
-          return
+    Promise.all([
+      supabase.from('player_memberships').select('parent_id, kid_name, status'),   // ALL statuses
+      supabase.from('promo_registrations').select('parent_id, player_name'),        // camp signups
+    ]).then(([memRes, promoRes]) => {
+      if (cancelled) return
+      if (memRes.error) { console.error('[Families] status fetch failed:', memRes.error); setStatusByKey(new Map()); }
+      else {
+        const map = new Map()
+        for (const m of (memRes.data || [])) {
+          const k = memberKey(m.parent_id, m.kid_name)
+          if (!map.has(k)) map.set(k, new Set())
+          map.get(k).add((m.status || '').toLowerCase())
         }
-        setEverMemberKeys(new Set((data || []).map(m => memberKey(m.parent_id, m.kid_name))))
-      })
+        setStatusByKey(map)
+      }
+      const ck = new Set()
+      for (const r of (promoRes.data || [])) ck.add(memberKey(r.parent_id, r.player_name))
+      setCampKeys(ck)
+    })
     return () => { cancelled = true }
   }, [])
 
@@ -244,28 +255,35 @@ export default function Families() {
         m => m.parent_id === pid &&
           m.kid_name?.toLowerCase().trim() === player.kid_name?.toLowerCase().trim()
       ) || null
-      // Bucket: active membership → member; else ever had one → expired; else prospect.
-      // null while everMemberKeys is still loading (only affects prospects/expired tabs).
-      const everMember = everMemberKeys ? everMemberKeys.has(memberKey(pid, player.kid_name)) : null
-      const bucket = membership ? 'members'
-        : everMember == null ? null
-        : everMember ? 'expired' : 'prospects'
+      // Mutually-exclusive bucket. active wins; then canceled, then any other
+      // non-active membership status (inactive), then camp-only, then never-bought.
+      // null while the status/camp data is still loading (Active still works from
+      // the active `memberships` list, so the default tab is correct immediately).
+      const key = memberKey(pid, player.kid_name)
+      const statuses = statusByKey ? (statusByKey.get(key) || new Set()) : null
+      let bucket
+      if (membership) bucket = 'active'
+      else if (statuses == null || campKeys == null) bucket = null      // still loading
+      else if (statuses.has('canceled')) bucket = 'canceled'
+      else if (statuses.size > 0) bucket = 'inactive'                    // inactive / any non-active status
+      else if (campKeys.has(key)) bucket = 'camp'                        // registered a camp, no membership
+      else bucket = 'noplan'                                             // registered, never bought
       grouped[pid].players.push({ ...player, membership, _bucket: bucket })
     })
     return Object.values(grouped)
-  }, [players, memberships, profiles, everMemberKeys])
+  }, [players, memberships, profiles, statusByKey, campKeys])
 
   const counts = useMemo(() => {
-    const c = { members: 0, prospects: 0, expired: 0 }
-    families.forEach(f => f.players.forEach(p => { if (p._bucket) c[p._bucket]++ }))
+    const c = { active: 0, inactive: 0, canceled: 0, noplan: 0, camp: 0, all: 0 }
+    families.forEach(f => f.players.forEach(p => { c.all++; if (p._bucket) c[p._bucket]++ }))
     return c
   }, [families])
 
-  // Keep only players in the active tab, then apply search; drop families left empty.
+  // Keep only players in the selected tab ('all' shows every player), then search.
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
     return families
-      .map(f => ({ ...f, players: f.players.filter(p => p._bucket === tab) }))
+      .map(f => ({ ...f, players: tab === 'all' ? f.players : f.players.filter(p => p._bucket === tab) }))
       .filter(f => f.players.length > 0)
       .filter(f => {
         if (!q) return true
@@ -278,7 +296,9 @@ export default function Families() {
 
   const toggleFamily = id => setExpanded(p => ({ ...p, [id]: !p[id] }))
 
-  const totalActive = families.reduce((s, f) => s + f.players.filter(p => p.membership).length, 0)
+  // Count shown at the top = the selected tab's player count (default = real active members).
+  const shownCount = tab === 'all' ? counts.all : counts[tab]
+  const tabLabel = (TABS.find(t => t.id === tab)?.label || '').toLowerCase()
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
@@ -291,15 +311,17 @@ export default function Families() {
       <PageHeader
         eyebrow="Academy"
         title="Families & Players"
-        subtitle={`${families.length} families · ${totalActive} active players`}
+        subtitle={`${families.length} families · ${shownCount} ${tabLabel}`}
       />
 
-      {/* KPI summary — vibrant color blocks */}
+      {/* KPI summary — vibrant color blocks (breakdown by bucket) */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'var(--space-4)', marginBottom:'var(--space-6)' }}>
-        <StatCard label="Members"   value={counts.members}   sub="active membership" icon="⚾" block={VIBRANT.green} />
-        <StatCard label="Prospects" value={counts.prospects} sub="never enrolled"    icon="🌱" block={VIBRANT.blue} />
-        <StatCard label="Win-back"  value={counts.expired}   sub="lapsed members"    icon="↩️" block={VIBRANT.orange} />
-        <StatCard label="Families"  value={families.length}  sub="total accounts"    icon="👨‍👩‍👧" block={VIBRANT.purple} />
+        <StatCard label="Active"    value={counts.active}   sub="status = active"     icon="⚾" block={VIBRANT.green} />
+        <StatCard label="Inactive"  value={counts.inactive} sub="cleaned up / lapsed" icon="💤" block={VIBRANT.orange} />
+        <StatCard label="Canceled"  value={counts.canceled} sub="cancelled plans"     icon="🚪" block={VIBRANT.red} />
+        <StatCard label="No plan"   value={counts.noplan}   sub="never bought"        icon="🌱" block={VIBRANT.blue} />
+        <StatCard label="Camp"      value={counts.camp}     sub="camp only"           icon="🏕️" block={VIBRANT.amber} />
+        <StatCard label="Families"  value={families.length} sub="total accounts"      icon="👨‍👩‍👧" block={VIBRANT.purple} />
       </div>
 
       {/* ── Member / Prospect / Win-back tabs ── */}
@@ -356,9 +378,12 @@ export default function Families() {
           <div style={{ fontSize:36, marginBottom:12 }}>👥</div>
           <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontStyle:'italic' }}>
             {search ? 'No results'
-              : tab === 'members'   ? 'No active members'
-              : tab === 'prospects' ? 'No prospects (players who never had a membership)'
-              : 'No expired members to win back'}
+              : tab === 'active'   ? 'No active members'
+              : tab === 'inactive' ? 'No inactive memberships'
+              : tab === 'canceled' ? 'No canceled memberships'
+              : tab === 'noplan'   ? 'No registered players without a plan'
+              : tab === 'camp'     ? 'No camp-only registrations'
+              : 'No players'}
           </div>
         </div>
       )}
