@@ -92,7 +92,7 @@ async function main() {
   // ── Load players (full rows) + parent emails ──
   const players = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from('players').select('*').range(from, from + 999);
+    const { data, error } = await supabase.from('players').select('parent_id, kid_name, birthdate, age').range(from, from + 999);
     if (error) { console.error('players read error:', error.message); process.exit(1); }
     players.push(...(data || []));
     if (!data || data.length < 1000) break;
@@ -122,12 +122,20 @@ async function main() {
   const promoSet = await loadRelateSet('promo_registrations', 'player_name');
 
   // ── Match + emptiness ──
-  const toDelete = [], ambiguous = [], nonEmpty = [];
+  const toDelete = [], ambiguous = [], nonEmpty = [], badIdentity = [];
   for (const row of sheet) {
     const key = `${norm(row.parent_email)}::${norm(row.kid_name)}`;
     const matches = byKey.get(key) || [];
-    if (matches.length !== 1) { ambiguous.push({ row, count: matches.length, ids: matches.map(m => m.id).join(' | ') }); continue; }
+    if (matches.length !== 1) {
+      ambiguous.push({ row, count: matches.length, matched: matches.map(m => `${m.parent_id} / "${m.kid_name}"`).join(' | ') });
+      continue;
+    }
     const p = matches[0];
+    // Identity guard: we delete by parent_id + exact stored kid_name, so both must be present.
+    if (!p.parent_id || p.kid_name == null || String(p.kid_name).trim() === '') {
+      badIdentity.push({ row, p });
+      continue;
+    }
     const relKey = `${p.parent_id}::${norm(p.kid_name)}`;
     const reasons = [];
     if (memSet.has(relKey))   reasons.push('has membership');
@@ -139,30 +147,35 @@ async function main() {
   }
 
   // ── CSVs (always) ──
-  // Backup = full contents of the rows to delete (dynamic columns → re-insertable).
-  const allCols = [...new Set(toDelete.flatMap(({ p }) => Object.keys(p)))];
-  const backup = [allCols, ...toDelete.map(({ p }) => allCols.map(c => p[c]))];
+  // Backup = the exact stored columns of each row to delete, so a re-insert restores it 1:1.
+  const backup = [['parent_id', 'kid_name', 'birthdate', 'age'],
+    ...toDelete.map(({ p }) => [p.parent_id, p.kid_name, p.birthdate, p.age])];
   writeFileSync('players-backup.csv', '﻿' + backup.map(r => r.map(csvCell).join(',')).join('\n') + '\n');
-  writeFileSync('delete-players-plan.csv', '﻿' + [['player_id', 'kid_name', 'parent_name', 'parent_email'],
-    ...toDelete.map(({ row, p }) => [p.id, p.kid_name, row.parent_name, row.parent_email])].map(r => r.map(csvCell).join(',')).join('\n') + '\n');
-  writeFileSync('players-ambiguous.csv', '﻿' + [['parent_name', 'parent_email', 'kid_name', 'match_count', 'player_ids'],
-    ...ambiguous.map(a => [a.row.parent_name, a.row.parent_email, a.row.kid_name, a.count, a.ids])].map(r => r.map(csvCell).join(',')).join('\n') + '\n');
-  writeFileSync('players-skip-nonempty.csv', '﻿' + [['player_id', 'kid_name', 'parent_email', 'reasons'],
-    ...nonEmpty.map(n => [n.p.id, n.p.kid_name, n.row.parent_email, n.reasons.join('; ')])].map(r => r.map(csvCell).join(',')).join('\n') + '\n');
+  writeFileSync('delete-players-plan.csv', '﻿' + [['parent_id', 'kid_name', 'parent_name', 'parent_email'],
+    ...toDelete.map(({ row, p }) => [p.parent_id, p.kid_name, row.parent_name, row.parent_email])].map(r => r.map(csvCell).join(',')).join('\n') + '\n');
+  writeFileSync('players-ambiguous.csv', '﻿' + [['parent_name', 'parent_email', 'kid_name', 'match_count', 'matched (parent_id / stored_kid_name)'],
+    ...ambiguous.map(a => [a.row.parent_name, a.row.parent_email, a.row.kid_name, a.count, a.matched])].map(r => r.map(csvCell).join(',')).join('\n') + '\n');
+  writeFileSync('players-skip-nonempty.csv', '﻿' + [['parent_id', 'kid_name', 'parent_email', 'reasons'],
+    ...nonEmpty.map(n => [n.p.parent_id, n.p.kid_name, n.row.parent_email, n.reasons.join('; ')])].map(r => r.map(csvCell).join(',')).join('\n') + '\n');
 
   // ── Report ──
   console.log('\n' + '='.repeat(100));
   console.log(`DELETE-EMPTY-PLAYERS PLAN${APPLY ? '' : '   [DRY RUN — no writes]'}`);
   console.log('='.repeat(100));
-  for (const { row, p } of toDelete) console.log(`• DELETE players ${p.id}  |  ${p.kid_name}  |  ${row.parent_name || '—'}  |  ${row.parent_email}`);
+  for (const { row, p } of toDelete) console.log(`• DELETE  kid="${p.kid_name}"  parent="${row.parent_name || '—'}"  <${row.parent_email}>  parent_id=${p.parent_id}`);
   console.log('='.repeat(100));
   console.log(`Sheet rows:                        ${sheet.length}`);
   console.log(`To delete (truly empty):           ${toDelete.length}   → players-backup.csv + delete-players-plan.csv`);
   console.log(`Skipped — has related data:        ${nonEmpty.length}   → players-skip-nonempty.csv`);
+  console.log(`Skipped — missing parent_id/kid:   ${badIdentity.length}`);
   console.log(`Ambiguous (0 or >1 players match): ${ambiguous.length}   → players-ambiguous.csv`);
   if (nonEmpty.length) {
     console.log(`\nSkipped (NOT empty — left intact):`);
     for (const n of nonEmpty) console.log(`  · ${n.p.kid_name} (${n.row.parent_email}) — ${n.reasons.join('; ')}`);
+  }
+  if (badIdentity.length) {
+    console.log(`\nSkipped (missing parent_id or kid_name — cannot target safely):`);
+    for (const b of badIdentity) console.log(`  · "${b.row.kid_name}" (${b.row.parent_email})`);
   }
   console.log(`\nCSVs written: players-backup.csv, delete-players-plan.csv, players-ambiguous.csv, players-skip-nonempty.csv`);
 
@@ -175,12 +188,25 @@ async function main() {
   console.log('\nDeleting...');
   let ok = 0; const fails = [];
   for (const { p } of toDelete) {
-    const { error } = await supabase.from('players').delete().eq('id', p.id);
-    if (error) { fails.push(`${p.kid_name}: ${error.message}`); console.error(`  ✗ ${p.kid_name}: ${error.message}`); }
-    else { ok++; console.log(`  ✓ deleted ${p.kid_name} (${p.id})`); }
+    // Target the exact row: parent_id + the RAW stored kid_name (not normalized).
+    // .select() returns the rows actually deleted so we can verify the count.
+    const { data: deleted, error } = await supabase.from('players')
+      .delete()
+      .eq('parent_id', p.parent_id)
+      .eq('kid_name', p.kid_name)
+      .select('parent_id, kid_name, birthdate, age');
+    if (error) { fails.push(`${p.kid_name}: ${error.message}`); console.error(`  ✗ ${p.kid_name}: ${error.message}`); continue; }
+    const n = deleted?.length ?? 0;
+    if (n === 1) { ok++; console.log(`  ✓ deleted "${p.kid_name}" (parent ${p.parent_id})`); continue; }
+    // 0 or >1 affected → STOP immediately and report.
+    console.error(`\n🛑 STOPPING: expected to delete exactly 1 row for "${p.kid_name}" (parent ${p.parent_id}) but affected ${n}.`);
+    if (n > 1) console.error(`   ${n} rows were deleted — restore them from these values:\n   ${JSON.stringify(deleted)}`);
+    else       console.error(`   0 rows matched (stored kid_name may differ from what we loaded). Nothing deleted for this row.`);
+    console.error(`   ${ok} row(s) deleted before this point (all recorded in players-backup.csv).`);
+    process.exit(1);
   }
   console.log(`\nDone. ${ok}/${toDelete.length} deleted.${fails.length ? ` ${fails.length} failed.` : ''}`);
-  console.log(`Rollback: re-insert rows from players-backup.csv (full contents preserved).`);
+  console.log(`Rollback: re-insert rows from players-backup.csv (parent_id, kid_name, birthdate, age).`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
