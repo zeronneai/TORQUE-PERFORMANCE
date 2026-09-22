@@ -100,10 +100,15 @@ begin
     return null;                                   -- unknown / inactive event
   end if;
 
-  -- Age gate (server-side truth): reject out-of-range kids.
-  if (v_min is not null and p_player_age < v_min)
-     or (v_max is not null and p_player_age > v_max) then
-    return null;
+  -- Age gate (server-side truth). An all-ages event (both bounds null) has NO age
+  -- gate: any kid qualifies, with or without an age on file. A bounded event REQUIRES
+  -- an age and rejects out-of-range (or missing) ages.
+  if (v_min is not null or v_max is not null) then
+    if p_player_age is null
+       or (v_min is not null and p_player_age < v_min)
+       or (v_max is not null and p_player_age > v_max) then
+      return null;
+    end if;
   end if;
 
   -- Count spots already held: paid + still-valid pending reservations.

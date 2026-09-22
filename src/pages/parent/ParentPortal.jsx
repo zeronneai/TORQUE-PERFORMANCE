@@ -602,10 +602,16 @@ export default function ParentPortal() {
     if (activePromo?.event) sessionStorage.setItem('promo_flyer_seen', String(activePromo.event.id))
     setShowFlyer(false)
   }
-  // A kid is camp-age if within the active promo's [min_age, max_age].
+  // Is this kid eligible to register for the active promo?
+  // An all-ages event (both min_age and max_age null) has no age gate at all, so
+  // ANY kid qualifies — with or without an age on file (most current clients have
+  // no age recorded). An age is only needed when the event actually has bounds,
+  // since that's the only case where age decides eligibility.
   const inCampAge = (age) => {
     const ev = activePromo?.event
-    if (!ev || age == null) return false
+    if (!ev) return false
+    if (ev.min_age == null && ev.max_age == null) return true   // no bounds → any kid, age not required
+    if (age == null) return false                               // bounded event needs an age to decide
     if (ev.min_age != null && age < ev.min_age) return false
     if (ev.max_age != null && age > ev.max_age) return false
     return true
@@ -2982,7 +2988,7 @@ function PromosPage({ players = [], promo, inCampAge, onRegister, onAddPlayer, r
                       className="btn-primary"
                       style={{ minWidth: 150, ...(disabled ? { opacity: 0.4, pointerEvents: 'none', filter: 'grayscale(0.6)' } : {}) }}
                     >
-                      {busy ? 'Redirecting…' : soldOut ? 'Sold Out' : eligible ? `Register — $${price}` : `Ages ${ev.age_range || '4–7'} only`}
+                      {busy ? 'Redirecting…' : soldOut ? 'Sold Out' : eligible ? `Register — $${price}` : `Ages ${ev.age_range || `${ev.min_age ?? ''}–${ev.max_age ?? ''}`} only`}
                     </button>
                   </div>
                 )
@@ -2992,7 +2998,7 @@ function PromosPage({ players = [], promo, inCampAge, onRegister, onAddPlayer, r
             {/* No camp-age kid → prompt to add one. */}
             {eligibleKids.length === 0 && !soldOut && (
               <button onClick={onAddPlayer} className="btn-ghost" style={{ marginTop: 14 }}>
-                + Add a player ({ev.age_range || '4–7'}) to register
+                + Add a player{ev.age_range ? ` (${ev.age_range})` : ''} to register
               </button>
             )}
           </div>

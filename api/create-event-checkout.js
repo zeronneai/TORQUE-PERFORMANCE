@@ -33,10 +33,14 @@ export default async function handler(req, res) {
     const playerName = (b.playerName || '').trim();
     const email      = (b.email || '').trim();
     const phone      = (b.phone || '').trim();
-    const playerAge  = parseInt(b.playerAge, 10);
+    // Age is OPTIONAL at parse time. Most current clients have no age on file, and
+    // an all-ages event doesn't need one. Whether an age is required depends on the
+    // event's bounds, which we only know after loading it (checked below).
+    const _ageNum    = parseInt(b.playerAge, 10);
+    const playerAge  = Number.isNaN(_ageNum) ? null : _ageNum;
 
-    if ((!eventId && !slug) || !parentId || !playerName || Number.isNaN(playerAge)) {
-      return res.status(400).json({ error: 'Missing required fields (event, parentId, playerName, playerAge).' });
+    if ((!eventId && !slug) || !parentId || !playerName) {
+      return res.status(400).json({ error: 'Missing required fields (event, parentId, playerName).' });
     }
 
     // Load the target event (must be active). We need its Stripe price + age range.
@@ -49,9 +53,16 @@ export default async function handler(req, res) {
     if (!ev || !ev.active) return res.status(404).json({ error: 'Event not found or not active.' });
     if (!ev.stripe_price_id) return res.status(500).json({ error: 'Event has no Stripe price configured.' });
 
-    // Friendly age-range error before we bother reserving (RPC also enforces this).
-    if ((ev.min_age != null && playerAge < ev.min_age) ||
-        (ev.max_age != null && playerAge > ev.max_age)) {
+    // Age handling depends on the event's bounds (RPC enforces the same rules):
+    //  • all-ages event (no bounds) → age not required; a null age is accepted.
+    //  • bounded event → an age IS required, and must fall in range.
+    const hasBounds = ev.min_age != null || ev.max_age != null;
+    if (hasBounds && playerAge == null) {
+      return res.status(422).json({ error: 'ageRequired', min_age: ev.min_age, max_age: ev.max_age });
+    }
+    if (playerAge != null &&
+        ((ev.min_age != null && playerAge < ev.min_age) ||
+         (ev.max_age != null && playerAge > ev.max_age))) {
       return res.status(422).json({ error: 'ageOutOfRange', min_age: ev.min_age, max_age: ev.max_age });
     }
 
