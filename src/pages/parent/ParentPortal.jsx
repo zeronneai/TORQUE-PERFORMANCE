@@ -1109,6 +1109,17 @@ export default function ParentPortal() {
         supabase.from('player_memberships').select('kid_name, package_name, billing_type').eq('parent_id', user.id).eq('status', 'active'),
         supabase.from('waivers').select('kid_name, contract_version, agreed_at').eq('parent_id', user.id).order('agreed_at', { ascending: false }),
       ])
+      // PROMO-SAFE GATE: the contract gate applies ONLY to parents who currently hold at
+      // least one ACTIVE membership. Someone with no active membership — e.g. a parent who
+      // is only here to pay for a promo/clinic ($50 softball camp) — is never gated: they
+      // fall straight into the app and can view the announcement, open Promos, add a player
+      // and pay. Promo purchases write promo_registrations only (see api/stripe-webhook.js),
+      // never an active player_memberships row, so buying a clinic does NOT arm this gate.
+      // Reverse direction is automatic: the moment they buy a REAL membership the webhook
+      // inserts an active row with billing_type, so this same check queues them to sign on
+      // their next load — no manual step. (Runs before the per-kid loop below, so it does
+      // not change the exempt toggle, the unclassified skip, or the per-kid queue.)
+      if (!mems || mems.length === 0) { if (!cancelled) setResignQueue([]); return }
       const latest = new Map()
       for (const w of (wv || [])) { const k = (w.kid_name || '').toLowerCase().trim(); if (!latest.has(k)) latest.set(k, w.contract_version) }
       const queue = []; const seen = new Set(); let unclassified = 0
