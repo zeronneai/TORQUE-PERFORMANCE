@@ -37,6 +37,14 @@ const NAV_ITEMS = [
 // whole modal can be reactivated later by flipping this to true — do NOT delete.
 const SHOW_SUMMER_PROMO = false
 
+// A promo with a very large capacity is treated as effectively UNLIMITED for the
+// PARENT-facing UI: no "X of Y spots left" count and it never reads "sold out"
+// (the all-ages softball clinic uses a 999 capacity to mean open-to-all). Admin
+// screens still show the real paid/capacity numbers — this only affects what
+// parents see. Threshold, not an exact 999, so any big number behaves the same.
+const UNLIMITED_CAPACITY = 100
+const isUnlimitedPromo = (ev) => !!ev && (ev.capacity == null || ev.capacity >= UNLIMITED_CAPACITY)
+
 // KILL SWITCH for the in-app cancellation flow. Set to false + redeploy to hide the
 // "Cancel plan" button everywhere so no new cancellation can be started (already-scheduled
 // cancellations still show their note; the contract gate and everything else are unaffected).
@@ -1526,13 +1534,15 @@ export default function ParentPortal() {
                 {activePromo.event.age_range ? ` · Ages ${activePromo.event.age_range}` : ''}
               </div>
               <div style={{ marginBottom:16 }}>
-                {activePromo.soldOut
-                  ? <span style={{ fontFamily:'var(--font-display)', fontWeight:900, letterSpacing:'0.1em', color:'#E05555' }}>SOLD OUT</span>
-                  : <span style={{ fontSize:13, color:'var(--text2)' }}>{activePromo.spotsRemaining} of {activePromo.event.capacity} spots left · ${(activePromo.event.price_cents/100).toFixed(0)}</span>}
+                {isUnlimitedPromo(activePromo.event)
+                  ? <span style={{ fontSize:13, color:'var(--text2)' }}>${(activePromo.event.price_cents/100).toFixed(0)} per player</span>
+                  : activePromo.soldOut
+                    ? <span style={{ fontFamily:'var(--font-display)', fontWeight:900, letterSpacing:'0.1em', color:'#E05555' }}>SOLD OUT</span>
+                    : <span style={{ fontSize:13, color:'var(--text2)' }}>{activePromo.spotsRemaining} of {activePromo.event.capacity} spots left · ${(activePromo.event.price_cents/100).toFixed(0)}</span>}
               </div>
               <div style={{ display:'flex', gap:10 }}>
-                <button onClick={() => { dismissFlyer(); setPage('promos') }} className="btn-primary" style={{ flex:1 }} disabled={activePromo.soldOut}>
-                  {activePromo.soldOut ? 'Sold Out' : 'Register →'}
+                <button onClick={() => { dismissFlyer(); setPage('promos') }} className="btn-primary" style={{ flex:1 }} disabled={!isUnlimitedPromo(activePromo.event) && activePromo.soldOut}>
+                  {!isUnlimitedPromo(activePromo.event) && activePromo.soldOut ? 'Sold Out' : 'Register →'}
                 </button>
                 <button onClick={dismissFlyer} className="btn-ghost" style={{ padding:'0 18px' }}>Close</button>
               </div>
@@ -2932,7 +2942,11 @@ function PromosPage({ players = [], promo, inCampAge, onRegister, onAddPlayer, r
     )
   }
 
-  const soldOut       = promo.soldOut
+  // An unlimited-capacity promo never reads "sold out" and hides the spots count
+  // for parents (see isUnlimitedPromo). Forcing soldOut false here also keeps the
+  // per-kid Register buttons enabled and the empty-state prompt visible.
+  const unlimited     = isUnlimitedPromo(ev)
+  const soldOut       = !unlimited && promo.soldOut
   const eligibleKids  = players.filter(p => inCampAge(p.age))
   const price         = (ev.price_cents / 100).toFixed(0)
 
@@ -2957,9 +2971,11 @@ function PromosPage({ players = [], promo, inCampAge, onRegister, onAddPlayer, r
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontWeight: 900, fontSize: 34, color: 'var(--text)', lineHeight: 1 }}>${price}</div>
               <div style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginTop: 2 }}>per player</div>
-              <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: soldOut ? '#E05555' : 'var(--green2)' }}>
-                {soldOut ? 'SOLD OUT' : `${promo.spotsRemaining} / ${ev.capacity} spots left`}
-              </div>
+              {!unlimited && (
+                <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: soldOut ? '#E05555' : 'var(--green2)' }}>
+                  {soldOut ? 'SOLD OUT' : `${promo.spotsRemaining} / ${ev.capacity} spots left`}
+                </div>
+              )}
             </div>
           </div>
 
