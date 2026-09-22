@@ -610,6 +610,14 @@ export default function ParentPortal() {
     if (ev.max_age != null && age > ev.max_age) return false
     return true
   }
+  // "Too young for regular training" — a SEPARATE concept from camp eligibility.
+  // It only applies when the camp has an explicit UPPER age cutoff (max_age set):
+  // that's what marks a young-kids camp whose attendees are steered to the camp
+  // instead of a membership. An all-ages camp (max_age == null) has no upper
+  // cutoff, so NO kid is "too young" — memberships stay fully available and are
+  // never grayed out. (inCampAge, used for the camp Register button, still returns
+  // true for every age so all-ages kids can register.)
+  const tooYoungForTraining = (age) => activePromo?.event?.max_age != null && inCampAge(age)
   // Start the one-time camp checkout for a specific (camp-age) kid.
   const handleCampRegister = async (kid) => {
     const ev = activePromo?.event
@@ -950,9 +958,11 @@ export default function ParentPortal() {
 
   const openWaiver = (pack, billingType, stripeUrl, priceId, price) => {
     if (!selectedPlayer) return
-    // Camp-age kids (4–7) don't buy regular memberships — the buttons are
-    // disabled in the UI; this is the belt-and-suspenders guard.
-    if (inCampAge(selectedPlayer.age)) return
+    // Only kids too young for regular training (a young-kids camp with an upper
+    // age cutoff) are blocked from buying a membership — the buttons are disabled
+    // in the UI; this is the belt-and-suspenders guard. An all-ages camp never
+    // blocks a purchase.
+    if (tooYoungForTraining(selectedPlayer.age)) return
     setWaiverForm({ dob: '', phone: '', signedName: '', agreed: false })
     setWaiverData({ pack, billingType, billingLabel: BILLING_LABELS[billingType], stripeUrl, priceId, price })
   }
@@ -1651,7 +1661,7 @@ export default function ParentPortal() {
           </div>
         </div>
 
-        {inCampAge(selectedPlayer?.age) && (
+        {tooYoungForTraining(selectedPlayer?.age) && (
           <div style={{ marginBottom:16, padding:'12px 16px', borderRadius:10, background:'rgba(224,85,85,0.08)', border:'1px solid rgba(224,85,85,0.25)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, color:'#E05555', letterSpacing:'0.04em', marginBottom:4 }}>Too young for regular training</div>
             <div style={{ fontSize:13, color:'var(--text2)', lineHeight:1.5 }}>
@@ -1661,7 +1671,7 @@ export default function ParentPortal() {
           </div>
         )}
 
-        <div className="stagger" style={{ display:'grid', gridTemplateColumns:'1fr', gap:14, ...(inCampAge(selectedPlayer?.age) ? { opacity:0.4, pointerEvents:'none', filter:'grayscale(0.6)' } : {}) }}>
+        <div className="stagger" style={{ display:'grid', gridTemplateColumns:'1fr', gap:14, ...(tooYoungForTraining(selectedPlayer?.age) ? { opacity:0.4, pointerEvents:'none', filter:'grayscale(0.6)' } : {}) }}>
           {PACKS.map(pack => {
             const p6  = (pack.price * 0.90).toFixed(0)
             const p12 = (pack.price * 0.85).toFixed(0)
