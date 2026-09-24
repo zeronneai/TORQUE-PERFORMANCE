@@ -12,13 +12,14 @@ const TRYOUT_SLUG = 'torque-youth-tryout-2026-10-10';
 const clamp = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
 
 // Age → (age_group, time_slot), derived SERVER-SIDE so the parent never picks the
-// wrong slot. Valid ages: 9–13. Returns null for anything outside that range.
+// wrong slot. 9U means "9 and under" (an 8-year-old registers into 9U), so there is
+// no lower bound beyond a sane positive age. Upper limit is 13; above that is rejected.
 function slotForAge(age) {
-  if (!Number.isInteger(age)) return null;
-  if (age === 9)            return { age_group: '9U',      time_slot: '9:00 AM' };   // 9 and under
+  if (!Number.isInteger(age) || age < 1) return null; // not a real age
+  if (age <= 9)                 return { age_group: '9U',      time_slot: '9:00 AM' };   // 9 and under
   if (age === 10 || age === 11) return { age_group: '11U',     time_slot: '11:00 AM' };  // 10–11
   if (age === 12 || age === 13) return { age_group: '12U/13U', time_slot: '1:00 PM' };   // 12–13
-  return null;                                                                           // out of range
+  return null;                                                                           // over 13
 }
 
 // Public tryout-registration endpoint for the static landing site. Free event —
@@ -50,7 +51,7 @@ export default async function handler(req, res) {
     const player_age = parseInt(b.playerAge, 10);
     const slot = slotForAge(player_age);
     if (!slot) {
-      return res.status(400).json({ error: 'Player age must be between 9 and 13 for this tryout.' });
+      return res.status(400).json({ error: 'This tryout is for players 13 and under. Please enter a valid age.' });
     }
 
     // Require a player, a parent name, and at least one way to reach them.
