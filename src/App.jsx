@@ -16,6 +16,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import Families from './pages/admin/Families'
 import Leads from './pages/admin/Leads'
 import Promos from './pages/admin/Promos'
+import Tryouts from './pages/admin/Tryouts'
 import Contracts from './pages/admin/Contracts'
 import Cancellations from './pages/admin/Cancellations'
 import EntranceQR from './pages/admin/EntranceQR'
@@ -30,6 +31,7 @@ const ADMIN_PAGES = {
   families:     Families,
   leads:        Leads,
   promos:       Promos,
+  tryouts:      Tryouts,
   contracts:    Contracts,
   cancellations: Cancellations,
   pulse:        TorquePulse,
