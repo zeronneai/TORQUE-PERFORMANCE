@@ -2499,7 +2499,7 @@ function BillingPage({ players, onChanged }) {
   async function openCancel(m) {
     setCancel({ open:true, m, loading:true, quote:null, error:null, submitting:false })
     try {
-      const res = await fetch(`${API_BASE}/api/cancel-quote`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ kidName: m.kid_name }) })
+      const res = await fetch(`${API_BASE}/api/cancellation`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ action: 'quote', kidName: m.kid_name }) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Could not load your cancellation details.')
       setCancel(c => ({ ...c, loading:false, quote:data }))
@@ -2515,14 +2515,14 @@ function BillingPage({ players, onChanged }) {
     setCancel(c => ({ ...c, submitting:true, error:null }))
     try {
       if (q.decision === 'fee') {
-        const res = await fetch(`${API_BASE}/api/create-cancellation-checkout`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ kidName: m.kid_name }) })
+        const res = await fetch(`${API_BASE}/api/cancellation`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ action: 'checkout', kidName: m.kid_name }) })
         const data = await res.json().catch(() => ({}))
         if (!res.ok || !data?.url) throw new Error(data?.error || 'Could not start the payment.')
         window.location.href = data.url   // to Stripe; the webhook cancels only after payment
         return
       }
       // free_cancel: cancel at period end, no fee
-      const res = await fetch(`${API_BASE}/api/cancel-membership`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ kidName: m.kid_name }) })
+      const res = await fetch(`${API_BASE}/api/cancellation`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ action: 'cancel', kidName: m.kid_name }) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Could not cancel.')
       setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })

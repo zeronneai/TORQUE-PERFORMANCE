@@ -5,7 +5,7 @@ import { supabase } from '../../supabaseClient'
 import { VIBRANT } from '../../hooks/useAdminData'
 
 // The three tryout slots, in chronological order. Each row's time_slot / age_group
-// is derived server-side (api/create-tryout-registration.js), so these match exactly.
+// is derived server-side (api/create-lead.js, type:'tryout'), so these match exactly.
 const SLOTS = [
   { time: '9:00 AM',  group: '9U',      sub: 'Ages 9 & under', color: VIBRANT.blue },
   { time: '11:00 AM', group: '11U',     sub: 'Ages 10–11',     color: VIBRANT.green },

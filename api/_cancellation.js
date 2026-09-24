@@ -1,7 +1,7 @@
 // Shared cancellation logic (NOT an endpoint — the `_` prefix makes Vercel ignore it).
-// Single authoritative source used by cancel-quote (display), create-cancellation-checkout
-// (charge), cancel-membership (no-fee), and the webhook. The fee is computed HERE and
-// recomputed on every call — clients never supply a fee.
+// Single authoritative source used by api/cancellation.js (action:'quote' display,
+// action:'checkout' charge, action:'cancel' no-fee) and the webhook. The fee is computed
+// HERE and recomputed on every call — clients never supply a fee.
 
 // ── Per-version rule registry ────────────────────────────────────────────────
 // Keyed by the EXACT contract_version string stored on the waiver, then by billing_type.
