@@ -5,6 +5,7 @@ import { useUser, useClerk, useSession } from "@clerk/clerk-react"
 import { supabase, getAuthClient } from "../../supabaseClient"
 import { API_BASE } from '../../lib/apiBase'
 import { CONTRACT_VERSION, PLAN_LABELS } from '../../lib/contract'
+import { isClosedDay, closedReason, loadClosedDates } from '../../lib/closedDates'
 import QRCheckinModal from '../../components/QRCheckinModal'
 import ErrorBoundary from '../../components/ErrorBoundary'
 
@@ -253,13 +254,9 @@ const WEEKDAY_TIMES  = ['4:00 PM', '5:00 PM', '6:00 PM']
 const SATURDAY_TIMES = ['12:00 PM', '1:00 PM', '2:00 PM']
 const MAX_CAPACITY = 16
 
-// Días festivos completamente bloqueados para reservar (sin slots disponibles).
-// Academy-closed days — no bookings. July 4th (every year) + specific one-off closures.
-const EXTRA_CLOSED_DATES = new Set(['2026-07-24', '2026-07-25', '2026-09-07', '2026-10-10'])
-// Reason shown in the booking alert for specific closures (falls back to 'a holiday').
-const CLOSED_REASONS = { '2026-09-07': 'Labor Day', '2026-10-10': 'Tryouts' }
-const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const isBlockedHoliday = (d) => (d.getMonth() === 6 && d.getDate() === 4) || EXTRA_CLOSED_DATES.has(ymd(d))
+// Academy-closed days (no bookings). Managed by admins in Admin → Schedule
+// (table closed_dates); see src/lib/closedDates.js for the fallback list.
+const isBlockedHoliday = (d) => isClosedDay(d)
 
 function parseSessionDateTime(dateStr, timeStr) {
   const [hm, period] = timeStr.split(' ')
@@ -568,6 +565,9 @@ export default function ParentPortal() {
   const [showBookModal, setShowBookModal] = useState(false)
   const [bookingPlayer, setBookingPlayer] = useState(null)
   const [bookingForm, setBookingForm] = useState({ date: '', time: '' })
+  // Re-render once the admin-managed closed days arrive from the DB.
+  const [, setClosedLoaded] = useState(0)
+  useEffect(() => { loadClosedDates().then(() => setClosedLoaded(n => n + 1)) }, [])
   const [bookingLoading, setBookingLoading] = useState(false)
   const [slotCounts, setSlotCounts] = useState({})
   const [cancelModal, setCancelModal] = useState({ open: false, booking: null })
@@ -838,7 +838,7 @@ export default function ParentPortal() {
     if (!bookingPlayer || !bookingForm.date || !bookingForm.time) return
     // Salvaguarda: bloquear feriados (4 de julio) aunque la fecha llegue por otra vía
     if (isBlockedHoliday(new Date(bookingForm.date + 'T12:00:00'))) {
-      const reason = CLOSED_REASONS[bookingForm.date] || 'a holiday'
+      const reason = closedReason(new Date(bookingForm.date + 'T12:00:00')) || 'a holiday'
       alert(`The academy is closed for ${reason} that day — bookings are closed. Please choose another date.`)
       return
     }

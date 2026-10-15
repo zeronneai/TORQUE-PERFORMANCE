@@ -2,13 +2,112 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Users } from 'lucide-react'
 import { Card, Badge, Pill, Avatar, PageHeader, Btn, Modal, Label, StatCard, ProgressBar } from '../../components/UI'
 import { supabase } from '../../supabaseClient'
+import { useSession } from '@clerk/clerk-react'
+import { API_BASE } from '../../lib/apiBase'
+import { loadClosedDates } from '../../lib/closedDates'
 import { useAdminData, normDate, PACK_INFO, TYPE_COLORS, parentName, VIBRANT, pkgColor, STATUS } from '../../hooks/useAdminData'
+
+// ── CLOSED DATES (admin-managed booking blocks) ──────────────────────────────
+function ClosedDatesPanel({ closed, onChanged }) {
+  const { session } = useSession()
+  const todayIso = new Date().toISOString().split('T')[0]
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState(null)
+
+  // Group consecutive days with the same reason into ranges for a compact list.
+  const ranges = useMemo(() => {
+    const days = Object.keys(closed).filter(d => d >= todayIso).sort()
+    const out = []
+    days.forEach(d => {
+      const last = out[out.length - 1]
+      const prev = last && new Date(last.end + 'T12:00:00Z'); if (prev) prev.setUTCDate(prev.getUTCDate() + 1)
+      if (last && prev.toISOString().slice(0,10) === d && last.reason === closed[d]) { last.end = d; last.days.push(d) }
+      else out.push({ start: d, end: d, reason: closed[d], days: [d] })
+    })
+    return out
+  }, [closed, todayIso])
+
+  async function call(body) {
+    const token = await session?.getToken()
+    const res = await fetch(`${API_BASE}/api/closed-dates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Request failed')
+    return data
+  }
+
+  async function add() {
+    if (!start) return
+    if (end && end < start) { alert('End date is before start date.'); return }
+    setBusy(true); setNotice(null)
+    try {
+      const data = await call({ action: 'add', start, end: end || start, reason: reason.trim() || 'Closed' })
+      const n = (data.affectedBookings || []).length
+      setNotice(n
+        ? `Blocked ${data.added} day(s). Heads up: ${n} session(s) were already booked in that range. They are NOT cancelled automatically, check the calendar and contact those families.`
+        : `Blocked ${data.added} day(s). No existing bookings in that range.`)
+      setStart(''); setEnd(''); setReason('')
+      await onChanged()
+    } catch (e) { alert('Could not block dates: ' + e.message) }
+    finally { setBusy(false) }
+  }
+
+  async function remove(r) {
+    const label = r.start === r.end ? r.start : `${r.start} to ${r.end}`
+    if (!confirm(`Re-open ${label} for bookings?`)) return
+    setBusy(true); setNotice(null)
+    try { await call({ action: 'remove', days: r.days }); await onChanged() }
+    catch (e) { alert('Could not re-open dates: ' + e.message) }
+    finally { setBusy(false) }
+  }
+
+  const fmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+  const input = { background:'var(--navy4)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', padding:'8px 10px', fontSize:13, width:'100%', boxSizing:'border-box' }
+
+  return (
+    <div style={{ background:'var(--navy3)', border:'1px solid var(--border)', borderRadius:16, padding:24, marginBottom:20 }}>
+      <div style={{ fontFamily:'var(--font-display)', fontStyle:'italic', fontWeight:800, fontSize:16, color:'var(--text)', marginBottom:4, letterSpacing:'0.04em' }}>CLOSED DATES</div>
+      <div style={{ fontSize:12, color:'var(--muted)', marginBottom:16 }}>Parents cannot book or reschedule sessions on these days.</div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10, alignItems:'end' }}>
+        <div><Label>From</Label><input type="date" min={todayIso} value={start} onChange={e => setStart(e.target.value)} style={input} /></div>
+        <div><Label>To (optional)</Label><input type="date" min={start || todayIso} value={end} onChange={e => setEnd(e.target.value)} style={input} /></div>
+        <div><Label>Reason</Label><input type="text" maxLength={80} placeholder="e.g. Fall break" value={reason} onChange={e => setReason(e.target.value)} style={input} /></div>
+        <Btn onClick={add} disabled={!start || busy}>{busy ? 'Saving…' : 'Block dates'}</Btn>
+      </div>
+
+      {notice && <div style={{ marginTop:12, padding:'10px 14px', borderRadius:8, fontSize:12, background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.25)', color:'var(--text)' }}>{notice}</div>}
+
+      <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:6 }}>
+        {ranges.length === 0 ? (
+          <div style={{ fontSize:12, color:'var(--muted)' }}>No upcoming closed dates.</div>
+        ) : ranges.map(r => (
+          <div key={r.start} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, background:'rgba(239,68,68,0.07)', border:'1px solid rgba(239,68,68,0.2)' }}>
+            <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{r.start === r.end ? fmt(r.start) : `${fmt(r.start)} to ${fmt(r.end)}`}</span>
+            <span style={{ fontSize:12, color:'var(--muted)' }}>{r.reason}{r.days.length > 1 ? ` · ${r.days.length} days` : ''}</span>
+            <button onClick={() => remove(r)} disabled={busy} title="Re-open"
+              style={{ marginLeft:'auto', background:'transparent', border:'none', color:'var(--muted)', cursor:'pointer', display:'flex' }}><Trash2 size={15} /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 // ── SCHEDULE PAGE ─────────────────────────────────────────────────────────────
 export function Schedule() {
   const { bookings, profiles, loading } = useAdminData()
   const [viewDate, setViewDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(null)
+  const [closed, setClosed] = useState({})
+  const refreshClosed = async () => setClosed(await loadClosedDates())
+  useEffect(() => { refreshClosed() }, [])
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -62,6 +161,8 @@ export function Schedule() {
     <div className="fade-in">
       <PageHeader eyebrow="Academy" title="Schedule" subtitle="All scheduled sessions" />
 
+      <ClosedDatesPanel closed={closed} onChanged={refreshClosed} />
+
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:20, alignItems:'start' }}>
 
         {/* ── CALENDAR ── */}
@@ -93,6 +194,7 @@ export function Schedule() {
               const hasB   = dayBks.length > 0
               const isToday    = iso === today
               const isSelected = iso === selectedDay
+              const isClosed   = !!closed[iso]
               return (
                 <div key={iso}
                   onClick={() => hasB && setSelectedDay(isSelected ? null : iso)}
@@ -101,11 +203,11 @@ export function Schedule() {
                     alignItems:'center', justifyContent:'center', borderRadius:8,
                     cursor: hasB ? 'pointer' : 'default', transition:'all 0.15s',
                     overflow:'hidden', minWidth:0,
-                    background: isSelected ? 'rgba(34,197,110,0.18)' : hasB ? 'rgba(34,197,110,0.09)' : isToday ? 'rgba(13,27,42,0.07)' : 'transparent',
-                    border: isSelected ? '1.5px solid rgba(34,197,110,0.5)' : hasB ? '1px solid rgba(34,197,110,0.2)' : isToday ? '1px solid rgba(13,27,42,0.15)' : '1px solid transparent',
+                    background: isClosed ? 'rgba(239,68,68,0.12)' : isSelected ? 'rgba(34,197,110,0.18)' : hasB ? 'rgba(34,197,110,0.09)' : isToday ? 'rgba(13,27,42,0.07)' : 'transparent',
+                    border: isClosed ? '1px solid rgba(239,68,68,0.35)' : isSelected ? '1.5px solid rgba(34,197,110,0.5)' : hasB ? '1px solid rgba(34,197,110,0.2)' : isToday ? '1px solid rgba(13,27,42,0.15)' : '1px solid transparent',
                   }}>
                   <span style={{ fontFamily:'var(--font-display)', fontWeight: hasB||isToday ? 800 : 500, fontSize:13, lineHeight:1,
-                    color: isSelected ? 'var(--green2)' : hasB ? 'var(--green2)' : isToday ? 'var(--white)' : 'var(--text2)' }}>
+                    color: isClosed ? '#ef4444' : isSelected ? 'var(--green2)' : hasB ? 'var(--green2)' : isToday ? 'var(--white)' : 'var(--text2)' }}>
                     {day}
                   </span>
                   {hasB && (
