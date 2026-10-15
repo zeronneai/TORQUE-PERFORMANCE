@@ -11,7 +11,7 @@ create table if not exists public.closed_dates (
 );
 
 -- Everyone (parent portal, admin) can READ the list. Writes only go through the
--- service-role endpoint api/closed-dates.js, which verifies the caller is an admin.
+-- service-role endpoint api/admin.js, which verifies the caller is an admin.
 alter table public.closed_dates enable row level security;
 drop policy if exists closed_dates_select on public.closed_dates;
 create policy closed_dates_select on public.closed_dates for select using (true);

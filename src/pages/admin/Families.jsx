@@ -4,6 +4,7 @@ import { Card, Badge, Pill, StatCard, Avatar, PageHeader, ProgressBar, Modal } f
 import { useAdminData, PACK_INFO, parentName, normDate, daysUntil, expiryColor, expiryLabel, VIBRANT, pkgColor, STATUS } from '../../hooks/useAdminData'
 import { API_BASE } from '../../lib/apiBase'
 import { supabase } from '../../supabaseClient'
+import ManagePlayer from './ManagePlayer'
 
 const EMPTY_FORM = { parentName: '', email: '', phone: '', kidName: '', package: 'A', planType: 'monthly', kidName2: '', package2: 'A', planType2: 'monthly', startDate: '', paymentMethod: 'manual', specialPriceEnabled: false, specialPrice: '' }
 
@@ -29,7 +30,8 @@ const TABS = [
 ]
 
 export default function Families() {
-  const { players, memberships, profiles, loading, refetch } = useAdminData()
+  const { players, memberships, profiles, bookings, loading, refetch } = useAdminData()
+  const [managePlayer, setManagePlayer] = useState(null)
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState({})
   const [showAddMember, setShowAddMember] = useState(false)
@@ -464,6 +466,13 @@ export default function Families() {
                               >
                                 <Pencil size={12} />
                               </button>
+                              <button
+                                onClick={e => { e.stopPropagation(); setManagePlayer(player) }}
+                                style={{ marginLeft:4, background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.35)', borderRadius:6, cursor:'pointer', color:'var(--text)', padding:'2px 8px', fontSize:11, fontWeight:600 }}
+                                title="Adjust sessions, membership and bookings"
+                              >
+                                Manage
+                              </button>
                             </div>
                             <div style={{ fontSize:12, color:'var(--text3)' }}>
                               {player.age ? `${player.age} yrs` : ''}
@@ -548,6 +557,15 @@ export default function Families() {
           )
         })}
       </div>
+
+      {/* Manage Player Modal */}
+      <ManagePlayer
+        player={managePlayer}
+        membership={managePlayer ? (memberships.find(mm => mm.parent_id === managePlayer.parent_id && memberKey(mm.parent_id, mm.kid_name) === memberKey(managePlayer.parent_id, managePlayer.kid_name)) || null) : null}
+        bookings={bookings || []}
+        onClose={() => setManagePlayer(null)}
+        onChanged={refetch}
+      />
 
       {/* Edit Parent Modal */}
       <Modal open={!!editParent} onClose={() => { setEditParent(null); setEditParentName('') }} title="Edit Parent Name" width={380}>

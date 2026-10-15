@@ -32,7 +32,7 @@ function ClosedDatesPanel({ closed, onChanged }) {
 
   async function call(body) {
     const token = await session?.getToken()
-    const res = await fetch(`${API_BASE}/api/closed-dates`, {
+    const res = await fetch(`${API_BASE}/api/admin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
@@ -47,7 +47,7 @@ function ClosedDatesPanel({ closed, onChanged }) {
     if (end && end < start) { alert('End date is before start date.'); return }
     setBusy(true); setNotice(null)
     try {
-      const data = await call({ action: 'add', start, end: end || start, reason: reason.trim() || 'Closed' })
+      const data = await call({ action: 'closed_add', start, end: end || start, reason: reason.trim() || 'Closed' })
       const n = (data.affectedBookings || []).length
       setNotice(n
         ? `Blocked ${data.added} day(s). Heads up: ${n} session(s) were already booked in that range. They are NOT cancelled automatically, check the calendar and contact those families.`
@@ -62,7 +62,7 @@ function ClosedDatesPanel({ closed, onChanged }) {
     const label = r.start === r.end ? r.start : `${r.start} to ${r.end}`
     if (!confirm(`Re-open ${label} for bookings?`)) return
     setBusy(true); setNotice(null)
-    try { await call({ action: 'remove', days: r.days }); await onChanged() }
+    try { await call({ action: 'closed_remove', days: r.days }); await onChanged() }
     catch (e) { alert('Could not re-open dates: ' + e.message) }
     finally { setBusy(false) }
   }
