@@ -7,7 +7,7 @@ import { VIBRANT } from '../../hooks/useAdminData'
 const STATUS_ORDER = ['new', 'contacted', 'converted', 'lost']
 const STATUS_COLOR = { new: '#118AB2', contacted: '#FFB703', converted: '#06D6A0', lost: '#E63946' }
 const STATUS_LABEL = { new: 'New', contacted: 'Contacted', converted: 'Converted', lost: 'Lost' }
-const SOURCE_COLOR = { 'main-landing-trial': '#118AB2', 'tournament-landing': '#7C3AED' }
+const SOURCE_COLOR = { 'main-landing-trial': '#118AB2', 'tournament-landing': '#7C3AED', 'es-landing-trial': '#06D6A0', 'softball-interest': '#EF476F', 'tryout-interest': '#FFB703' }
 const sourceColor = (s) => SOURCE_COLOR[s] || '#5A6B84'
 
 function csvEscape(v) {

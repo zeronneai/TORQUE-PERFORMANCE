@@ -5,7 +5,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const ALLOWED_SOURCES = new Set(['main-landing-trial', 'tournament-landing']);
+const ALLOWED_SOURCES = new Set(['main-landing-trial', 'tournament-landing', 'es-landing-trial', 'softball-interest', 'tryout-interest']);
 const clamp = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
 
 // ── Tryout registration (folded in from the former create-tryout-registration.js
