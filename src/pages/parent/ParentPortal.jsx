@@ -6,6 +6,7 @@ import { supabase, getAuthClient } from "../../supabaseClient"
 import { API_BASE } from '../../lib/apiBase'
 import { CONTRACT_VERSION, PLAN_LABELS } from '../../lib/contract'
 import { isClosedDay, closedReason, loadClosedDates } from '../../lib/closedDates'
+import { CANCEL_REASONS } from '../../lib/cancelReasons'
 import QRCheckinModal from '../../components/QRCheckinModal'
 import ErrorBoundary from '../../components/ErrorBoundary'
 
@@ -2498,8 +2499,26 @@ function BillingPage({ players, onChanged }) {
     return { 'Content-Type':'application/json', ...(token ? { Authorization:`Bearer ${token}` } : {}) }
   }
 
-  async function openCancel(m) {
-    setCancel({ open:true, m, loading:true, quote:null, error:null, submitting:false })
+  // Step 1: short survey (why are you cancelling?). Step 2: the quote / confirm flow below.
+  const [survey, setSurvey] = useState({ reason:'', details:'', sending:false })
+  function openCancel(m) {
+    setSurvey({ reason:'', details:'', sending:false })
+    setCancel({ open:true, m, step:'survey', loading:false, quote:null, error:null, submitting:false })
+  }
+  async function submitSurvey() {
+    const m = cancel.m
+    if (!m || !survey.reason) return
+    setSurvey(sv => ({ ...sv, sending:true }))
+    try {
+      await fetch(`${API_BASE}/api/cancellation`, { method:'POST', headers: await authHeaders(),
+        body: JSON.stringify({ action:'feedback', kidName: m.kid_name, reason: survey.reason, details: survey.details }) })
+    } catch (e) { console.warn('[cancel] feedback not saved:', e?.message) }   // never blocks the cancellation
+    setSurvey(sv => ({ ...sv, sending:false }))
+    loadQuote(m)
+  }
+
+  async function loadQuote(m) {
+    setCancel({ open:true, m, step:'quote', loading:true, quote:null, error:null, submitting:false })
     try {
       const res = await fetch(`${API_BASE}/api/cancellation`, { method:'POST', headers: await authHeaders(), body: JSON.stringify({ action: 'quote', kidName: m.kid_name }) })
       const data = await res.json().catch(() => ({}))
@@ -2667,6 +2686,33 @@ function BillingPage({ players, onChanged }) {
 
       {/* ── CANCELLATION MODAL ── */}
       <Modal open={cancel.open} onClose={() => !cancel.submitting && setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })} title={`Cancel — ${cancel.m?.kid_name || ''}`} width={520}>
+        {cancel.step === 'survey' && (
+          <div style={{ fontSize:13.5, color:'var(--text2)', lineHeight:1.6 }}>
+            <p style={{ marginBottom:14 }}>Before you go, can you tell us why you're cancelling? It helps us improve Torque for every player.</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {CANCEL_REASONS.map(r => (
+                <label key={r.key} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:10, cursor:'pointer',
+                  border: survey.reason === r.key ? '1px solid rgba(91,168,255,0.7)' : '1px solid var(--border)',
+                  background: survey.reason === r.key ? 'rgba(91,168,255,0.08)' : 'transparent', color:'var(--text)' }}>
+                  <input type="radio" name="cancel-reason" value={r.key} checked={survey.reason === r.key}
+                    onChange={() => setSurvey(sv => ({ ...sv, reason: r.key }))} />
+                  {r.label}
+                </label>
+              ))}
+            </div>
+            <textarea value={survey.details} maxLength={1000} rows={3}
+              onChange={e => setSurvey(sv => ({ ...sv, details: e.target.value }))}
+              placeholder={survey.reason === 'other' ? 'Tell us a little more (required for Other)' : 'Anything else you want to share? (optional)'}
+              style={{ width:'100%', marginTop:12, boxSizing:'border-box', background:'var(--navy3)', color:'var(--text)', border:'1px solid var(--border2)', borderRadius:10, padding:'10px 12px', fontSize:13, resize:'vertical' }} />
+            <div style={{ display:'flex', gap:10, marginTop:16 }}>
+              <button onClick={() => setCancel({ open:false, m:null, loading:false, quote:null, error:null, submitting:false })} className="btn-ghost" style={{ flex:1 }}>Keep my plan</button>
+              <button onClick={submitSurvey} className="btn-primary" style={{ flex:1 }}
+                disabled={!survey.reason || survey.sending || (survey.reason === 'other' && !survey.details.trim())}>
+                {survey.sending ? 'Saving…' : 'Continue'}
+              </button>
+            </div>
+          </div>
+        )}
         {cancel.loading && <div style={{ padding:'28px 0', textAlign:'center', color:'var(--muted)' }}>Loading your cancellation details…</div>}
         {cancel.error && <div style={{ padding:'12px 14px', background:'rgba(224,85,85,0.08)', border:'1px solid rgba(224,85,85,0.25)', borderRadius:10, color:'#E05555', fontSize:13, marginBottom:12 }}>{cancel.error}</div>}
 

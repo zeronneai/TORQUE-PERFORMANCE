@@ -30,6 +30,7 @@ export default async function handler(req, res) {
   if (action === 'quote')    return handleQuote(req, res);
   if (action === 'cancel')   return handleCancel(req, res);
   if (action === 'checkout') return handleCheckout(req, res);
+  if (action === 'feedback') return handleFeedback(req, res);
   return res.status(400).json({ error: 'Missing or invalid action.' });
 }
 
@@ -192,5 +193,38 @@ async function handleCheckout(req, res) {
   } catch (err) {
     console.error('[cancellation:checkout] error:', err.message);
     return res.status(500).json({ error: err.message });
+  }
+}
+
+
+// ── action:'feedback' — cancellation survey (why are you cancelling?) ─────────
+// Asked BEFORE the quote. Stores one row per answer. Never blocks the cancellation:
+// the parent UI continues even if this write fails.
+const FEEDBACK_REASONS = ['cost', 'schedule', 'coaching', 'facility', 'moving', 'other_sport', 'results', 'other'];
+async function handleFeedback(req, res) {
+  try {
+    const parentId = await getVerifiedUserId(req);
+    if (!parentId) return res.status(401).json({ error: 'unauthorized' });
+    const b = req.body || {};
+    const kidName = (b.kidName || '').trim();
+    const reason = (b.reason || '').trim();
+    if (!FEEDBACK_REASONS.includes(reason)) return res.status(400).json({ error: 'Invalid reason.' });
+    const details = String(b.details || '').trim().slice(0, 1000) || null;
+
+    const { data: mem } = await supabase.from('player_memberships')
+      .select('id, kid_name, package_name, billing_type')
+      .eq('parent_id', parentId).ilike('kid_name', kidName)
+      .order('purchased_at', { ascending: false }).limit(1).maybeSingle();
+
+    const { error } = await supabase.from('cancellation_feedback').insert({
+      parent_id: parentId, kid_name: mem?.kid_name || kidName || null, membership_id: mem?.id || null,
+      package_name: mem?.package_name || null, billing_type: mem?.billing_type || null,
+      reason, details, source: 'parent',
+    });
+    if (error) { console.error('[cancellation] feedback insert failed:', error.message); return res.status(500).json({ error: 'Could not save.' }); }
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('[cancellation] feedback error:', err.message);
+    return res.status(500).json({ error: 'Server error.' });
   }
 }

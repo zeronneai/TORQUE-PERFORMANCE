@@ -5,6 +5,7 @@ import { Modal } from '../../components/UI'
 import { API_BASE } from '../../lib/apiBase'
 import { normDate } from '../../hooks/useAdminData'
 import { isClosedDay, closedReason, loadClosedDates } from '../../lib/closedDates'
+import { CANCEL_REASONS } from '../../lib/cancelReasons'
 
 // Admin "Manage player" modal: adjust the membership (sessions, package, renewal date,
 // status), book sessions on the family's behalf, and cancel upcoming bookings.
@@ -37,6 +38,8 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
   const [used, setUsed] = useState(0)
   const [renews, setRenews] = useState('')
   const [status, setStatus] = useState('active')
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelDetails, setCancelDetails] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
 
@@ -54,6 +57,7 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
     setUsed(m?.sessions_used || 0)
     setRenews(normDate(m?.expires_at) || '')
     setStatus(m?.status || 'active')
+    setCancelReason(''); setCancelDetails('')
     setDate(''); setTime(''); setDeduct(!!m); setMsg(null)
     loadClosedDates().then(() => setClosedTick(n => n + 1))
   }, [open, m?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -85,13 +89,16 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
     return data
   }
 
+  const endingNow = m && m.status === 'active' && (status === 'canceled' || status === 'inactive')
   async function saveMembership() {
     if (used > total) { alert('Sessions used cannot be more than the total.'); return }
+    if (endingNow && !cancelReason) { alert('Pick the reason they are leaving. It feeds the cancellation report.'); return }
     setSaving(true); setMsg(null)
     try {
       const body = { action: 'membership_adjust', membershipId: m.id, sessions_total: total, sessions_used: used, status }
       if (pkg) body.package_name = pkg
       if (renews) body.expires_at = renews
+      if (endingNow) { body.cancel_reason = cancelReason; body.cancel_details = cancelDetails }
       await call(body)
       setMsg('Membership saved.')
       await onChanged()
@@ -175,6 +182,17 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
                 <label style={LBL}>Sessions used</label>
                 <input style={SEL} type="number" min={0} max={999} value={used} onChange={e => setUsed(Math.max(0, parseInt(e.target.value || '0', 10)))} />
               </div>
+              {endingNow && (
+                <div style={{ gridColumn:'1 / -1', padding:12, borderRadius:10, border:'1px solid rgba(239,68,68,0.3)', background:'rgba(239,68,68,0.06)' }}>
+                  <label style={LBL}>Why are they leaving?</label>
+                  <select style={SEL} value={cancelReason} onChange={e => setCancelReason(e.target.value)}>
+                    <option value="">Select a reason…</option>
+                    {CANCEL_REASONS.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+                  </select>
+                  <input style={{ ...SEL, marginTop:8 }} type="text" maxLength={500} placeholder="Notes (optional)"
+                    value={cancelDetails} onChange={e => setCancelDetails(e.target.value)} />
+                </div>
+              )}
               <div style={{ gridColumn:'1 / -1' }}>
                 <label style={LBL}>Renews / access until</label>
                 <input style={SEL} type="date" value={renews} onChange={e => setRenews(e.target.value)} />

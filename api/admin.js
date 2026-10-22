@@ -15,13 +15,14 @@ const WEEKDAY_TIMES = ['4:00 PM', '5:00 PM', '6:00 PM'];
 const SATURDAY_TIMES = ['12:00 PM', '1:00 PM', '2:00 PM'];
 const PACKAGES = ['Package A', 'Package AA', 'Package AAA', 'Package MLB'];
 const STATUSES = ['active', 'inactive', 'canceled', 'expired'];
+const CANCEL_REASONS = ['cost', 'schedule', 'coaching', 'facility', 'moving', 'other_sport', 'results', 'other'];
 
 // Admin-only actions for the Torque admin panel. Every call needs
 // Authorization: Bearer <Clerk session token> of a user with publicMetadata.role === 'admin'.
 //
 //   closed_add        { start, end?, reason? }          block days for booking
 //   closed_remove     { days: [...] }                   re-open days
-//   membership_adjust { membershipId, sessions_total?, sessions_used?, package_name?, expires_at?, status? }
+//   membership_adjust { membershipId, sessions_total?, sessions_used?, package_name?, expires_at?, status?, cancel_reason?, cancel_details? }
 //   booking_create    { parentId, kidName, date, time, deduct? }   book on behalf of a family
 //   booking_cancel    { bookingId, refund? }            cancel a booking (optionally return the session)
 export default async function handler(req, res) {
@@ -127,6 +128,19 @@ async function membershipAdjust(b, userId, res) {
 
   const { error } = await supabase.from('player_memberships').update(patch).eq('id', id);
   if (error) { console.error('[admin] membership_adjust failed:', error.message); return res.status(500).json({ error: 'Could not save.' }); }
+
+  // Optional cancellation survey answer recorded by the coach (when they cancel/deactivate someone).
+  if (b.cancel_reason) {
+    if (!CANCEL_REASONS.includes(b.cancel_reason)) return res.status(400).json({ error: 'Invalid cancel reason.' });
+    const { data: full } = await supabase.from('player_memberships')
+      .select('parent_id, kid_name, package_name, billing_type').eq('id', id).maybeSingle();
+    const { error: fbErr } = await supabase.from('cancellation_feedback').insert({
+      parent_id: full?.parent_id || 'unknown', kid_name: full?.kid_name || cur.kid_name, membership_id: id,
+      package_name: full?.package_name || null, billing_type: full?.billing_type || null,
+      reason: b.cancel_reason, details: String(b.cancel_details || '').trim().slice(0, 1000) || null, source: 'admin',
+    });
+    if (fbErr) console.error('[admin] cancel feedback insert failed:', fbErr.message);
+  }
   console.log(`[admin] ${userId} adjusted membership ${id} (${cur.kid_name}):`, JSON.stringify({ before: cur, patch }));
   return res.status(200).json({ ok: true, membershipId: id, patch });
 }

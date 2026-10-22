@@ -4,10 +4,67 @@ import { Card, StatCard, Pill, PageHeader } from '../../components/UI'
 import { supabase } from '../../supabaseClient'
 import { PLAN_LABELS } from '../../lib/contract'
 import { VIBRANT } from '../../hooks/useAdminData'
+import { CANCEL_REASONS, CANCEL_REASON_LABEL } from '../../lib/cancelReasons'
 
 const csvEscape = (v) => { if (v == null) return ''; const s = String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s }
 const usd = (c) => (Number(c || 0) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 const fmt = (s) => s ? new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+
+// Survey results: why families cancel (parent answers in the cancel flow, coach answers in Manage player).
+function ReasonsSurvey() {
+  const [fb, setFb] = useState(null)
+  const [range, setRange] = useState('all')
+  useEffect(() => {
+    supabase.from('cancellation_feedback').select('kid_name, reason, details, source, package_name, created_at')
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => setFb(error ? [] : (data || [])))
+  }, [])
+  if (fb === null) return null
+  const since = range === '30' ? Date.now() - 30 * 864e5 : range === '90' ? Date.now() - 90 * 864e5 : 0
+  const list = fb.filter(f => new Date(f.created_at).getTime() >= since)
+  const counts = CANCEL_REASONS.map(r => ({ ...r, n: list.filter(f => f.reason === r.key).length })).sort((a, b) => b.n - a.n)
+  const max = Math.max(1, ...counts.map(c => c.n))
+  const notes = list.filter(f => f.details)
+  return (
+    <Card style={{ padding: 22, marginBottom: 'var(--space-8)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontWeight: 800, fontSize: 16, letterSpacing: '0.04em', color: 'var(--text)' }}>WHY FAMILIES CANCEL</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>{list.length} answer{list.length === 1 ? '' : 's'} from the cancellation survey</div>
+        </div>
+        <select value={range} onChange={e => setRange(e.target.value)} style={{ background: 'var(--navy3)', color: 'var(--text)', border: '1px solid var(--border2)', borderRadius: 8, padding: '7px 10px', fontSize: 12 }}>
+          <option value="all">All time</option><option value="90">Last 90 days</option><option value="30">Last 30 days</option>
+        </select>
+      </div>
+      {list.length === 0 ? (
+        <div style={{ fontSize: 13, color: 'var(--muted)' }}>No answers yet. They appear here as families cancel.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {counts.map(c => (
+            <div key={c.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 220px) 1fr 70px', alignItems: 'center', gap: 10, fontSize: 13 }}>
+              <span style={{ color: 'var(--text2)' }}>{c.label}</span>
+              <div style={{ height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.05)' }}>
+                <div style={{ width: `${(c.n / max) * 100}%`, height: '100%', borderRadius: 5, background: '#5BA8FF' }} />
+              </div>
+              <span style={{ textAlign: 'right', color: 'var(--text)', fontWeight: 700 }}>{c.n} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>{Math.round((c.n / list.length) * 100)}%</span></span>
+            </div>
+          ))}
+        </div>
+      )}
+      {notes.length > 0 && (
+        <div style={{ marginTop: 18 }}>
+          <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>What they said</div>
+          {notes.slice(0, 15).map((f, i) => (
+            <div key={i} style={{ padding: '8px 0', borderTop: '1px solid var(--border)', fontSize: 12.5, lineHeight: 1.5 }}>
+              <span style={{ color: 'var(--text)' }}>"{f.details}"</span>
+              <span style={{ color: 'var(--muted)' }}> · {f.kid_name || 'Player'} · {CANCEL_REASON_LABEL[f.reason] || f.reason} · {fmt(f.created_at)}{f.source === 'admin' ? ' · recorded by coach' : ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
 
 // Member-initiated (and external) cancellations. A row is "scheduled" while access still
 // runs to cancel_effective_at (status not yet canceled), and "completed" once the sub was
@@ -102,6 +159,8 @@ export default function Cancellations() {
         <StatCard label="Completed"      value={counts.completed} sub="subscription ended"  icon="🚪" block={VIBRANT.purple} />
         <StatCard label="Fees collected" value={usd(counts.fees)} sub="from cancellations"  icon="💰" block={VIBRANT.green} />
       </div>
+
+      <ReasonsSurvey />
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
