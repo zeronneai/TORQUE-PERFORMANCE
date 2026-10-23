@@ -99,10 +99,10 @@ function MainContent() {
 // ── APP ROOT (PROTEGIDO GLOBALMENTE) ──────────────────────────────────────────
 export default function App() {
   // 1. Links de tus imágenes
-  const logoTorque = "https://res.cloudinary.com/dsprn0ew4/image/upload/v1774490841/TORQUE_hauofb.png";
+  const logoTorque = "/img/torque-logo.webp";
   
-  // REEMPLAZA ESTO CON TU ENLACE DE CLOUDINARY PARA EL FONDO:
-  const fondoTorque = "https://res.cloudinary.com/dsprn0ew4/image/upload/v1774491833/Captura_de_pantalla_2026-03-25_202312_roa8ei.png"; 
+  // Fondo de la pantalla de acceso (vive en public/img):
+  const fondoTorque = "/img/login-bg.webp"; 
 
   return (
     <AppProvider>

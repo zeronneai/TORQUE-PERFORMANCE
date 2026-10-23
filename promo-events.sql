@@ -154,7 +154,7 @@ values
   ('labor-day-camp-2026',
    'Labor Day Baseball Camp',
    'One-day beginner camp for ages 4–7. Monday Sept 7, 10am–12pm.',
-   'https://res.cloudinary.com/dsprn0ew4/image/upload/v1787264816/Creating_youth_baseball_camp_flyer_202608201625_iy6lkc.jpg',
+   'https://app.torquebaseball.us/img/labor-day-camp-2026.webp',
    5000,
    'price_1U6eiWAPTWbxe0YyPWvCnaDk',
    '2026-09-07', '10:00 AM – 12:00 PM',
