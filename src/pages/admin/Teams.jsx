@@ -97,7 +97,7 @@ export default function Teams() {
     <div className="fade-in">
       <PageHeader eyebrow="Torque Team" title="Teams" subtitle={`Team rosters by age, 9U to 13U. $${TEAM_PRICE}/month per player, only for players with an active session package.`} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
         {TEAM_AGES.map(a => (
           <StatCard key={a} label={`Team ${teamLabel(a)}`} value={live.filter(r => r.team_age === a).length} sub="players" icon="⚾" block={TEAM_COLORS[a]} />
         ))}
