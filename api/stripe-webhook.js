@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { teamCheckoutCompleted, teamInvoicePaid } from './_team.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -206,6 +207,14 @@ export default async function handler(req, res) {
         return res.status(200).json({ received: true });
       }
 
+      // ── TORQUE TEAM SUBSCRIPTION: isolated from membership logic (api/_team.js).
+      if (session.metadata?.type === 'team') {
+        _alertCtx = { sessionId: session.id, kidName: `team:${session.metadata.kid_name}` };
+        await teamCheckoutCompleted(session, supabase);
+        console.log(`✅ Torque Team joined: ${session.metadata.kid_name} (${session.metadata.team_age}U)`);
+        return res.status(200).json({ received: true });
+      }
+
       // ── CANCELLATION FEE PAID — handled FIRST and returned, isolated from membership/promo
       //    logic. The subscription is cancelled ONLY here, AFTER the fee payment succeeded.
       if (session.metadata?.type === 'cancellation') {
@@ -328,10 +337,19 @@ export default async function handler(req, res) {
       let subCreatedTs = null;   // Unix seconds — commitment start (for term_start backfill only)
       try {
         const sub = await stripe.subscriptions.retrieve(subId);
+        // Torque Team renewals never touch player_memberships.
+        if (sub.metadata?.type === 'team') {
+          _alertCtx = { kidName: `team:${sub.metadata.kid_name}`, sessionId: subId };
+          try { await teamInvoicePaid(sub, supabase); }
+          catch (teamErr) { teamErr._team = true; throw teamErr; }   // surfaces as 500 + alert, Stripe retries
+          console.log(`✅ Torque Team month paid: ${sub.metadata.kid_name}`);
+          return res.status(200).json({ received: true });
+        }
         priceId      = sub.items?.data?.[0]?.price?.id ?? null;
         periodEndTs  = sub.current_period_end ?? null;
         subCreatedTs = sub.created ?? null;
       } catch (e) {
+        if (e._team) throw e;
         console.error('[webhook] subscription retrieve failed:', subId, e.message);
       }
       if (!priceId) priceId = invoice.lines?.data?.[0]?.price?.id ?? null;  // secondary fallback
@@ -455,6 +473,13 @@ export default async function handler(req, res) {
     else if (event.type === 'customer.subscription.deleted') {
       const sub = event.data.object;
       const nowIso = new Date().toISOString();
+      if (sub.metadata?.type === 'team') {
+        await supabase.from('team_memberships')
+          .update({ status: 'canceled', canceled_at: nowIso, updated_at: nowIso })
+          .eq('stripe_subscription_id', sub.id).neq('status', 'canceled');
+        console.log(`✅ Torque Team subscription ended: ${sub.metadata.kid_name} (sub ${sub.id})`);
+        return res.status(200).json({ received: true });
+      }
       const { data: rows, error: delErr } = await supabase.from('player_memberships')
         .update({ status: 'canceled', canceled_at: nowIso })
         .eq('stripe_payment_id', sub.id)

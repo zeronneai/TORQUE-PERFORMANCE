@@ -8,6 +8,7 @@ import { CONTRACT_VERSION, PLAN_LABELS } from '../../lib/contract'
 import { isClosedDay, closedReason, loadClosedDates } from '../../lib/closedDates'
 import { CANCEL_REASONS } from '../../lib/cancelReasons'
 import QRCheckinModal from '../../components/QRCheckinModal'
+import TeamPage from './TeamPage'
 import ErrorBoundary from '../../components/ErrorBoundary'
 
 // ── PAQUETES ──────────────────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { id: 'sessions', label: 'Sessions'  },
   { id: 'schedule', label: 'Schedule'  },
   { id: 'billing',  label: 'Billing'   },
+  { id: 'team',     label: 'Torque Team' },
   { id: 'promos',   label: 'Promos'    },
   { id: 'events',   label: 'Events'    },
 ]
@@ -546,6 +548,7 @@ export default function ParentPortal() {
   const { signOut } = useClerk()
   const { session } = useSession()
   const [page, setPage] = useState('home')
+  const [teamJoined, setTeamJoined] = useState(false)
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
   const [players, setPlayers] = useState([])
@@ -712,6 +715,13 @@ export default function ParentPortal() {
       fetchBookings()
 
       const params = new URLSearchParams(window.location.search)
+      // Back from the Torque Team checkout (success or cancel) → open the Team page.
+      const teamParam = params.get('team')
+      if (teamParam) {
+        if (teamParam === 'success') setTeamJoined(true)
+        setPage('team')
+        window.history.replaceState({}, '', window.location.pathname)
+      }
       const sessionId = params.get('session_id')
       const paymentOk = params.get('payment') === 'success'
 
@@ -1364,6 +1374,7 @@ export default function ParentPortal() {
     sessions: <SessionsPage players={players} bookings={bookings} onBook={(p) => { setBookingPlayer(p); setBookingForm({ date:'', time:'' }); setSlotCounts({}); setShowBookModal(true) }} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     schedule: <SchedulePage bookings={bookings} onCancel={(b) => setCancelModal({ open: true, booking: b })} onReschedule={openReschedule} />,
     billing:  <BillingPage players={players} onChanged={quietRefresh} />,
+    team:     <TeamPage players={players} parentId={user?.id} justJoined={teamJoined} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} />,
     promos:   <PromosPage players={players} promo={activePromo} inCampAge={inCampAge} onRegister={handleCampRegister} onAddPlayer={() => setShowAddPlayer(true)} registering={campRegistering} />,
     events:   <EventsPage user={user} players={players} parentDisplayName={profile?.full_name || user?.fullName || ''} />,
   }

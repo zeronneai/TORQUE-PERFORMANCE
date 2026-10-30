@@ -1,3 +1,4 @@
+import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { createClerkClient } from '@clerk/clerk-sdk-node';
 import { getVerifiedUserId } from './_auth.js';
@@ -6,6 +7,7 @@ const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -25,6 +27,8 @@ const CANCEL_REASONS = ['cost', 'schedule', 'coaching', 'facility', 'moving', 'o
 //   membership_adjust { membershipId, sessions_total?, sessions_used?, package_name?, expires_at?, status?, cancel_reason?, cancel_details? }
 //   booking_create    { parentId, kidName, date, time, deduct? }   book on behalf of a family
 //   booking_cancel    { bookingId, refund? }            cancel a booking (optionally return the session)
+//   team_move         { teamMembershipId, teamAge }     move a player to another Torque Team (9..13)
+//   team_cancel       { teamMembershipId, when }        cancel the $250/mo team sub ('period_end' | 'now')
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -51,6 +55,8 @@ export default async function handler(req, res) {
       case 'membership_adjust': return await membershipAdjust(b, userId, res);
       case 'booking_create':    return await bookingCreate(b, userId, res);
       case 'booking_cancel':    return await bookingCancel(b, userId, res);
+      case 'team_move':         return await teamMove(b, userId, res);
+      case 'team_cancel':       return await teamCancel(b, userId, res);
       default: return res.status(400).json({ error: 'Missing or invalid action.' });
     }
   } catch (err) {
@@ -214,5 +220,48 @@ async function bookingCancel(b, userId, res) {
     if (mem) await supabase.from('player_memberships').update({ sessions_used: Math.max(0, (mem.sessions_used || 0) - 1) }).eq('id', mem.id);
   }
   console.log(`[admin] ${userId} cancelled booking ${id} (${bk.kid_name} ${bk.session_date} ${bk.session_time}, refund=${refund})`);
+  return res.status(200).json({ ok: true });
+}
+
+// ── Torque Team ──────────────────────────────────────────────────────────────
+async function teamMove(b, userId, res) {
+  const id = String(b.teamMembershipId || '');
+  const age = parseInt(b.teamAge, 10);
+  if (!id || !(age >= 9 && age <= 13)) return res.status(400).json({ error: 'Pick a team from 9U to 13U.' });
+  const { data, error } = await supabase.from('team_memberships')
+    .update({ team_age: age, updated_at: new Date().toISOString() }).eq('id', id).select('kid_name, stripe_subscription_id');
+  if (error || !data?.length) return res.status(404).json({ error: 'Not found.' });
+  // Keep Stripe metadata in sync so a re-created row lands on the right team.
+  if (data[0].stripe_subscription_id) {
+    try { await stripe.subscriptions.update(data[0].stripe_subscription_id, { metadata: { team_age: String(age) } }); }
+    catch (e) { console.error('[admin] team_move stripe metadata:', e.message); }
+  }
+  console.log(`[admin] ${userId} moved ${data[0].kid_name} to ${age}U`);
+  return res.status(200).json({ ok: true });
+}
+
+async function teamCancel(b, userId, res) {
+  const id = String(b.teamMembershipId || '');
+  const now = b.when === 'now';
+  const { data: row } = await supabase.from('team_memberships')
+    .select('id, kid_name, stripe_subscription_id, status').eq('id', id).maybeSingle();
+  if (!row) return res.status(404).json({ error: 'Not found.' });
+  const nowIso = new Date().toISOString();
+  if (row.stripe_subscription_id) {
+    try {
+      if (now) await stripe.subscriptions.cancel(row.stripe_subscription_id);
+      else     await stripe.subscriptions.update(row.stripe_subscription_id, { cancel_at_period_end: true });
+    } catch (e) {
+      if (!/no such subscription|resource_missing|cancel/i.test(e.message || '')) {
+        console.error('[admin] team_cancel stripe:', e.message);
+        return res.status(502).json({ error: 'Stripe could not cancel it: ' + e.message });
+      }
+    }
+  }
+  const upd = now || !row.stripe_subscription_id
+    ? { status: 'canceled', canceled_at: nowIso, cancel_at_period_end: false, updated_at: nowIso }
+    : { cancel_at_period_end: true, updated_at: nowIso };
+  await supabase.from('team_memberships').update(upd).eq('id', id);
+  console.log(`[admin] ${userId} cancelled team sub for ${row.kid_name} (${now ? 'now' : 'period end'})`);
   return res.status(200).json({ ok: true });
 }

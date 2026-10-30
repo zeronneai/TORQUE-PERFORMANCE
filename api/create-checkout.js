@@ -1,6 +1,12 @@
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
+import { handleTeamCheckout } from './_team.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 const SUCCESS_URL = 'https://app.torquebaseball.us/?payment=success';
 const CANCEL_URL  = 'https://app.torquebaseball.us';
@@ -8,9 +14,20 @@ const CANCEL_URL  = 'https://app.torquebaseball.us';
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Torque Team monthly subscription (separate flow, needs an active package).
+  if (req.body?.kind === 'team') {
+    try {
+      return await handleTeamCheckout(req, res, { stripe, supabase });
+    } catch (err) {
+      console.error('[create-checkout] team error:', err.message);
+      return res.status(500).json({ error: 'Could not start checkout.' });
+    }
+  }
 
   const { userId, kidName, priceId, sibling, billingType } = req.body;
   if (!userId || !kidName || !priceId) {
