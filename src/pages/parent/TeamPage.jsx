@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useSession } from '@clerk/clerk-react'
 import { supabase } from '../../supabaseClient'
 import { API_BASE } from '../../lib/apiBase'
-import { TEAM_PRICE, TEAM_AGES, teamLabel, suggestedTeam, packageIsActive, teamIsOpen, teamStatus } from '../../lib/team'
+import { TEAM_PRICE, TEAM_AGES, teamLabel, suggestedTeam, packageIsActive, teamIsOpen, teamStatus, nextBillingLabel, MIDMONTH } from '../../lib/team'
 
 // Torque Team: $250/month team subscription. Only for players that already have an
 // active session package; without one the card is locked and points to the packages.
@@ -37,6 +37,10 @@ export default function TeamPage({ players = [], parentId, onBuy, justJoined }) 
   const rowFor = (p) => teamRows.find(r =>
     (r.kid_name || '').toLowerCase().trim() === (p.kid_name || '').toLowerCase().trim() && teamStatus(r) !== 'canceled')
   const open = teamIsOpen()
+  const firstCharge = nextBillingLabel()   // null = today is the 5th, charged now
+  const chargeNote = !firstCharge ? `$${TEAM_PRICE} is charged today, then on the 5th of every month.`
+    : MIDMONTH === 'prorate' ? `Today you pay only the days until ${firstCharge}. Then $${TEAM_PRICE} on the 5th of every month.`
+    : `Nothing is charged today. First charge of $${TEAM_PRICE} on ${firstCharge}, then on the 5th of every month.`
   const shortDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : ''
 
   async function authHeaders() {
@@ -194,6 +198,7 @@ export default function TeamPage({ players = [], parentId, onBuy, justJoined }) 
                     <button className="btn-primary" disabled={busy === p.kid_name} onClick={() => join(p)} style={{ padding:'12px 20px', fontSize:14 }}>
                       {busy === p.kid_name ? 'Opening checkout…' : `Join for $${TEAM_PRICE}/mo`}
                     </button>
+                    <div style={{ flexBasis:'100%', fontSize:12, color:'var(--muted)' }}>{chargeNote}</div>
                   </div>
                 ) : (
                   <div style={{ marginTop:16, padding:'14px 16px', borderRadius:10, background:'rgba(13,27,42,0.04)', border:'1px dashed var(--border)' }}>
@@ -215,7 +220,7 @@ export default function TeamPage({ players = [], parentId, onBuy, justJoined }) 
       </div>
 
       <div style={{ fontSize:12, color:'var(--muted)', marginTop:20 }}>
-        Billed monthly by card, prepaid. You can cancel any time: the player stays on the team until the end of the paid month and there are no refunds.
+        Billed by card on the 5th of every month, prepaid. You can cancel any time: the player stays on the team until the end of the paid month and there are no refunds.
       </div>
     </div>
   )

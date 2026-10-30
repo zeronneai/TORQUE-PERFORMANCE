@@ -95,7 +95,7 @@ export default function Teams() {
 
   return (
     <div className="fade-in">
-      <PageHeader eyebrow="Torque Team" title="Teams" subtitle={`Team rosters by age, 9U to 13U. $${TEAM_PRICE}/month per player, only for players with an active session package.`} />
+      <PageHeader eyebrow="Torque Team" title="Teams" subtitle={`Team rosters by age, 9U to 13U. $${TEAM_PRICE}/month per player, charged on the 5th, only for players with an active session package.`} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
         {TEAM_AGES.map(a => (
@@ -173,7 +173,7 @@ export default function Teams() {
                               <div style={{ fontSize: 12, color: r.st === 'unpaid' ? '#E63946' : 'var(--muted)', marginTop: 4, fontWeight: r.st === 'unpaid' ? 600 : 400 }}>
                                 {r.st === 'unpaid' ? 'Contact the parent'
                                   : r.st === 'canceled' ? `Canceled ${fmt(r.canceled_at || r.current_period_end)}`
-                                  : r.current_period_end ? `${r.st === 'ending' ? 'On team until' : 'Paid through'} ${fmt(r.current_period_end)}` : ''}
+                                  : r.current_period_end ? `${r.st === 'ending' ? 'On team until' : 'Next charge'} ${fmt(r.current_period_end)}` : ''}
                               </div>
                             </td>
                             <td style={{ ...td, whiteSpace: 'nowrap' }}><span className="num" style={{ fontSize: 12, color: 'var(--text2)' }}>{fmt(r.started_at)}</span></td>

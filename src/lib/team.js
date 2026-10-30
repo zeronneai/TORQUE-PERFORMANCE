@@ -31,8 +31,21 @@ export function packageIsActive(m) {
   return !m.expires_at || new Date(m.expires_at) > new Date()
 }
 
-// Sign-ups open Thursday Nov 5, 2026 (El Paso time). Mirror of api/_team.js.
-export const TEAM_OPENS_AT = '2026-11-05T00:00:00-07:00'
+// Sign-ups open from Oct 30, 2026. Mirror of api/_team.js.
+export const TEAM_OPENS_AT = '2026-10-30T00:00:00-06:00'
+// Every charge happens on the 5th. Mirror of MIDMONTH in api/_team.js.
+export const TEAM_BILLING_DAY = 5
+export const MIDMONTH = 'free_until_5'
+
+// Next billing date (El Paso) for the sign-up note, e.g. "Nov 5". null = today is the 5th.
+export function nextBillingLabel(now = new Date()) {
+  const ep = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', year: 'numeric', month: 'numeric', day: 'numeric' })
+    .formatToParts(now).reduce((o, p) => (o[p.type] = +p.value, o), {})
+  if (ep.day === TEAM_BILLING_DAY) return null
+  let y = ep.year, m = ep.month
+  if (ep.day > TEAM_BILLING_DAY) { m += 1; if (m > 12) { m = 1; y += 1 } }
+  return new Date(Date.UTC(y, m - 1, TEAM_BILLING_DAY, 18)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
 export const teamIsOpen = () => Date.now() >= Date.parse(TEAM_OPENS_AT)
 
 // Status the app shows. Besides what Stripe tells us via webhook, a row whose paid

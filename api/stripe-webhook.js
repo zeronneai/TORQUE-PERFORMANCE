@@ -210,7 +210,7 @@ export default async function handler(req, res) {
       // ── TORQUE TEAM SUBSCRIPTION: isolated from membership logic (api/_team.js).
       if (session.metadata?.type === 'team') {
         _alertCtx = { sessionId: session.id, kidName: `team:${session.metadata.kid_name}` };
-        await teamCheckoutCompleted(session, supabase);
+        await teamCheckoutCompleted(session, supabase, stripe);
         console.log(`✅ Torque Team joined: ${session.metadata.kid_name} (${session.metadata.team_age}U)`);
         return res.status(200).json({ received: true });
       }

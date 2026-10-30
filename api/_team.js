@@ -11,9 +11,31 @@ import { getVerifiedUserId } from './_auth.js';
 export const TEAM_PRICE_CENTS = 25000;                 // $250 / month
 export const TEAM_LOOKUP_KEY  = 'torque_team_monthly_250';
 export const TEAM_AGES        = [9, 10, 11, 12, 13];   // 9U ... 13U
-// Sign-ups open Thursday Nov 5, 2026 at 00:00 El Paso time (MST, UTC-7). Before
-// that the checkout refuses and the parent tab is hidden. Mirror: src/lib/team.js.
-export const TEAM_OPENS_AT = '2026-11-05T00:00:00-07:00';
+// Sign-ups are open from Oct 30, 2026 (owner request). Mirror: src/lib/team.js.
+export const TEAM_OPENS_AT = '2026-10-30T00:00:00-06:00';
+
+// ── Billing day ─────────────────────────────────────────────────────────────
+// Every Torque Team charge happens on the 5th of the month (9:00 AM El Paso).
+// MIDMONTH decides what a parent pays when they sign up between two 5ths:
+//   'free_until_5' → nothing at sign-up, first $250 on the next 5th (current setting)
+//   'prorate'      → pays only the days left until the 5th at sign-up, then $250 every 5th
+// Signing up ON the 5th charges $250 right away and renews every 5th.
+export const TEAM_BILLING_DAY = 5;
+export const MIDMONTH = 'free_until_5';
+
+// 9:00 AM El Paso (America/Denver, MST/MDT) on the next billing day, as Unix seconds.
+// Returns null when today (El Paso) IS the billing day: charge now, anchor stays on the 5th.
+export function nextBillingAnchor(now = new Date()) {
+  const ep = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', year: 'numeric', month: 'numeric', day: 'numeric' })
+    .formatToParts(now).reduce((o, p) => (o[p.type] = +p.value, o), {});
+  if (ep.day === TEAM_BILLING_DAY) return null;
+  let y = ep.year, m = ep.month;            // 1-based month
+  if (ep.day > TEAM_BILLING_DAY) { m += 1; if (m > 12) { m = 1; y += 1; } }
+  let ts = Date.UTC(y, m - 1, TEAM_BILLING_DAY, 16, 0, 0);   // 9 AM MST = 16:00 UTC
+  const hour = +new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', hour: 'numeric', hour12: false }).format(new Date(ts));
+  if (hour === 10) ts -= 3600 * 1000;        // daylight time (MDT): 9 AM = 15:00 UTC
+  return Math.floor(ts / 1000);
+}
 export const teamIsOpen = (now = Date.now()) => now >= Date.parse(TEAM_OPENS_AT);
 
 export const TEAM_SUCCESS_URL = 'https://app.torquebaseball.us/?team=success';
@@ -87,6 +109,7 @@ export async function handleTeamCheckout(req, res, { stripe, supabase }) {
   } catch { /* optional */ }
 
   const priceId = await getTeamPriceId(stripe);
+  const anchor = nextBillingAnchor();
   const md = { type: 'team', parent_id: parentId, kid_name: kid.kid_name, team_age: String(teamAge) };
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -98,14 +121,21 @@ export async function handleTeamCheckout(req, res, { stripe, supabase }) {
     // membership logic in the webhook can never mistake this for a package.
     client_reference_id: `team__${parentId}`,
     metadata: md,
-    subscription_data: { metadata: md, description: `Torque Team ${teamAge}U: ${kid.kid_name}` },
+    subscription_data: {
+      metadata: md,
+      description: `Torque Team ${teamAge}U: ${kid.kid_name}`,
+      ...(anchor ? {
+        billing_cycle_anchor: anchor,
+        proration_behavior: MIDMONTH === 'prorate' ? 'create_prorations' : 'none',
+      } : {}),
+    },
     ...(email ? { customer_email: email } : {}),
   });
   return res.status(200).json({ url: session.url });
 }
 
 // ── Webhook helpers ─────────────────────────────────────────────────────────
-export async function teamCheckoutCompleted(session, supabase) {
+export async function teamCheckoutCompleted(session, supabase, stripe) {
   const md = session.metadata || {};
   const teamAge = parseInt(md.team_age, 10);
   const row = {
@@ -117,6 +147,14 @@ export async function teamCheckoutCompleted(session, supabase) {
     stripe_session_id:      session.id,
     updated_at:             new Date().toISOString(),
   };
+  // Paid-through / next charge date straight from the subscription (the 5th).
+  if (stripe && session.subscription) {
+    try {
+      const sub = await stripe.subscriptions.retrieve(session.subscription);
+      const pe = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end ?? null;
+      if (pe) row.current_period_end = new Date(pe * 1000).toISOString();
+    } catch (e) { console.error('[team] sub retrieve on checkout:', e.message); }
+  }
   const { error } = await supabase.from('team_memberships')
     .upsert(row, { onConflict: 'stripe_subscription_id' });
   if (error) throw error;
