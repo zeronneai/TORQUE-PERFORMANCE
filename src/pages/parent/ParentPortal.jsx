@@ -9,6 +9,7 @@ import { isClosedDay, closedReason, loadClosedDates } from '../../lib/closedDate
 import { CANCEL_REASONS } from '../../lib/cancelReasons'
 import QRCheckinModal from '../../components/QRCheckinModal'
 import TeamPage from './TeamPage'
+import { teamIsOpen } from '../../lib/team'
 import ErrorBoundary from '../../components/ErrorBoundary'
 
 // ── PAQUETES ──────────────────────────────────────────────────────────────────
@@ -1406,7 +1407,7 @@ export default function ParentPortal() {
 
       {/* Nav */}
       <nav style={{ flex:1, padding:'6px 10px', display:'flex', flexDirection:'column' }}>
-        {NAV_ITEMS.map(({ id, label }) => (
+        {NAV_ITEMS.filter(({ id }) => id !== 'team' || teamIsOpen()).map(({ id, label }) => (
           <button key={id} onClick={() => navigateTo(id)} className={`nav-item${page === id ? ' active' : ''}`}>
             {/* Red indicator dot */}
             <span style={{ width:5, height:5, borderRadius:'50%', flexShrink:0, transition:'all 0.2s', background: page === id ? 'var(--white)' : 'transparent', border: page === id ? 'none' : '1px solid var(--muted2)' }} />

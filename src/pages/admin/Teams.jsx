@@ -5,7 +5,7 @@ import { Card, StatCard, Pill, PageHeader, Modal } from '../../components/UI'
 import { supabase } from '../../supabaseClient'
 import { API_BASE } from '../../lib/apiBase'
 import { VIBRANT, parentName, pkgColor } from '../../hooks/useAdminData'
-import { TEAM_AGES, TEAM_PRICE, teamLabel, playerAge, packageIsActive } from '../../lib/team'
+import { TEAM_AGES, TEAM_PRICE, teamLabel, playerAge, packageIsActive, teamStatus } from '../../lib/team'
 
 // Torque Team rosters: one list per team (9U to 13U). Players join from the parent
 // portal ($250/month, active session package required). Coaches can move a player
@@ -45,19 +45,22 @@ export default function Teams() {
     const prof = profiles.find(x => x.id === r.parent_id)
     const kid = players.find(x => x.parent_id === r.parent_id && key(x.kid_name) === key(r.kid_name))
     const pkg = mems.find(x => x.parent_id === r.parent_id && key(x.kid_name) === key(r.kid_name))
-    return { ...r, prof, kid, pkg, pkgOk: packageIsActive(pkg), age: kid ? playerAge(kid) : null }
+    return { ...r, prof, kid, pkg, pkgOk: packageIsActive(pkg), age: kid ? playerAge(kid) : null, st: teamStatus(r) }
   }), [rows, profiles, players, mems])
 
   const visible = useMemo(() => {
     const q = key(search)
     return enriched.filter(r =>
-      (showCanceled || r.status !== 'canceled') &&
+      (showCanceled || r.st !== 'canceled') &&
       (!q || [r.kid_name, parentName(r.prof), r.prof?.phone, r.prof?.email].some(v => key(v).includes(q)))
     )
   }, [enriched, search, showCanceled])
 
-  const live = enriched.filter(r => r.status !== 'canceled')
+  const live = enriched.filter(r => r.st !== 'canceled')
   const noPkg = live.filter(r => !r.pkgOk).length
+  const unpaid = live.filter(r => r.st === 'unpaid')
+  const STATUS_TEXT = { active: 'Active', ending: 'Canceled by parent', unpaid: 'Payment not processed', canceled: 'Canceled' }
+  const STATUS_COLOR = { active: '#06D6A0', ending: '#FFB703', unpaid: '#E63946', canceled: '#5A6B84' }
 
   async function call(body) {
     setBusy(true); setMsg(null)
@@ -80,7 +83,7 @@ export default function Teams() {
     const headers = ['team', 'player', 'age', 'parent', 'phone', 'email', 'status', 'package', 'package_active', 'joined', 'paid_through']
     const lines = TEAM_AGES.flatMap(a => visible.filter(r => r.team_age === a)).map(r => [
       teamLabel(r.team_age), r.kid_name, r.age ?? '', parentName(r.prof) || '', r.prof?.phone || '', r.prof?.email || '',
-      r.status, r.pkg?.package_name || '', r.pkgOk ? 'yes' : 'no', fmt(r.started_at), fmt(r.current_period_end),
+      STATUS_TEXT[r.st], r.pkg?.package_name || '', r.pkgOk ? 'yes' : 'no', fmt(r.started_at), fmt(r.current_period_end),
     ].map(csvEscape).join(','))
     const blob = new Blob(['﻿' + headers.join(',') + '\n' + lines.join('\n') + '\n'], { type: 'text/csv;charset=utf-8;' })
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
@@ -98,8 +101,14 @@ export default function Teams() {
         {TEAM_AGES.map(a => (
           <StatCard key={a} label={`Team ${teamLabel(a)}`} value={live.filter(r => r.team_age === a).length} sub="players" icon="⚾" block={TEAM_COLORS[a]} />
         ))}
-        <StatCard label="Monthly" value={`$${(live.filter(r => r.status === 'active').length * TEAM_PRICE).toLocaleString()}`} sub={`${live.length} on teams`} icon="💵" />
+        <StatCard label="Monthly" value={`$${(live.filter(r => r.st === 'active' || r.st === 'ending').length * TEAM_PRICE).toLocaleString()}`} sub={`${live.length} on teams`} icon="💵" />
       </div>
+
+      {unpaid.length > 0 && (
+        <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.45)', color: '#E63946', fontSize: 13, fontWeight: 600, marginBottom: 'var(--space-3)' }}>
+          Payment not processed for {unpaid.length} {unpaid.length === 1 ? 'player' : 'players'} ({unpaid.map(r => r.kid_name).join(', ')}). Their team access is blocked. Contact the parent.
+        </div>
+      )}
 
       {noPkg > 0 && (
         <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(230,57,70,0.08)', border: '1px solid rgba(230,57,70,0.3)', color: '#E63946', fontSize: 13, marginBottom: 'var(--space-4)' }}>
@@ -141,9 +150,10 @@ export default function Teams() {
                     <tbody>
                       {list.map(r => {
                         const digits = (r.prof?.phone || '').replace(/\D/g, '')
-                        const wa = digits.length >= 10 ? `https://wa.me/${digits.length === 10 ? '1' + digits : digits}` : null
+                        const waText = r.st === 'unpaid' ? `?text=${encodeURIComponent(`Hi ${parentName(r.prof) || ''}! This month's Torque Team payment for ${r.kid_name} did not go through. Can you update the card in the app (Torque Team tab)? Thanks!`)}` : ''
+                        const wa = digits.length >= 10 ? `https://wa.me/${digits.length === 10 ? '1' + digits : digits}${waText}` : null
                         return (
-                          <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', verticalAlign: 'top', opacity: r.status === 'canceled' ? 0.55 : 1 }}>
+                          <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', verticalAlign: 'top', opacity: r.st === 'canceled' ? 0.55 : 1, background: r.st === 'unpaid' ? 'rgba(230,57,70,0.06)' : undefined }}>
                             <td style={td}>
                               <div style={{ fontWeight: 600 }}>{r.kid_name}</div>
                               <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.age != null ? `${r.age} yrs` : 'age not on file'}</div>
@@ -159,12 +169,11 @@ export default function Teams() {
                                 : <Pill color="#E63946">No active package</Pill>}
                             </td>
                             <td style={td}>
-                              <Pill color={r.status === 'active' ? '#06D6A0' : r.status === 'past_due' ? '#FB8500' : '#5A6B84'}>
-                                {r.status === 'past_due' ? 'Payment due' : r.status}
-                              </Pill>
-                              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
-                                {r.status === 'canceled' ? `Canceled ${fmt(r.canceled_at)}`
-                                  : r.current_period_end ? `${r.cancel_at_period_end ? 'Ends' : 'Paid through'} ${fmt(r.current_period_end)}` : ''}
+                              <Pill color={STATUS_COLOR[r.st]}>{STATUS_TEXT[r.st]}</Pill>
+                              <div style={{ fontSize: 12, color: r.st === 'unpaid' ? '#E63946' : 'var(--muted)', marginTop: 4, fontWeight: r.st === 'unpaid' ? 600 : 400 }}>
+                                {r.st === 'unpaid' ? 'Contact the parent'
+                                  : r.st === 'canceled' ? `Canceled ${fmt(r.canceled_at || r.current_period_end)}`
+                                  : r.current_period_end ? `${r.st === 'ending' ? 'On team until' : 'Paid through'} ${fmt(r.current_period_end)}` : ''}
                               </div>
                             </td>
                             <td style={{ ...td, whiteSpace: 'nowrap' }}><span className="num" style={{ fontSize: 12, color: 'var(--text2)' }}>{fmt(r.started_at)}</span></td>
@@ -172,7 +181,7 @@ export default function Teams() {
                               <div style={{ display: 'flex', gap: 6 }}>
                                 {wa && <a href={wa} target="_blank" rel="noopener noreferrer" title="WhatsApp"
                                   style={{ display: 'inline-flex', padding: 7, borderRadius: 8, background: 'rgba(6,214,160,0.12)', color: '#06D6A0', border: '1px solid rgba(6,214,160,0.4)' }}><MessageCircle size={14} /></a>}
-                                {r.status !== 'canceled' && (
+                                {r.st !== 'canceled' && (
                                   <button onClick={() => { setMsg(null); setManage(r) }}
                                     style={{ padding: '6px 12px', borderRadius: 8, background: '#118AB2', color: '#fff', border: 'none', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Manage</button>
                                 )}

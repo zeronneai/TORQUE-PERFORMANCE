@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { computeCancellationQuote } from './_cancellation.js';
 import { getVerifiedUserId } from './_auth.js';
+import { handleTeamCancelByParent } from './_team.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -21,7 +22,7 @@ const PLAN_LABELS = { stand: 'Month-to-Month', m6: '6-Month', m12: '12-Month', a
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -31,6 +32,10 @@ export default async function handler(req, res) {
   if (action === 'cancel')   return handleCancel(req, res);
   if (action === 'checkout') return handleCheckout(req, res);
   if (action === 'feedback') return handleFeedback(req, res);
+  if (action === 'team_cancel') {   // Torque Team: no fee, ends at the end of the paid month
+    try { return await handleTeamCancelByParent(req, res, { stripe, supabase }); }
+    catch (e) { console.error('[cancellation] team_cancel:', e.message); return res.status(500).json({ error: 'Server error.' }); }
+  }
   return res.status(400).json({ error: 'Missing or invalid action.' });
 }
 

@@ -30,3 +30,21 @@ export function packageIsActive(m) {
   if ((m.status || '').toLowerCase() !== 'active') return false
   return !m.expires_at || new Date(m.expires_at) > new Date()
 }
+
+// Sign-ups open Thursday Nov 5, 2026 (El Paso time). Mirror of api/_team.js.
+export const TEAM_OPENS_AT = '2026-11-05T00:00:00-07:00'
+export const teamIsOpen = () => Date.now() >= Date.parse(TEAM_OPENS_AT)
+
+// Status the app shows. Besides what Stripe tells us via webhook, a row whose paid
+// month ended more than 2 days ago without a renewal is treated as unpaid, so a
+// declined card is caught even if a webhook never arrives.
+const GRACE_MS = 2 * 86400000
+export function teamStatus(row) {
+  if (!row) return null
+  if (row.status === 'canceled') return 'canceled'
+  const end = row.current_period_end ? Date.parse(row.current_period_end) : null
+  if (row.cancel_at_period_end && end && Date.now() > end) return 'canceled'
+  if (row.status === 'past_due') return 'unpaid'
+  if (end && !row.cancel_at_period_end && Date.now() > end + GRACE_MS) return 'unpaid'
+  return row.cancel_at_period_end ? 'ending' : 'active'
+}

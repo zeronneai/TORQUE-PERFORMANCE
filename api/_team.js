@@ -11,6 +11,11 @@ import { getVerifiedUserId } from './_auth.js';
 export const TEAM_PRICE_CENTS = 25000;                 // $250 / month
 export const TEAM_LOOKUP_KEY  = 'torque_team_monthly_250';
 export const TEAM_AGES        = [9, 10, 11, 12, 13];   // 9U ... 13U
+// Sign-ups open Thursday Nov 5, 2026 at 00:00 El Paso time (MST, UTC-7). Before
+// that the checkout refuses and the parent tab is hidden. Mirror: src/lib/team.js.
+export const TEAM_OPENS_AT = '2026-11-05T00:00:00-07:00';
+export const teamIsOpen = (now = Date.now()) => now >= Date.parse(TEAM_OPENS_AT);
+
 export const TEAM_SUCCESS_URL = 'https://app.torquebaseball.us/?team=success';
 export const TEAM_CANCEL_URL  = 'https://app.torquebaseball.us/?team=cancel';
 
@@ -49,6 +54,8 @@ export async function handleTeamCheckout(req, res, { stripe, supabase }) {
   const parentId = await getVerifiedUserId(req);
   if (!parentId) return res.status(401).json({ error: 'Please sign in again.' });
 
+  if (!teamIsOpen()) return res.status(403).json({ error: 'notOpenYet' });
+
   const b = req.body || {};
   const kidName = String(b.kidName || '').trim();
   const teamAge = parseInt(b.teamAge, 10);
@@ -84,6 +91,7 @@ export async function handleTeamCheckout(req, res, { stripe, supabase }) {
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
+    allow_promotion_codes: false,          // no discounts on Torque Team
     success_url: TEAM_SUCCESS_URL,
     cancel_url:  TEAM_CANCEL_URL,
     // Deliberately NOT in the membership `parentId__kidName__priceId` shape so the
@@ -139,4 +147,69 @@ export async function teamInvoicePaid(sub, supabase) {
     stripe_subscription_id: sub.id,
   }, { onConflict: 'stripe_subscription_id' });
   if (insErr) throw insErr;
+}
+
+// Stripe subscription status -> our status. Anything that means "the card was not
+// charged" becomes past_due, which the app shows as "payment not processed" and
+// blocks until the parent updates the card.
+export function mapSubStatus(st) {
+  if (st === 'active' || st === 'trialing') return 'active';
+  if (st === 'canceled' || st === 'incomplete_expired') return 'canceled';
+  return 'past_due';   // past_due | unpaid | incomplete | paused
+}
+
+export async function teamSubUpdated(sub, supabase) {
+  const periodEnd = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end ?? null;
+  const status = mapSubStatus(sub.status);
+  const nowIso = new Date().toISOString();
+  const { error } = await supabase.from('team_memberships').update({
+    status,
+    cancel_at_period_end: !!sub.cancel_at_period_end,
+    ...(periodEnd ? { current_period_end: new Date(periodEnd * 1000).toISOString() } : {}),
+    ...(status === 'canceled' ? { canceled_at: nowIso } : {}),
+    updated_at: nowIso,
+  }).eq('stripe_subscription_id', sub.id);
+  if (error) throw error;
+}
+
+export async function teamPaymentFailed(subId, supabase) {
+  const { error } = await supabase.from('team_memberships')
+    .update({ status: 'past_due', updated_at: new Date().toISOString() })
+    .eq('stripe_subscription_id', subId).neq('status', 'canceled');
+  if (error) throw error;
+}
+
+// Parent cancels: no fee, no refund (prepaid). The current paid month is kept and
+// the subscription simply does not renew.
+export async function handleTeamCancelByParent(req, res, { stripe, supabase }) {
+  const parentId = await getVerifiedUserId(req);
+  if (!parentId) return res.status(401).json({ error: 'unauthorized' });
+  const id = String((req.body || {}).teamMembershipId || '');
+  const { data: row } = await supabase.from('team_memberships')
+    .select('id, parent_id, kid_name, stripe_subscription_id, status').eq('id', id).maybeSingle();
+  if (!row || row.parent_id !== parentId) return res.status(404).json({ error: 'Not found.' });
+  if (row.status === 'canceled') return res.status(200).json({ ok: true });
+
+  let periodEnd = null;
+  if (row.stripe_subscription_id) {
+    try {
+      const upd = await stripe.subscriptions.update(row.stripe_subscription_id, { cancel_at_period_end: true });
+      const pe = upd.current_period_end ?? upd.items?.data?.[0]?.current_period_end ?? null;
+      periodEnd = pe ? new Date(pe * 1000).toISOString() : null;
+    } catch (e) {
+      if (!/no such subscription|resource_missing|cancel/i.test(e.message || '')) {
+        console.error('[team] parent cancel failed:', e.message);
+        return res.status(502).json({ error: 'Could not cancel right now. Try again.' });
+      }
+    }
+  }
+  const nowIso = new Date().toISOString();
+  await supabase.from('team_memberships').update({
+    cancel_at_period_end: true,
+    ...(periodEnd ? { current_period_end: periodEnd } : {}),
+    notes: `Canceled by parent ${nowIso.slice(0, 10)}`,
+    updated_at: nowIso,
+  }).eq('id', id);
+  console.log(`[team] parent canceled ${row.kid_name} (ends ${periodEnd || 'n/a'})`);
+  return res.status(200).json({ ok: true, endsAt: periodEnd });
 }

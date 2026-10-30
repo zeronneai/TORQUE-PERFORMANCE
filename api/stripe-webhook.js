@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { teamCheckoutCompleted, teamInvoicePaid } from './_team.js';
+import { teamCheckoutCompleted, teamInvoicePaid, teamSubUpdated, teamPaymentFailed } from './_team.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -439,6 +439,24 @@ export default async function handler(req, res) {
 
       if (error) throw error;
       console.log(`✅ Renewal${existing ? '' : ' (fallback)'} — ${info.sessions} sessions reset, expires ${expiresAt} → ${record.kid_name}`);
+    }
+
+    // ── Torque Team: card declined on a monthly charge → "payment not processed". ──
+    else if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object;
+      if (invoice.subscription) {
+        const sub = await stripe.subscriptions.retrieve(invoice.subscription).catch(() => null);
+        if (sub?.metadata?.type === 'team') {
+          await teamPaymentFailed(sub.id, supabase);
+          console.log(`⚠️ Torque Team payment failed: ${sub.metadata.kid_name} (sub ${sub.id})`);
+        }
+      }
+    }
+
+    // ── Torque Team: any status change (past_due, unpaid, back to active, cancel scheduled). ──
+    else if (event.type === 'customer.subscription.updated') {
+      const sub = event.data.object;
+      if (sub.metadata?.type === 'team') await teamSubUpdated(sub, supabase);
     }
 
     // ── Promo checkout expired → release the held (pending) spot. ──
