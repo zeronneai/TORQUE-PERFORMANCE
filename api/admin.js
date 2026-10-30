@@ -37,6 +37,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Roots Engine (panel de métricas de la agencia): solo números agregados, sin nombres ni correos.
+  // Va antes del login de Clerk porque lo llama otro servidor con su propia llave.
+  if (req.body?.action === 'metrics') return metricsReport(req, res);
+
   const userId = await getVerifiedUserId(req);
   if (!userId) return res.status(401).json({ error: 'unauthorized' });
   try {
@@ -264,4 +268,93 @@ async function teamCancel(b, userId, res) {
   await supabase.from('team_memberships').update(upd).eq('id', id);
   console.log(`[admin] ${userId} cancelled team sub for ${row.kid_name} (${now ? 'now' : 'period end'})`);
   return res.status(200).json({ ok: true });
+}
+
+
+// ── Métricas para Roots Engine ───────────────────────────────────────────────
+// POST { action: 'metrics', days } con el header x-metrics-key = ROOTS_METRICS_KEY.
+// Regresa solo conteos y montos por día (nada de nombres, correos ni teléfonos).
+async function metricsReport(req, res) {
+  const key = process.env.ROOTS_METRICS_KEY;
+  if (!key || req.headers['x-metrics-key'] !== key) return res.status(403).json({ error: 'forbidden' });
+  const days = Math.min(Math.max(parseInt(req.body?.days, 10) || 30, 1), 180);
+  const now = Date.now();
+  const since = new Date(now - days * 864e5);
+  const prevSince = new Date(now - 2 * days * 864e5);
+  const day = (v) => (v ? new Date(v).toISOString().slice(0, 10) : null);
+  const inRange = (v, from, to = new Date(now)) => v && new Date(v) >= from && new Date(v) < to;
+
+  async function rows(table) {
+    const out = [];
+    for (let from = 0; from < 20000; ) {
+      const { data, error } = await supabase.from(table).select('*').range(from, from + 999);
+      if (error) return null; // tabla que no existe: se omite
+      if (!data?.length) break;
+      out.push(...data);
+      from += data.length;
+    }
+    return out;
+  }
+  const count = (list, keyFn) => {
+    const m = {};
+    for (const x of list) { const k = keyFn(x); if (k) m[k] = (m[k] || 0) + 1; }
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n }));
+  };
+  const series = (list, dateFn, valueFn = () => 1) => {
+    const m = {};
+    for (const x of list) { const d = day(dateFn(x)); if (d) m[d] = (m[d] || 0) + valueFn(x); }
+    return m;
+  };
+
+  const [leads, members, teams, tryouts, promos] = await Promise.all([
+    rows('leads'), rows('player_memberships'), rows('team_memberships'), rows('tryout_registrations'), rows('promo_registrations'),
+  ]);
+
+  // Pagos reales en Stripe (lo cobrado menos reembolsos)
+  const charges = [];
+  for await (const c of stripe.charges.list({ created: { gte: Math.floor(prevSince.getTime() / 1000) }, limit: 100 })) {
+    if (c.paid && c.status === 'succeeded') charges.push(c);
+    if (charges.length > 5000) break;
+  }
+  const net = (c) => (c.amount - (c.amount_refunded || 0)) / 100;
+  const chCur = charges.filter((c) => c.created * 1000 >= since.getTime());
+  const chPrev = charges.filter((c) => c.created * 1000 < since.getTime());
+
+  const startOf = (m) => m.created_at || m.term_start || m.purchased_at;
+  const cancelOf = (m) => m.cancel_requested_at || m.canceled_at;
+  const L = leads || [], M = members || [], T = teams || [];
+  const newMembers = M.filter((m) => inRange(startOf(m), since));
+  const prevMembers = M.filter((m) => inRange(startOf(m), prevSince, since));
+  const cancels = M.filter((m) => inRange(cancelOf(m), since));
+  const leadsCur = L.filter((l) => inRange(l.created_at, since));
+  const leadsPrev = L.filter((l) => inRange(l.created_at, prevSince, since));
+
+  return res.status(200).json({
+    ok: true,
+    days,
+    currency: (chCur[0] || charges[0])?.currency?.toUpperCase() || 'USD',
+    revenue: { total: chCur.reduce((a, c) => a + net(c), 0), previous: chPrev.reduce((a, c) => a + net(c), 0), payments: chCur.length, byDay: series(chCur, (c) => c.created * 1000, net) },
+    leads: leads ? {
+      total: leadsCur.length,
+      previous: leadsPrev.length,
+      byDay: series(leadsCur, (l) => l.created_at),
+      bySource: count(leadsCur, (l) => l.source || 'sin fuente'),
+      byStatus: count(leadsCur, (l) => l.status || 'new'),
+      converted: leadsCur.filter((l) => l.status === 'converted').length,
+    } : null,
+    members: members ? {
+      active: M.filter((m) => m.status === 'active').length,
+      new: newMembers.length,
+      previousNew: prevMembers.length,
+      byDay: series(newMembers, startOf),
+      newByPackage: count(newMembers, (m) => m.package_name),
+      newByPlan: count(newMembers, (m) => ({ stand: 'Mensual', m6: '6 meses', m12: '12 meses', annual: 'Anual' })[m.billing_type] || m.billing_type || 'Sin plan'),
+      activeByPackage: count(M.filter((m) => m.status === 'active'), (m) => m.package_name),
+      cancellations: cancels.length,
+      cancelReasons: count(cancels, (m) => m.cancel_reason),
+    } : null,
+    teams: teams ? { active: T.filter((t) => t.status === 'active').length, new: T.filter((t) => inRange(t.started_at || t.created_at, since)).length } : null,
+    tryouts: tryouts ? tryouts.filter((t) => inRange(t.created_at, since)).length : null,
+    events: promos ? promos.filter((p) => inRange(p.created_at, since)).length : null,
+  });
 }
