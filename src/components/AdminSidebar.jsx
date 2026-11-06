@@ -1,12 +1,13 @@
 import React from 'react'
 import { useClerk } from '@clerk/clerk-react'
-import { LayoutDashboard, Users, Inbox, Activity, Calendar, DollarSign, Megaphone, QrCode, Ticket, FileText, UserMinus, ClipboardList, Trophy, ScanLine, ChevronRight, LogOut, X } from 'lucide-react'
+import { LayoutDashboard, Users, Inbox, Activity, Calendar, DollarSign, Megaphone, QrCode, Ticket, FileText, UserMinus, ClipboardList, Trophy, ScanLine, Clapperboard, ChevronRight, LogOut, X } from 'lucide-react'
 
 const NAV = [
   { id: 'dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
   { id: 'families',     label: 'Families',    icon: Users },
   { id: 'leads',        label: 'Leads',       icon: Inbox },
   { id: 'promos',       label: 'Promos',      icon: Ticket },
+  { id: 'content',      label: 'Content',     icon: Clapperboard },
   { id: 'scanner',      label: 'Scanner',     icon: ScanLine },
   { id: 'teams',        label: 'Teams',       icon: Trophy },
   { id: 'tryouts',      label: 'Tryouts',     icon: ClipboardList },

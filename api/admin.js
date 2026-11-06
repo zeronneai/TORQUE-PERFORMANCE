@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { listContent, contentAction } from './_content.js';
 import { createClerkClient } from '@clerk/clerk-sdk-node';
 import { getVerifiedUserId } from './_auth.js';
 
@@ -29,6 +30,8 @@ const CANCEL_REASONS = ['cost', 'schedule', 'coaching', 'facility', 'moving', 'o
 //   booking_cancel    { bookingId, refund? }            cancel a booking (optionally return the session)
 //   team_move         { teamMembershipId, teamAge }     move a player to another Torque Team (9..13)
 //   team_cancel       { teamMembershipId, when }        cancel the $250/mo team sub ('period_end' | 'now')
+//   content_list      {}                               Admin > Content: videos from Roots Engine
+//   content_action    { op, id, ... }                  save | approve | reject | pending | upload | cover | day | refresh
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -61,6 +64,8 @@ export default async function handler(req, res) {
       case 'booking_cancel':    return await bookingCancel(b, userId, res);
       case 'team_move':         return await teamMove(b, userId, res);
       case 'team_cancel':       return await teamCancel(b, userId, res);
+      case 'content_list':      return res.status(200).json(await listContent());
+      case 'content_action':    return await contentRelay(b, res);
       default: return res.status(400).json({ error: 'Missing or invalid action.' });
     }
   } catch (err) {
@@ -357,4 +362,20 @@ async function metricsReport(req, res) {
     tryouts: tryouts ? tryouts.filter((t) => inRange(t.created_at, since)).length : null,
     events: promos ? promos.filter((p) => inRange(p.created_at, since)).length : null,
   });
+}
+
+// ── Content (Roots Engine) ───────────────────────────────────────────────────
+const CONTENT_ERRORS = {
+  not_connected: 'Content approval is not connected yet.',
+  token: 'Content approval is not connected yet.',
+  changed: 'This video changed. Refresh the page.',
+  bad_action: 'Unknown action.',
+  down: 'Could not reach the content service. Try again in a moment.',
+  failed: 'Could not save. Try again in a moment.',
+};
+async function contentRelay(b, res) {
+  const r = await contentAction({ ...b, action: b.op });
+  if (r.ok) return res.status(200).json(r);
+  const code = r.error === 'changed' ? 409 : r.error === 'bad_action' ? 400 : (r.error === 'not_connected' || r.error === 'token') ? 503 : 502;
+  return res.status(code).json({ error: r.message || CONTENT_ERRORS[r.error] || CONTENT_ERRORS.failed, setup: code === 503 });
 }
