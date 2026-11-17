@@ -38,6 +38,13 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') return res.status(204).end();
+
+  // Nightly Vercel cron (vercel.json): expire one-time packages whose month is over.
+  if (req.method === 'GET' && req.query?.action === 'expire_onetime') {
+    const ok = process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+    if (!ok) return res.status(401).json({ error: 'unauthorized' });
+    return expireOneTime(res);
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Roots Engine (panel de métricas de la agencia): solo números agregados, sin nombres ni correos.
@@ -64,6 +71,7 @@ export default async function handler(req, res) {
       case 'booking_cancel':    return await bookingCancel(b, userId, res);
       case 'team_move':         return await teamMove(b, userId, res);
       case 'team_cancel':       return await teamCancel(b, userId, res);
+      case 'paying_now':        return res.status(200).json(await payingNow());
       case 'content_list':      return res.status(200).json(await listContent());
       case 'content_action':    return await contentRelay(b, res);
       default: return res.status(400).json({ error: 'Missing or invalid action.' });
@@ -378,4 +386,57 @@ async function contentRelay(b, res) {
   if (r.ok) return res.status(200).json(r);
   const code = r.error === 'changed' ? 409 : r.error === 'bad_action' ? 400 : (r.error === 'not_connected' || r.error === 'token') ? 503 : 502;
   return res.status(code).json({ error: r.message || CONTENT_ERRORS[r.error] || CONTENT_ERRORS.failed, setup: code === 503 });
+}
+
+// ── Real "paying" numbers (Stripe is the source of truth) ────────────────────
+// A family counts as paying when, in the last 31 days, it had a successful charge
+// for a membership (subscription invoice, manual invoice or one-time package) or
+// it has a subscription that is active and paid through today. Merch, camps and
+// events do not count. Same rule as the reconciliation report (Nov 2026).
+async function payingNow() {
+  const now = Date.now(), since = Math.floor((now - 31 * 86400000) / 1000);
+  const [{ data: profiles }, { data: mems }] = await Promise.all([
+    supabase.from('profiles').select('id, email'),
+    supabase.from('player_memberships').select('parent_id, kid_name, status, stripe_payment_id'),
+  ]);
+  const emailToPid = new Map((profiles || []).filter(p => p.email).map(p => [p.email.trim().toLowerCase(), p.id]));
+  const byPayment = new Map((mems || []).filter(m => m.stripe_payment_id).map(m => [m.stripe_payment_id, m]));
+  const custToPid = new Map();
+  const paying = new Set(), payingKids = new Set();
+  const kidKey = (m) => `${m.parent_id}::${(m.kid_name || '').toLowerCase().trim()}`;
+
+  for await (const sub of stripe.subscriptions.list({ status: 'all', limit: 100 })) {
+    const m = byPayment.get(sub.id);
+    if (m) custToPid.set(sub.customer, m.parent_id);
+    const end = (sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end ?? 0) * 1000;
+    if (m && ['active', 'trialing'].includes(sub.status) && end > now) { paying.add(m.parent_id); payingKids.add(kidKey(m)); }
+  }
+  let revenue = 0;
+  for await (const ch of stripe.charges.list({ limit: 100, created: { gte: since } })) {
+    if (ch.status !== 'succeeded' || !ch.paid) continue;
+    const net = ch.amount - (ch.amount_refunded || 0);
+    if (net <= 0) continue;
+    const m = byPayment.get(ch.payment_intent);
+    const isMembership = !!m || !!ch.invoice;          // invoices = subscriptions + manual invoices
+    if (!isMembership) continue;
+    revenue += net;
+    const pid = m?.parent_id || custToPid.get(ch.customer) || emailToPid.get((ch.billing_details?.email || ch.receipt_email || '').trim().toLowerCase());
+    if (pid) paying.add(pid);
+    if (m) payingKids.add(kidKey(m));
+  }
+  const appActiveKids = new Set((mems || []).filter(m => m.status === 'active').map(kidKey));
+  return { ok: true, payingFamilies: paying.size, payingPlayers: payingKids.size, appActivePlayers: appActiveKids.size, membershipRevenue31d: Math.round(revenue / 100), asOf: new Date().toISOString() };
+}
+
+// ── Nightly: one-time packages whose paid month ended (3-day grace) → expired ──
+// Renewing re-activates the same row (stripe-webhook upsert), so this is safe.
+async function expireOneTime(res) {
+  const cutoff = new Date(Date.now() - 3 * 86400000).toISOString();
+  const { data, error } = await supabase.from('player_memberships')
+    .update({ status: 'expired' })
+    .eq('status', 'active').like('stripe_payment_id', 'pi_%').lt('expires_at', cutoff)
+    .select('id, kid_name');
+  if (error) { console.error('[cron] expire_onetime:', error.message); return res.status(500).json({ error: error.message }); }
+  console.log(`[cron] expired ${data.length} one-time packages`, data.map(d => d.kid_name).join(', '));
+  return res.status(200).json({ ok: true, expired: data.length });
 }

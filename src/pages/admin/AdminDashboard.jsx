@@ -4,6 +4,8 @@ import { StatCard, Card, Badge, Avatar, PageHeader, ProgressBar } from '../../co
 import { useAdminData, normDate, PACK_INFO, PKG_VIBRANT, VIBRANT, TYPE_COLORS, parentName, daysUntil, expiryColor, expiryLabel } from '../../hooks/useAdminData'
 import { supabase } from '../../supabaseClient'
 import { Check } from 'lucide-react'
+import { useSession } from '@clerk/clerk-react'
+import { API_BASE } from '../../lib/apiBase'
 
 const CT = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
@@ -17,6 +19,23 @@ const CT = ({ active, payload, label }) => {
 
 export default function AdminDashboard() {
   const { players, memberships, bookings, profiles, loading } = useAdminData()
+  const { session } = useSession()
+
+  // Real numbers from Stripe: who actually paid in the last 31 days (or has a paid-up subscription).
+  const [paying, setPaying] = useState(null)
+  useEffect(() => {
+    if (!session) return
+    let alive = true
+    ;(async () => {
+      try {
+        const token = await session.getToken()
+        const r = await fetch(`${API_BASE}/api/admin`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ action: 'paying_now' }) })
+        const d = await r.json()
+        if (alive && r.ok) setPaying(d)
+      } catch { /* the rest of the dashboard still works */ }
+    })()
+    return () => { alive = false }
+  }, [session])
   const today = new Date().toISOString().split('T')[0]
 
   const [todayCheckins, setTodayCheckins] = useState([])
@@ -328,9 +347,11 @@ export default function AdminDashboard() {
 
       {/* KPIs — vibrant color blocks */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'var(--space-4)', marginBottom:'var(--space-8)' }}>
-        <StatCard label="Active Players"    value={activeMembers}                   sub="active members"     icon="⚾" block={VIBRANT.green} />
+        <StatCard label="Paying Families"   value={paying ? paying.payingFamilies : '…'} sub={paying ? `${paying.payingPlayers} players paid last 31 days` : 'checking Stripe'} icon="✅" block={VIBRANT.green} />
+        <StatCard label="Paid Last 31 Days" value={paying ? `$${paying.membershipRevenue31d.toLocaleString()}` : '…'} sub="memberships, from Stripe" icon="💵" block={VIBRANT.purple} />
+        <StatCard label="Active Players"    value={activeMembers}                   sub="active in the app"  icon="⚾" block={VIBRANT.teal || VIBRANT.green} />
         <StatCard label="Today's Check-ins" value={todayCheckins.length}            sub="so far today"        icon="✅" block={VIBRANT.blue} />
-        <StatCard label="Monthly Revenue"   value={`$${monthlyRevenue.toLocaleString()}`} sub="active memberships" icon="💰" block={VIBRANT.red} />
+        <StatCard label="Est. Monthly"      value={`$${monthlyRevenue.toLocaleString()}`} sub="list price of active" icon="💰" block={VIBRANT.red} />
         <StatCard label="Low Sessions"      value={expiringSoon}                    sub="≤ 2 sessions left"   icon="⚠️" block={VIBRANT.amber} />
         <StatCard label="Expiring ≤30 Days" value={expiringByDate.length}           sub="by expiry date"      icon="⏳" block={VIBRANT.orange} />
       </div>
