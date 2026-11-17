@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { listContent, contentAction } from './_content.js';
+import { askTorque } from './_ask.js';
 import { createClerkClient } from '@clerk/clerk-sdk-node';
 import { getVerifiedUserId } from './_auth.js';
 
@@ -32,6 +33,7 @@ const CANCEL_REASONS = ['cost', 'schedule', 'coaching', 'facility', 'moving', 'o
 //   team_cancel       { teamMembershipId, when }        cancel the $250/mo team sub ('period_end' | 'now')
 //   payment_record    { parentId, kidName, package_name, plan, paid_on, method, reference }
 //                     record a payment made OUTSIDE the app (Stripe invoice, cash) and activate the player
+//   ask               { messages }                     Ask Torque: Claude answers from a read-only snapshot
 //   content_list      {}                               Admin > Content: videos from Roots Engine
 //   content_action    { op, id, ... }                  save | approve | reject | pending | upload | cover | day | refresh
 export default async function handler(req, res) {
@@ -74,6 +76,10 @@ export default async function handler(req, res) {
       case 'team_move':         return await teamMove(b, userId, res);
       case 'team_cancel':       return await teamCancel(b, userId, res);
       case 'payment_record':    return await paymentRecord(b, userId, res);
+      case 'ask': {               // Admin > Ask Torque (read-only Claude over the data)
+        const r = await askTorque({ supabase, stripe, messages: b.messages });
+        return res.status(r.status).json(r.body);
+      }
       case 'paying_now':        return res.status(200).json(await payingNow());
       case 'content_list':      return res.status(200).json(await listContent());
       case 'content_action':    return await contentRelay(b, res);

@@ -20,6 +20,7 @@ import Tryouts from './pages/admin/Tryouts'
 import Teams from './pages/admin/Teams'
 import Scanner from './pages/admin/Scanner'
 import Content from './pages/admin/Content'
+import AskTorque from './pages/admin/AskTorque'
 import Contracts from './pages/admin/Contracts'
 import Cancellations from './pages/admin/Cancellations'
 import EntranceQR from './pages/admin/EntranceQR'
@@ -35,6 +36,7 @@ const ADMIN_PAGES = {
   leads:        Leads,
   promos:       Promos,
   content:      Content,
+  ask:          AskTorque,
   scanner:      Scanner,
   teams:        Teams,
   tryouts:      Tryouts,
