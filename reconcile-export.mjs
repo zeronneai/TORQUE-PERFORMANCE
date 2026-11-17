@@ -29,6 +29,8 @@ if (!STRIPE_KEY || !SUPABASE_URL || !SUPABASE_KEY) {
 const stripe   = new Stripe(STRIPE_KEY);
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const SINCE = Math.floor(Date.UTC(2025, 0, 1) / 1000);   // payments since Jan 1, 2025
+// Stripe caps autoPagingToArray at 10,000, so iterate instead.
+async function list(it) { const out = []; for await (const x of it) out.push(x); return out; }
 const iso = (s) => (s ? new Date(s * 1000).toISOString() : null);
 
 async function all(table, select = '*') {
@@ -52,11 +54,11 @@ async function main() {
   const bookings    = await all('bookings', 'id, parent_id, kid_name, membership_id, session_date, status, created_at');
 
   console.log('\nStripe (read only)...');
-  const customers = (await stripe.customers.list({ limit: 100 }).autoPagingToArray({ limit: 20000 }))
+  const customers = (await list(stripe.customers.list({ limit: 100 })))
     .map(c => ({ id: c.id, email: c.email, name: c.name, phone: c.phone, created: iso(c.created), metadata: c.metadata, deleted: !!c.deleted }));
   console.log(`  customers: ${customers.length}`);
 
-  const subscriptions = (await stripe.subscriptions.list({ status: 'all', limit: 100 }).autoPagingToArray({ limit: 20000 }))
+  const subscriptions = (await list(stripe.subscriptions.list({ status: 'all', limit: 100 })))
     .map(s => ({
       id: s.id, customer: s.customer, status: s.status, created: iso(s.created),
       current_period_end: iso(s.current_period_end ?? s.items?.data?.[0]?.current_period_end),
@@ -67,7 +69,7 @@ async function main() {
     }));
   console.log(`  subscriptions: ${subscriptions.length}`);
 
-  const charges = (await stripe.charges.list({ limit: 100, created: { gte: SINCE } }).autoPagingToArray({ limit: 50000 }))
+  const charges = (await list(stripe.charges.list({ limit: 100, created: { gte: SINCE } })))
     .map(c => ({
       id: c.id, created: iso(c.created), amount: c.amount, amount_refunded: c.amount_refunded, status: c.status, paid: c.paid, refunded: c.refunded,
       customer: c.customer, payment_intent: c.payment_intent, invoice: c.invoice, description: c.description,
@@ -87,7 +89,7 @@ async function main() {
   }
   console.log(`  completed checkouts since 2025: ${sessions.length}`);
 
-  const prices = (await stripe.prices.list({ limit: 100, expand: ['data.product'] }).autoPagingToArray({ limit: 2000 }))
+  const prices = (await list(stripe.prices.list({ limit: 100, expand: ['data.product'] })))
     .map(p => ({ id: p.id, nickname: p.nickname, amount: p.unit_amount, interval: p.recurring?.interval || null, interval_count: p.recurring?.interval_count || null, active: p.active, lookup_key: p.lookup_key, product: p.product?.name }));
   console.log(`  prices: ${prices.length}`);
 
