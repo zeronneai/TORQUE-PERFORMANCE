@@ -437,7 +437,7 @@ async function expireOneTime(res) {
   const cutoff = new Date(Date.now() - 3 * 86400000).toISOString();
   const { data, error } = await supabase.from('player_memberships')
     .update({ status: 'expired' })
-    .eq('status', 'active').or('stripe_payment_id.like.pi_%,stripe_payment_id.like.in_%').lt('expires_at', cutoff)
+    .eq('status', 'active').or('stripe_payment_id.like.pi_%,stripe_payment_id.like.in_%,stripe_payment_id.eq.manual').lt('expires_at', cutoff)
     .select('id, kid_name');
   if (error) { console.error('[cron] expire_onetime:', error.message); return res.status(500).json({ error: error.message }); }
   console.log(`[cron] expired ${data.length} one-time packages`, data.map(d => d.kid_name).join(', '));
