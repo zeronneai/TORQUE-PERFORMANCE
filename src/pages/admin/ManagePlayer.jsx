@@ -52,6 +52,12 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
   const [opRef, setOpRef] = useState('')
   const [opSaving, setOpSaving] = useState(false)
 
+  // Notes Ask Torque reads
+  const [notes, setNotes] = useState([])
+  const [noteText, setNoteText] = useState('')
+  const [notePlayerOnly, setNotePlayerOnly] = useState(true)
+  const [noteBusy, setNoteBusy] = useState(false)
+
   // Booking form
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -71,6 +77,8 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
     setOpPkg(PACKAGES.some(p => p.name === m?.package_name) ? m.package_name : 'Package AA')
     setOpPlan('monthly'); setOpDate(new Date().toISOString().split('T')[0]); setOpMethod('invoice'); setOpRef('')
     loadClosedDates().then(() => setClosedTick(n => n + 1))
+    setNotes([]); setNoteText(''); setNotePlayerOnly(true)
+    if (player?.parent_id) call({ action: 'notes_list', parentId: player.parent_id }).then(d => setNotes(d.notes || [])).catch(() => {})
   }, [open, m?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const todayIso = new Date().toISOString().split('T')[0]
@@ -127,6 +135,21 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
       await onChanged()
     } catch (e) { alert('Could not record: ' + e.message) }
     finally { setOpSaving(false) }
+  }
+
+  async function addNote() {
+    if (!noteText.trim()) return
+    setNoteBusy(true)
+    try {
+      const d = await call({ action: 'note_add', parentId: player.parent_id, kidName: notePlayerOnly ? player.kid_name : null, note: noteText.trim() })
+      setNotes(n => [d.note, ...n]); setNoteText('')
+    } catch (e) { alert('Could not save the note: ' + e.message) }
+    finally { setNoteBusy(false) }
+  }
+  async function deleteNote(id) {
+    if (!confirm('Delete this note?')) return
+    try { await call({ action: 'note_delete', noteId: id }); setNotes(n => n.filter(x => x.id !== id)) }
+    catch (e) { alert('Could not delete: ' + e.message) }
   }
 
   async function book() {
@@ -274,6 +297,33 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
         </div>
         <div style={{ marginTop:12, display:'flex', justifyContent:'flex-end' }}>
           <button style={{ ...PRIMARY, opacity: opSaving || !opDate ? 0.6 : 1 }} disabled={opSaving || !opDate} onClick={recordPayment}>{opSaving ? 'Saving…' : 'Record payment'}</button>
+        </div>
+      </div>
+
+      {/* ── NOTES (read by Ask Torque) ── */}
+      <div style={SECTION}>
+        <div style={H}>Notes</div>
+        <div style={{ fontSize:12, color:'var(--muted)', marginBottom:10, lineHeight:1.5 }}>
+          Anything the data does not show: special deals, who pays by invoice or cash, siblings covered by one payment. Ask Torque reads these notes on every question.
+        </div>
+        {notes.map(n => (
+          <div key={n.id} style={{ display:'flex', gap:10, alignItems:'flex-start', padding:'8px 10px', borderRadius:8, background:'var(--navy3)', border:'1px solid var(--border)', marginBottom:6 }}>
+            <div style={{ flex:1, fontSize:13, color:'var(--text)', lineHeight:1.45 }}>
+              {n.kid_name && <span style={{ fontSize:11, fontWeight:700, color:'var(--text3)', marginRight:6 }}>{n.kid_name}:</span>}
+              {n.note}
+              <div style={{ fontSize:11, color:'var(--muted)', marginTop:3 }}>{new Date(n.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}</div>
+            </div>
+            <button onClick={() => deleteNote(n.id)} title="Delete note" style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', display:'flex' }}><Trash2 size={14} /></button>
+          </div>
+        ))}
+        <textarea style={{ ...SEL, minHeight:64, resize:'vertical', fontFamily:'inherit' }} maxLength={2000}
+          placeholder="e.g. Pays $400/month by invoice, covers both brothers." value={noteText} onChange={e => setNoteText(e.target.value)} />
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:8 }}>
+          <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'var(--text2)', cursor:'pointer' }}>
+            <input type="checkbox" checked={notePlayerOnly} onChange={e => setNotePlayerOnly(e.target.checked)} />
+            Only about {player.kid_name}
+          </label>
+          <button style={{ ...PRIMARY, marginLeft:'auto', opacity: noteBusy || !noteText.trim() ? 0.6 : 1 }} disabled={noteBusy || !noteText.trim()} onClick={addNote}>{noteBusy ? 'Saving…' : 'Add note'}</button>
         </div>
       </div>
 

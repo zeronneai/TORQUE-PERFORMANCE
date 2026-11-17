@@ -33,6 +33,9 @@ const CANCEL_REASONS = ['cost', 'schedule', 'coaching', 'facility', 'moving', 'o
 //   team_cancel       { teamMembershipId, when }        cancel the $250/mo team sub ('period_end' | 'now')
 //   payment_record    { parentId, kidName, package_name, plan, paid_on, method, reference }
 //                     record a payment made OUTSIDE the app (Stripe invoice, cash) and activate the player
+//   notes_list        { parentId? }                    member notes (parentId omitted = academy rules)
+//   note_add          { parentId?, kidName?, note }    add a note Ask Torque will read
+//   note_delete       { noteId }
 //   ask               { messages }                     Ask Torque: Claude answers from a read-only snapshot
 //   content_list      {}                               Admin > Content: videos from Roots Engine
 //   content_action    { op, id, ... }                  save | approve | reject | pending | upload | cover | day | refresh
@@ -76,6 +79,9 @@ export default async function handler(req, res) {
       case 'team_move':         return await teamMove(b, userId, res);
       case 'team_cancel':       return await teamCancel(b, userId, res);
       case 'payment_record':    return await paymentRecord(b, userId, res);
+      case 'notes_list':        return await notesList(b, res);
+      case 'note_add':          return await noteAdd(b, userId, res);
+      case 'note_delete':       return await noteDelete(b, res);
       case 'ask': {               // Admin > Ask Torque (read-only Claude over the data)
         const r = await askTorque({ supabase, stripe, messages: b.messages });
         return res.status(r.status).json(r.body);
@@ -485,4 +491,27 @@ async function paymentRecord(b, userId, res) {
   if (error) { console.error('[admin] payment_record:', error.message); return res.status(500).json({ error: 'Could not save.' }); }
   console.log(`[admin] ${userId} recorded outside payment for ${kidName}: ${b.package_name} ${annual ? 'annual' : 'monthly'} (${payload.stripe_payment_id}) until ${end.toISOString().slice(0, 10)}`);
   return res.status(200).json({ ok: true, expires_at: end.toISOString() });
+}
+
+// ── Member notes (read by Ask Torque) ────────────────────────────────────────
+async function notesList(b, res) {
+  let q = supabase.from('member_notes').select('*').order('created_at', { ascending: false });
+  q = b.parentId ? q.eq('parent_id', String(b.parentId)) : q.is('parent_id', null);
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ error: 'Notes are not set up yet (run member-notes.sql).' });
+  return res.status(200).json({ notes: data || [] });
+}
+async function noteAdd(b, userId, res) {
+  const note = String(b.note || '').trim().slice(0, 2000);
+  if (!note) return res.status(400).json({ error: 'Write the note first.' });
+  const { data, error } = await supabase.from('member_notes').insert({
+    parent_id: b.parentId ? String(b.parentId) : null, kid_name: b.kidName ? String(b.kidName).trim() : null, note, created_by: userId,
+  }).select('*').single();
+  if (error) return res.status(500).json({ error: 'Could not save the note.' });
+  return res.status(200).json({ note: data });
+}
+async function noteDelete(b, res) {
+  const { error } = await supabase.from('member_notes').delete().eq('id', String(b.noteId || ''));
+  if (error) return res.status(500).json({ error: 'Could not delete.' });
+  return res.status(200).json({ ok: true });
 }

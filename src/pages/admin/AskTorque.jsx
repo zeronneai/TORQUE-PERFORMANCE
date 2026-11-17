@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useSession } from '@clerk/clerk-react'
-import { Send, Download, Sparkles, RotateCcw } from 'lucide-react'
+import { Send, Download, Sparkles, RotateCcw, BookOpen, Trash2 } from 'lucide-react'
 import { PageHeader } from '../../components/UI'
 import { API_BASE } from '../../lib/apiBase'
 
@@ -78,6 +78,56 @@ function Markdown({ text }) {
   return <>{out}</>
 }
 
+// Academy-wide rules the coaches write (member_notes with no family). Claude always follows them.
+function Rules({ call }) {
+  const [open, setOpen] = useState(false)
+  const [rules, setRules] = useState(null)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  useEffect(() => {
+    if (!open || rules) return
+    call({ action: 'notes_list' }).then(d => setRules(d.notes || [])).catch(e => { setErr(e.message); setRules([]) })
+  }, [open])
+  async function add() {
+    if (!text.trim()) return
+    setBusy(true)
+    try { const d = await call({ action: 'note_add', note: text.trim() }); setRules(r => [d.note, ...(r || [])]); setText('') }
+    catch (e) { setErr(e.message) }
+    setBusy(false)
+  }
+  async function del(id) {
+    if (!confirm('Delete this rule?')) return
+    try { await call({ action: 'note_delete', noteId: id }); setRules(r => r.filter(x => x.id !== id)) } catch (e) { setErr(e.message) }
+  }
+  return (
+    <div style={{ marginBottom: 14, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--navy2, var(--navy3))' }}>
+      <button onClick={() => setOpen(o => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'none', border: 'none', color: 'var(--text)', fontWeight: 700, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
+        <BookOpen size={15} /> Academy rules Ask Torque follows {rules ? `(${rules.length})` : ''}
+        <span style={{ marginLeft: 'auto', color: 'var(--muted)', fontWeight: 600 }}>{open ? 'Hide' : 'Show'}</span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 14px 14px' }}>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>How Torque works that the data does not show. Notes about one family go in Families &gt; Manage.</div>
+          {(rules || []).map(r => (
+            <div key={r.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '7px 0', borderTop: '1px solid var(--border)', fontSize: 13 }}>
+              <span style={{ flex: 1 }}>{r.note}</span>
+              <button onClick={() => del(r.id)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}><Trash2 size={14} /></button>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <input value={text} onChange={e => setText(e.target.value)} placeholder="e.g. Torque Team is charged on the 5th of every month." maxLength={2000}
+              onKeyDown={e => { if (e.key === 'Enter') add() }}
+              style={{ flex: 1, padding: '9px 11px', borderRadius: 8, border: '1px solid var(--border2)', background: 'var(--navy3)', color: 'var(--text)', fontSize: 13, margin: 0 }} />
+            <button onClick={add} disabled={busy || !text.trim()} style={{ padding: '0 14px', borderRadius: 8, border: 'none', background: '#1a56a0', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: busy || !text.trim() ? 0.5 : 1 }}>Add</button>
+          </div>
+          {err && <div style={{ color: '#E63946', fontSize: 12, marginTop: 6 }}>{err}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AskTorque() {
   const { session } = useSession()
   const [messages, setMessages] = useState([])
@@ -87,6 +137,14 @@ export default function AskTorque() {
   const endRef = useRef(null)
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [messages, busy])
+
+  async function call(body) {
+    const token = await session?.getToken()
+    const r = await fetch(`${API_BASE}/api/admin`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || 'Something went wrong.')
+    return d
+  }
 
   async function ask(q) {
     const question = (q ?? input).trim()
@@ -115,6 +173,8 @@ export default function AskTorque() {
     <div className="fade-in">
       <PageHeader eyebrow="Powered by Claude" title="Ask Torque"
         subtitle="Ask anything about your members, payments, attendance and leads. Answers come from live app and Stripe data. Read only: it cannot change anything." />
+
+      <Rules call={call} />
 
       <div style={{ background: 'var(--navy2, var(--navy3))', border: '1px solid var(--border)', borderRadius: 16, display: 'flex', flexDirection: 'column', minHeight: 520 }}>
         <div style={{ flex: 1, padding: 18, overflowY: 'auto', maxHeight: '65vh' }}>

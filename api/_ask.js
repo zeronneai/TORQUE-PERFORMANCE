@@ -30,7 +30,7 @@ export async function buildSnapshot({ supabase, stripe }) {
   const since13m = Math.floor((now - 400 * 86400000) / 1000);
   const ago = (days) => now - days * 86400000;
 
-  const [profiles, players, mems, team, bookings, checkins, leads, feedback] = await Promise.all([
+  const [profiles, players, mems, team, bookings, checkins, leads, feedback, notes] = await Promise.all([
     all(supabase, 'profiles', 'id, full_name, email, phone'),
     all(supabase, 'players', 'parent_id, kid_name, age, birthdate'),
     all(supabase, 'player_memberships'),
@@ -39,7 +39,11 @@ export async function buildSnapshot({ supabase, stripe }) {
     all(supabase, 'checkins', 'parent_id, kid_name, checked_in_at'),
     all(supabase, 'leads'),
     all(supabase, 'cancellation_feedback'),
+    all(supabase, 'member_notes'),
   ]);
+  const notesByPid = new Map();
+  for (const n of notes) if (n.parent_id) notesByPid.set(n.parent_id, [...(notesByPid.get(n.parent_id) || []), n]);
+  const rules = notes.filter(n => !n.parent_id);
 
   // ── Stripe: subscriptions + charges, linked to families ──
   const byPayment = new Map(mems.filter(m => m.stripe_payment_id).map(m => [m.stripe_payment_id, m]));
@@ -116,6 +120,7 @@ export async function buildSnapshot({ supabase, stripe }) {
         + ` | bookings_past60d_plus_upcoming ${b60.n} (last ${b60.last}) | checkins_last30d ${c30.n} (last ${c30.last})`
         + (fb ? ` | cancel_reason ${clean(fb.reason)}${fb.details ? `: ${clean(fb.details)}` : ''}` : ''));
     }
+    for (const n of notesByPid.get(p.id) || []) lines.push(`  COACH NOTE${n.kid_name ? ` (${clean(n.kid_name)})` : ''} | ${clean(n.note)}`);
     famLines.push(lines.join('\n'));
   }
 
@@ -129,6 +134,7 @@ export async function buildSnapshot({ supabase, stripe }) {
       `DATA SNAPSHOT taken ${new Date(now).toISOString()} (El Paso time is UTC-7).`,
       `TOTALS: paying families now ${payingFamilies} | paying players now ${payingPlayers} | players marked active in the app ${appActive} | registered parent accounts ${profiles.length} | leads ${leads.length}`,
       `STRIPE MONEY COLLECTED BY MONTH (all successful charges, after refunds, before Stripe fees): ${months}`,
+      rules.length ? `ACADEMY RULES FROM THE COACHES (always follow these):\n${rules.map(r => `- ${clean(r.note)}`).join('\n')}` : '',
       unknownPayer ? `Payments in the last 31 days that could not be matched to a family: ${money(unknownPayer)}` : '',
       '',
       ...famLines,
@@ -144,6 +150,7 @@ const INSTRUCTIONS = `You are "Ask Torque", the data assistant inside the admin 
 Rules:
 - Answer ONLY from the data snapshot below. Never invent people, numbers or dates. If the snapshot does not have it, say so plainly.
 - You can only read. You cannot change memberships, payments or anything else; if asked, say they can do it in Families > Manage.
+- COACH NOTE lines and ACADEMY RULES are written by the coaches and override what the raw data suggests (for example a player covered by a sibling's payment, or a special team package). Mention the note when it matters.
 - "Paying now" means a successful membership payment in the last 31 days or a subscription that is active and paid through today. That is the real active count; "app_status active" alone is not proof of payment.
 - When the answer is a list of people, use a markdown table with the useful columns (parent, player, phone, email, package, dates). Say how many rows there are. For long lists show up to 50 rows and say how many more there are.
 - Lead with the answer, keep it short and direct. Use the same language the user writes in.

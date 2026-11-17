@@ -27,6 +27,9 @@ async function getRawBody(readable) {
 // billing_type/term_months added so every membership can record its plan at write
 // time (see checkout.session.completed, invoice.payment_succeeded, verify-payment).
 //   stand  → month-to-month, term_months null   m6 → 6   m12 → 12   annual → 12 (prepaid)
+// Sessions per package as set in the app (Families > Manage). Used on renewals.
+const APP_PACKAGE_SESSIONS = { 'Package A': 4, 'Package AA': 8, 'Package AAA': 12, 'Package MLB': 20 };
+
 const PRICE_INFO = {
   // PACKAGE A (live)
   'price_1Tk92RAPTWbxe0YyE8zgXLet': { sessions: 4,  name: 'Package A',   months: 1,  billing_type: 'stand',  term_months: null }, // stand (one-time)
@@ -353,11 +356,11 @@ export default async function handler(req, res) {
         console.error('[webhook] subscription retrieve failed:', subId, e.message);
       }
       if (!priceId) priceId = invoice.lines?.data?.[0]?.price?.id ?? null;  // secondary fallback
-      const info = PRICE_INFO[priceId];
+      let info = PRICE_INFO[priceId];
 
       const { data: existing } = await supabase
         .from('player_memberships')
-        .select('id, kid_name, term_start')
+        .select('id, kid_name, term_start, package_name')
         .eq('stripe_payment_id', subId)
         .maybeSingle();
 
@@ -374,7 +377,7 @@ export default async function handler(req, res) {
               const [parentId, kidName] = parts;
               const { data: byName } = await supabase
                 .from('player_memberships')
-                .select('id, kid_name, term_start')
+                .select('id, kid_name, term_start, package_name')
                 .eq('parent_id', parentId)
                 .ilike('kid_name', kidName)
                 .maybeSingle();
@@ -392,6 +395,12 @@ export default async function handler(req, res) {
       }
 
       _alertCtx = { kidName: record.kid_name, priceId, sessionId: subId };
+
+      // Custom price made by hand in Stripe (not in PRICE_INFO): renew with the package set in the app.
+      if (!info && APP_PACKAGE_SESSIONS[record.package_name]) {
+        info = { sessions: APP_PACKAGE_SESSIONS[record.package_name], name: record.package_name, custom: true };
+        console.log(`[webhook] renewal with custom price ${priceId}: using app package ${record.package_name}`);
+      }
 
       if (!info) {
         // Don't fail silently — alert so any future price/shape break surfaces immediately.
@@ -417,18 +426,23 @@ export default async function handler(req, res) {
       // Only fill term_start/term_end when the row has none yet (rows that existed before this
       // change), deriving the commitment start from the subscription's created date. If the row
       // already has a term_start, both fields are omitted here and left exactly as they are.
-      const planUpdate = {
+      const planUpdate = info.custom ? { stripe_price_id: priceId } : {
         stripe_price_id: priceId,
         billing_type:    info.billing_type,
         term_months:     info.term_months,
       };
-      if (!record.term_start && info.term_months && subCreatedTs) {
+      if (!info.custom && !record.term_start && info.term_months && subCreatedTs) {
         planUpdate.term_start = new Date(subCreatedTs * 1000).toISOString();
         planUpdate.term_end   = addMonths(subCreatedTs, info.term_months);
       }
 
+      // The package set in the app wins over the Stripe price (coaches can move a
+      // player to another package in Families > Manage without touching Stripe).
+      const renewSessions = APP_PACKAGE_SESSIONS[record.package_name] ?? info.sessions;
+      if (renewSessions !== info.sessions) console.log(`[webhook] renewal keeps app package ${record.package_name} (${renewSessions} sessions) over Stripe price ${info.name}`);
+
       const { error } = await supabase.from('player_memberships').update({
-        sessions_total:    info.sessions,
+        sessions_total:    renewSessions,
         sessions_used:     0,
         status:            'active',
         stripe_payment_id: subId,
@@ -438,7 +452,7 @@ export default async function handler(req, res) {
       }).eq('id', record.id);
 
       if (error) throw error;
-      console.log(`✅ Renewal${existing ? '' : ' (fallback)'} — ${info.sessions} sessions reset, expires ${expiresAt} → ${record.kid_name}`);
+      console.log(`✅ Renewal${existing ? '' : ' (fallback)'} — ${renewSessions} sessions reset, expires ${expiresAt} → ${record.kid_name}`);
     }
 
     // ── Torque Team: card declined on a monthly charge → "payment not processed". ──
