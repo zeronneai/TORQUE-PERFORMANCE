@@ -30,6 +30,8 @@ const CANCEL_REASONS = ['cost', 'schedule', 'coaching', 'facility', 'moving', 'o
 //   booking_cancel    { bookingId, refund? }            cancel a booking (optionally return the session)
 //   team_move         { teamMembershipId, teamAge }     move a player to another Torque Team (9..13)
 //   team_cancel       { teamMembershipId, when }        cancel the $250/mo team sub ('period_end' | 'now')
+//   payment_record    { parentId, kidName, package_name, plan, paid_on, method, reference }
+//                     record a payment made OUTSIDE the app (Stripe invoice, cash) and activate the player
 //   content_list      {}                               Admin > Content: videos from Roots Engine
 //   content_action    { op, id, ... }                  save | approve | reject | pending | upload | cover | day | refresh
 export default async function handler(req, res) {
@@ -71,6 +73,7 @@ export default async function handler(req, res) {
       case 'booking_cancel':    return await bookingCancel(b, userId, res);
       case 'team_move':         return await teamMove(b, userId, res);
       case 'team_cancel':       return await teamCancel(b, userId, res);
+      case 'payment_record':    return await paymentRecord(b, userId, res);
       case 'paying_now':        return res.status(200).json(await payingNow());
       case 'content_list':      return res.status(200).json(await listContent());
       case 'content_action':    return await contentRelay(b, res);
@@ -428,15 +431,52 @@ async function payingNow() {
   return { ok: true, payingFamilies: paying.size, payingPlayers: payingKids.size, appActivePlayers: appActiveKids.size, membershipRevenue31d: Math.round(revenue / 100), asOf: new Date().toISOString() };
 }
 
-// ── Nightly: one-time packages whose paid month ended (3-day grace) → expired ──
+// ── Nightly: one-time packages and hand-recorded invoices whose paid period ended (3-day grace) → expired ──
 // Renewing re-activates the same row (stripe-webhook upsert), so this is safe.
 async function expireOneTime(res) {
   const cutoff = new Date(Date.now() - 3 * 86400000).toISOString();
   const { data, error } = await supabase.from('player_memberships')
     .update({ status: 'expired' })
-    .eq('status', 'active').like('stripe_payment_id', 'pi_%').lt('expires_at', cutoff)
+    .eq('status', 'active').or('stripe_payment_id.like.pi_%,stripe_payment_id.like.in_%').lt('expires_at', cutoff)
     .select('id, kid_name');
   if (error) { console.error('[cron] expire_onetime:', error.message); return res.status(500).json({ error: error.message }); }
   console.log(`[cron] expired ${data.length} one-time packages`, data.map(d => d.kid_name).join(', '));
   return res.status(200).json({ ok: true, expired: data.length });
+}
+
+// ── Payment made outside the app (Stripe invoice sent by hand, cash, check) ──
+// Activates (or renews) the player's membership the same way a checkout would:
+// one row per player, sessions reset, access until paid_on + 1 month (monthly) or
+// + 12 months (annual). stripe_payment_id keeps the invoice id (in_...) or 'manual'.
+// The nightly job expires these too when the month or year runs out.
+const PKG_SESSIONS = { 'Package A': 4, 'Package AA': 8, 'Package AAA': 12, 'Package MLB': 20 };
+async function paymentRecord(b, userId, res) {
+  const parentId = String(b.parentId || '');
+  const kidName = String(b.kidName || '').trim();
+  const sessions = PKG_SESSIONS[b.package_name];
+  const annual = b.plan === 'annual';
+  if (!parentId || !kidName) return res.status(400).json({ error: 'Missing player.' });
+  if (!sessions) return res.status(400).json({ error: 'Pick a package.' });
+  if (!ISO.test(String(b.paid_on || ''))) return res.status(400).json({ error: 'Pick the date it was paid.' });
+  const ref = String(b.reference || '').trim();
+  if (b.method === 'invoice' && !/^in_[A-Za-z0-9]+$/.test(ref)) return res.status(400).json({ error: 'Paste the Stripe invoice ID (it starts with in_).' });
+
+  const start = new Date(b.paid_on + 'T12:00:00-06:00');
+  const end = new Date(start); end.setMonth(end.getMonth() + (annual ? 12 : 1));
+  const payload = {
+    package_name: b.package_name, sessions_total: sessions, sessions_used: 0, status: 'active',
+    purchased_at: start.toISOString(), expires_at: end.toISOString(),
+    stripe_payment_id: b.method === 'invoice' ? ref : 'manual', stripe_session_id: null, stripe_price_id: null,
+    billing_type: annual ? 'annual' : 'stand', term_months: annual ? 12 : null,
+    term_start: annual ? start.toISOString() : null, term_end: annual ? end.toISOString() : null,
+  };
+  const { data: existing } = await supabase.from('player_memberships')
+    .select('id').eq('parent_id', parentId).ilike('kid_name', kidName).order('purchased_at', { ascending: false }).limit(1);
+  const q = existing?.[0]
+    ? supabase.from('player_memberships').update(payload).eq('id', existing[0].id)
+    : supabase.from('player_memberships').insert({ ...payload, parent_id: parentId, kid_name: kidName });
+  const { error } = await q;
+  if (error) { console.error('[admin] payment_record:', error.message); return res.status(500).json({ error: 'Could not save.' }); }
+  console.log(`[admin] ${userId} recorded outside payment for ${kidName}: ${b.package_name} ${annual ? 'annual' : 'monthly'} (${payload.stripe_payment_id}) until ${end.toISOString().slice(0, 10)}`);
+  return res.status(200).json({ ok: true, expires_at: end.toISOString() });
 }

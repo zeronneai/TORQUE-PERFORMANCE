@@ -8,7 +8,8 @@ import { isClosedDay, closedReason, loadClosedDates } from '../../lib/closedDate
 import { CANCEL_REASONS } from '../../lib/cancelReasons'
 
 // Admin "Manage player" modal: adjust the membership (sessions, package, renewal date,
-// status), book sessions on the family's behalf, and cancel upcoming bookings.
+// status), record a payment made outside the app (Stripe invoice, cash), book sessions
+// on the family's behalf, and cancel upcoming bookings.
 // All writes go through api/admin.js (admin role verified server-side).
 
 const PACKAGES = [
@@ -43,6 +44,14 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
 
+  // Payment made outside the app
+  const [opPkg, setOpPkg] = useState('Package AA')
+  const [opPlan, setOpPlan] = useState('monthly')
+  const [opDate, setOpDate] = useState('')
+  const [opMethod, setOpMethod] = useState('invoice')
+  const [opRef, setOpRef] = useState('')
+  const [opSaving, setOpSaving] = useState(false)
+
   // Booking form
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -59,6 +68,8 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
     setStatus(m?.status || 'active')
     setCancelReason(''); setCancelDetails('')
     setDate(''); setTime(''); setDeduct(!!m); setMsg(null)
+    setOpPkg(PACKAGES.some(p => p.name === m?.package_name) ? m.package_name : 'Package AA')
+    setOpPlan('monthly'); setOpDate(new Date().toISOString().split('T')[0]); setOpMethod('invoice'); setOpRef('')
     loadClosedDates().then(() => setClosedTick(n => n + 1))
   }, [open, m?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -104,6 +115,18 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
       await onChanged()
     } catch (e) { alert('Could not save: ' + e.message) }
     finally { setSaving(false) }
+  }
+
+  async function recordPayment() {
+    if (opMethod === 'invoice' && !/^in_[A-Za-z0-9]+$/.test(opRef.trim())) { alert('Paste the Stripe invoice ID. It starts with in_ (Stripe > Invoices > open the invoice).'); return }
+    if (!confirm(`Activate ${player.kid_name} on ${opPkg} (${opPlan === 'annual' ? '12 months' : '1 month'}) from ${opDate}?\n\nThis only updates the app. It does not charge anything.`)) return
+    setOpSaving(true); setMsg(null)
+    try {
+      const d = await call({ action: 'payment_record', parentId: player.parent_id, kidName: player.kid_name, package_name: opPkg, plan: opPlan, paid_on: opDate, method: opMethod, reference: opRef.trim() })
+      setMsg(`Payment recorded. ${player.kid_name} is active until ${new Date(d.expires_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}.`)
+      await onChanged()
+    } catch (e) { alert('Could not record: ' + e.message) }
+    finally { setOpSaving(false) }
   }
 
   async function book() {
@@ -206,6 +229,52 @@ export default function ManagePlayer({ player, membership, bookings = [], onClos
             </div>
           </>
         )}
+      </div>
+
+      {/* ── PAID OUTSIDE THE APP ── */}
+      <div style={SECTION}>
+        <div style={H}>Paid outside the app</div>
+        <div style={{ fontSize:12, color:'var(--muted)', marginBottom:10, lineHeight:1.5 }}>
+          Use this when the family paid with an invoice sent from Stripe, cash or check. The app cannot see those payments on its own, so the player stays inactive until you record it here.
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          <div>
+            <label style={LBL}>Package</label>
+            <select style={SEL} value={opPkg} onChange={e => setOpPkg(e.target.value)}>
+              {PACKAGES.map(p => <option key={p.name} value={p.name}>{p.name} ({p.sessions}/mo)</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={LBL}>Covers</label>
+            <select style={SEL} value={opPlan} onChange={e => setOpPlan(e.target.value)}>
+              <option value="monthly">1 month</option>
+              <option value="annual">12 months (annual)</option>
+            </select>
+          </div>
+          <div>
+            <label style={LBL}>Paid on</label>
+            <input style={SEL} type="date" value={opDate} onChange={e => setOpDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LBL}>How they paid</label>
+            <select style={SEL} value={opMethod} onChange={e => setOpMethod(e.target.value)}>
+              <option value="invoice">Stripe invoice</option>
+              <option value="manual">Cash / check / other</option>
+            </select>
+          </div>
+          {opMethod === 'invoice' && (
+            <div style={{ gridColumn:'1 / -1' }}>
+              <label style={LBL}>Stripe invoice ID</label>
+              <input style={SEL} type="text" placeholder="in_1Abc..." value={opRef} onChange={e => setOpRef(e.target.value)} />
+            </div>
+          )}
+        </div>
+        <div style={{ fontSize:11, color:'var(--muted)', marginTop:8, lineHeight:1.5 }}>
+          Sessions reset to the package amount. Access runs from the paid date for 1 month (or 12). When it runs out and nothing new is recorded, the player switches to expired on their own.
+        </div>
+        <div style={{ marginTop:12, display:'flex', justifyContent:'flex-end' }}>
+          <button style={{ ...PRIMARY, opacity: opSaving || !opDate ? 0.6 : 1 }} disabled={opSaving || !opDate} onClick={recordPayment}>{opSaving ? 'Saving…' : 'Record payment'}</button>
+        </div>
       </div>
 
       {/* ── BOOK A SESSION ── */}
