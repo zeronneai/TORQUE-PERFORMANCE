@@ -9,6 +9,7 @@ import { isClosedDay, closedReason, loadClosedDates } from '../../lib/closedDate
 import { CANCEL_REASONS } from '../../lib/cancelReasons'
 import QRCheckinModal from '../../components/QRCheckinModal'
 import TeamPage from './TeamPage'
+import ShopPage from './ShopPage'
 import PlayerCardPage from './PlayerCardPage'
 import { teamIsOpen } from '../../lib/team'
 import ErrorBoundary from '../../components/ErrorBoundary'
@@ -38,7 +39,7 @@ const NAV_ITEMS = [
   { id: 'card',     label: 'Player Card' },
   { id: 'promos',   label: 'Promos'    },
   { id: 'events',   label: 'Events'    },
-  { id: 'shop',     label: 'Shop', href: 'https://torquebaseball.us/shop' },
+  { id: 'shop',     label: 'Shop'      },
 ]
 
 // Master switch for the (ended) Summer MLB promo modal. Left in place so the
@@ -1381,6 +1382,7 @@ export default function ParentPortal() {
     card:     <PlayerCardPage />,
     team:     <TeamPage players={players} parentId={user?.id} justJoined={teamJoined} onBuy={(p) => { setSelectedPlayer(p); setShowBuyPack(true) }} />,
     promos:   <PromosPage players={players} promo={activePromo} inCampAge={inCampAge} onRegister={handleCampRegister} onAddPlayer={() => setShowAddPlayer(true)} registering={campRegistering} />,
+    shop:     <ShopPage user={user} profile={profile} />,
     events:   <EventsPage user={user} players={players} parentDisplayName={profile?.full_name || user?.fullName || ''} />,
   }
 

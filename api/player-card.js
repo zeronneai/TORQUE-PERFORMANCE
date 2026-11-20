@@ -11,6 +11,7 @@ const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 // Player cards + entrance scanner. Every call needs Authorization: Bearer <Clerk token>.
 //   Parents: my_cards            → their players' cards (token for the QR, photo link, live info)
 //            photo_upload        { playerId, image: dataURL }   (own players only)
+//            my_orders           → their Torque Shop orders (matched by their account emails)
 //   Admins:  scan                { code, commit }  → verdict; commit=true auto-confirms a green scan
 //            confirm             { token, override: true }      → "Let in anyway" on a red scan
 //            photo_upload        (any player)
@@ -29,6 +30,7 @@ export default async function handler(req, res) {
     switch (b.action) {
       case 'my_cards':     return await myCards(userId, res);
       case 'photo_upload': return await photoUpload(b, userId, res);
+      case 'my_orders':    return await myOrders(userId, res);
       case 'scan':         return (await isAdmin(userId)) ? await scan(b, userId, res) : res.status(403).json({ error: 'Admins only.' });
       case 'confirm':      return (await isAdmin(userId)) ? await confirm(b, userId, res) : res.status(403).json({ error: 'Admins only.' });
       default:             return res.status(400).json({ error: 'Missing or invalid action.' });
@@ -239,4 +241,17 @@ async function confirm(b, userId, res) {
   const v = verdict(s);
   await logScan(s, { verdict: v.verdict, reason: `Override: ${v.reason}` }, 'override', userId, r.bookingId, r.deducted);
   return res.status(200).json({ ok: true, deducted: r.deducted, sessions_left: r.after });
+}
+
+// Torque Shop orders placed with any of the parent's account emails (shop orders are not tied
+// to an account; the store is public). Only the fields the parent needs.
+async function myOrders(userId, res) {
+  const u = await clerk.users.getUser(userId);
+  const emails = (u.emailAddresses || []).map(e => (e.emailAddress || '').toLowerCase()).filter(Boolean);
+  if (!emails.length) return res.status(200).json({ orders: [] });
+  const { data, error } = await supabase.from('shop_orders')
+    .select('order_number, created_at, items, total_cents, payment_method, payment_status, status, fulfillment')
+    .in('email', emails).order('created_at', { ascending: false }).limit(50);
+  if (error) return res.status(200).json({ orders: [] });   // shop not set up yet
+  return res.status(200).json({ orders: data || [] });
 }
