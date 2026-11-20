@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { listContent, contentAction } from './_content.js';
 import { askTorque } from './_ask.js';
+import { shopAction } from './_shop-admin.js';
 import { createClerkClient } from '@clerk/clerk-sdk-node';
 import { getVerifiedUserId } from './_auth.js';
 
@@ -33,6 +34,7 @@ const CANCEL_REASONS = ['cost', 'schedule', 'coaching', 'facility', 'moving', 'o
 //   team_cancel       { teamMembershipId, when }        cancel the $250/mo team sub ('period_end' | 'now')
 //   payment_record    { parentId, kidName, package_name, plan, paid_on, method, reference }
 //                     record a payment made OUTSIDE the app (Stripe invoice, cash) and activate the player
+//   shop              { op, ... }                      Admin > Shop: products, settings, orders
 //   notes_list        { parentId? }                    member notes (parentId omitted = academy rules)
 //   note_add          { parentId?, kidName?, note }    add a note Ask Torque will read
 //   note_delete       { noteId }
@@ -79,6 +81,7 @@ export default async function handler(req, res) {
       case 'team_move':         return await teamMove(b, userId, res);
       case 'team_cancel':       return await teamCancel(b, userId, res);
       case 'payment_record':    return await paymentRecord(b, userId, res);
+      case 'shop':              return await shopAction(b, userId, res, supabase);   // Admin > Shop (op: get | product_save | ...)
       case 'notes_list':        return await notesList(b, res);
       case 'note_add':          return await noteAdd(b, userId, res);
       case 'note_delete':       return await noteDelete(b, res);

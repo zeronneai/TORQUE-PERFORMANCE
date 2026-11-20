@@ -38,6 +38,7 @@ const NAV_ITEMS = [
   { id: 'card',     label: 'Player Card' },
   { id: 'promos',   label: 'Promos'    },
   { id: 'events',   label: 'Events'    },
+  { id: 'shop',     label: 'Shop', href: 'https://torquebaseball.us/shop' },
 ]
 
 // Master switch for the (ended) Summer MLB promo modal. Left in place so the
@@ -1410,8 +1411,8 @@ export default function ParentPortal() {
 
       {/* Nav */}
       <nav style={{ flex:1, padding:'6px 10px', display:'flex', flexDirection:'column' }}>
-        {NAV_ITEMS.filter(({ id }) => id !== 'team' || teamIsOpen()).map(({ id, label }) => (
-          <button key={id} onClick={() => navigateTo(id)} className={`nav-item${page === id ? ' active' : ''}`}>
+        {NAV_ITEMS.filter(({ id }) => id !== 'team' || teamIsOpen()).map(({ id, label, href }) => (
+          <button key={id} onClick={() => href ? window.open(href, '_blank', 'noopener') : navigateTo(id)} className={`nav-item${page === id ? ' active' : ''}`}>
             {/* Red indicator dot */}
             <span style={{ width:5, height:5, borderRadius:'50%', flexShrink:0, transition:'all 0.2s', background: page === id ? 'var(--white)' : 'transparent', border: page === id ? 'none' : '1px solid var(--muted2)' }} />
             {label}
